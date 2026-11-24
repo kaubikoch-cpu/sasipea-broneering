@@ -8,6 +8,13 @@ require dirname( __DIR__ ) . '/includes/Vat.php';
 defined( 'ABSPATH' ) || define( 'ABSPATH', __DIR__ . '/' );
 require dirname( __DIR__ ) . '/includes/Integrations/Woo.php';
 require dirname( __DIR__ ) . '/includes/Integrations/Modellid.php';
+// Kassa veateated ja summade vormindus: tõlkefunktsioon tagastab testis algse teksti.
+if ( ! function_exists( '__' ) ) {
+	function __( $text, $domain = '' ) { // phpcs:ignore
+		return $text;
+	}
+}
+require dirname( __DIR__ ) . '/includes/Settings.php';
 require dirname( __DIR__ ) . '/includes/Kassa.php';
 $autoload = dirname( __DIR__ ) . '/vendor/autoload.php';
 if ( is_readable( $autoload ) ) {

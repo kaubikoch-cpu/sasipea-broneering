@@ -203,7 +203,7 @@ final class Install {
   KEY staff_time (staff_id,sold_at)
 ) ENGINE=InnoDB $c;";
 
-		// Kassa arved ja maksed. status: open (koostamisel) või paid. method: cash, card, transfer.
+		// Kassa arved ja maksed. status: open (koostamisel) või paid. method: cash, card, transfer või mixed (jagatud makse; osad on veergudes *_cents).
 		$sql[] = "CREATE TABLE {$t('payments')} (
   id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   booking_id bigint(20) unsigned NULL,
@@ -213,6 +213,10 @@ final class Install {
   service_cents int(11) NOT NULL DEFAULT 0,
   total_cents int(11) NOT NULL DEFAULT 0,
   method varchar(10) NULL,
+  cash_cents int(11) NOT NULL DEFAULT 0,
+  card_cents int(11) NOT NULL DEFAULT 0,
+  transfer_cents int(11) NOT NULL DEFAULT 0,
+  cash_given_cents int(11) NULL,
   status varchar(10) NOT NULL DEFAULT 'open',
   created_at datetime NOT NULL,
   paid_at datetime NULL,
