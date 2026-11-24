@@ -72,8 +72,36 @@ final class AdminController {
 		if ( self::can_manage() ) {
 			return $all;
 		}
+		if ( self::trainee_may( 'others' ) ) {
+			return $all;
+		}
 		$own = Roles::current_staff_id();
 		return array_values( array_filter( $all, fn( $s ) => $s['id'] === $own ) );
+	}
+
+	/** Kas juhendaja on lubanud praktikandil seda näha (Seaded → Praktikandi vaade). */
+	private static function trainee_may( string $what ): bool {
+		return ! empty( Settings::get()['trainee_view'][ $what ] );
+	}
+
+	/** Broneering praktikandi pilgu läbi: ainult see, mis on lubatud. Võõra broneeringu klienti ei näidata. */
+	private static function booking_for_trainee( array $b ): array {
+		$own = (int) $b['staff_id'] === Roles::current_staff_id();
+		$out = self::booking_out( $b, $own && self::trainee_may( 'details' ) );
+		if ( ! $own ) {
+			$out['client'] = '';
+			$out['phone']  = '';
+			$out['price']  = '';
+			return $out;
+		}
+		if ( ! self::trainee_may( 'phone' ) ) {
+			$out['phone'] = '';
+		}
+		if ( ! self::trainee_may( 'price' ) ) {
+			$out['price'] = '';
+		}
+		unset( $out['client_id'], $out['model_id'] );
+		return $out;
 	}
 
 	public static function booking_out( array $b, bool $full = true ): array {
@@ -131,7 +159,7 @@ final class AdminController {
 			$bookings = array();
 			foreach ( Repo::bookings_between( $from, $to, 0, false ) as $b ) {
 				if ( in_array( (int) $b['staff_id'], $ids, true ) ) {
-					$bookings[] = self::booking_out( $b, self::can_manage() );
+					$bookings[] = self::can_manage() ? self::booking_out( $b ) : self::booking_for_trainee( $b );
 				}
 			}
 			$blocks = array();
@@ -169,10 +197,10 @@ final class AdminController {
 		if ( ! $b ) {
 			return new \WP_Error( 'sb_404', 'Not found', array( 'status' => 404 ) );
 		}
-		if ( ! self::can_manage() && (int) $b['staff_id'] !== Roles::current_staff_id() ) {
+		if ( ! self::can_manage() && (int) $b['staff_id'] !== Roles::current_staff_id() && ! self::trainee_may( 'others' ) ) {
 			return new \WP_Error( 'sb_forbidden', 'Forbidden', array( 'status' => 403 ) );
 		}
-		$out            = self::booking_out( $b, true );
+		$out            = self::can_manage() ? self::booking_out( $b, true ) : self::booking_for_trainee( $b );
 		$out['history'] = array();
 		if ( self::can_manage() ) {
 			foreach ( array_slice( Repo::client_history( (int) $b['client_id'] ), 0, 10 ) as $h ) {

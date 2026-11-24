@@ -87,13 +87,30 @@ final class Repo {
 	}
 
 	public static function staff_out( array $r ): array {
+		$out = array(
+			'id'                => (int) $r['id'],
+			'user_id'           => $r['user_id'] ? (int) $r['user_id'] : null,
+			'name'              => $r['name'],
+			'photo_url'         => (string) $r['photo_url'],
+			'active'            => (bool) $r['active'],
+			'sort_order'        => (int) $r['sort_order'],
+			'level'             => (string) ( $r['level'] ?? '' ),
+			'discount_override' => isset( $r['discount_pct'] ) ? (int) $r['discount_pct'] : null,
+			'extra_override'    => isset( $r['extra_min'] ) ? (int) $r['extra_min'] : null,
+		);
+		// Kehtivad tingimused: tase + praktikandi enda erisused.
+		return $out + Pricing::terms( $out, (array) Settings::get()['levels'] );
+	}
+
+	/**
+	 * Teenuse kestus ja hind konkreetse praktikandi juures.
+	 *
+	 * @return array{duration:int,price_cents:int}
+	 */
+	public static function service_terms( array $service, ?array $staff ): array {
 		return array(
-			'id'        => (int) $r['id'],
-			'user_id'   => $r['user_id'] ? (int) $r['user_id'] : null,
-			'name'      => $r['name'],
-			'photo_url' => (string) $r['photo_url'],
-			'active'    => (bool) $r['active'],
-			'sort_order'=> (int) $r['sort_order'],
+			'duration'    => Pricing::duration( (int) $service['duration'], (int) ( $staff['extra_min'] ?? 0 ) ),
+			'price_cents' => Pricing::price( (int) $service['price_cents'], (int) ( $staff['discount_pct'] ?? 0 ) ),
 		);
 	}
 
@@ -121,8 +138,65 @@ final class Repo {
 		return array_map( 'intval', $wpdb->get_col( $wpdb->prepare( 'SELECT service_id FROM ' . self::t( 'staff_services' ) . ' WHERE staff_id = %d', $staff_id ) ) );
 	}
 
-	/** Praktikandi tööaeg kuupäeval minutites. Erand asendab nädala malli. */
+	/** Kuud ('Y-m'), mille töögraafik on koostatud ja salvestatud. */
+	public static function months(): array {
+		return array_values( array_filter( (array) get_option( 'sb_months', array() ), 'is_string' ) );
+	}
+
+	public static function month_ready( string $ym ): bool {
+		return in_array( $ym, self::months(), true );
+	}
+
+	/**
+	 * Salvestab kuu töögraafiku: iga praktikandi iga päeva kohta kas tunnid või vaba päev.
+	 *
+	 * @param array $plan array<int staff_id, array<string Y-m-d, list<[int,int]>>> (tühi list = ei tööta)
+	 */
+	public static function save_month( string $ym, array $plan ): void {
+		global $wpdb;
+		$t = self::t( 'schedule_exceptions' );
+		foreach ( $plan as $staff_id => $days ) {
+			$wpdb->query( $wpdb->prepare( "DELETE FROM $t WHERE staff_id = %d AND day LIKE %s", (int) $staff_id, $wpdb->esc_like( $ym ) . '-%' ) ); // phpcs:ignore WordPress.DB.PreparedSQL
+			foreach ( $days as $day => $ranges ) {
+				if ( ! $ranges ) {
+					$wpdb->insert( $t, array( 'staff_id' => (int) $staff_id, 'day' => $day, 'is_off' => 1 ) );
+					continue;
+				}
+				foreach ( $ranges as $r ) {
+					$wpdb->insert( $t, array( 'staff_id' => (int) $staff_id, 'day' => $day, 'start_min' => (int) $r[0], 'end_min' => (int) $r[1], 'is_off' => 0 ) );
+				}
+			}
+		}
+		$months = self::months();
+		if ( ! in_array( $ym, $months, true ) ) {
+			$months[] = $ym;
+			sort( $months );
+			update_option( 'sb_months', $months, false );
+		}
+	}
+
+	/** Aktiivsete broneeringute arv praktikandi ja kohaliku päeva kaupa: [staff_id][Y-m-d] => n. */
+	public static function booking_counts( string $ym ): array {
+		$first = new \DateTimeImmutable( $ym . '-01 00:00:00', Settings::tz() );
+		$out   = array();
+		foreach ( self::bookings_between( $first->getTimestamp(), $first->modify( '+1 month' )->getTimestamp() ) as $b ) {
+			$day = Format::local( $b['start_utc'] )->format( 'Y-m-d' );
+			$out[ (int) $b['staff_id'] ][ $day ] = ( $out[ (int) $b['staff_id'] ][ $day ] ?? 0 ) + 1;
+		}
+		return $out;
+	}
+
+	/** Praktikandi tööaeg kuupäeval minutites. Päeva kirje (kuugraafik või erand) asendab nädala malli. */
 	public static function work_ranges( int $staff_id, string $date ): array {
+		global $wpdb;
+		if ( ! empty( Settings::get()['require_month'] ) && ! self::month_ready( substr( $date, 0, 7 ) ) ) {
+			return array();
+		}
+		return self::planned_ranges( $staff_id, $date );
+	}
+
+	/** Sama mis work_ranges, aga ei arvesta seadet "ainult koostatud kuud" (kuugraafiku eeltäiteks). */
+	public static function planned_ranges( int $staff_id, string $date ): array {
 		global $wpdb;
 		$ex = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'schedule_exceptions' ) . ' WHERE staff_id = %d AND day = %s', $staff_id, $date ), ARRAY_A );
 		if ( $ex ) {
@@ -191,22 +265,25 @@ final class Repo {
 	 *
 	 * @param int[]|null $staff_ids null = kõik, kes teenust teevad.
 	 * @param bool       $admin     admin ei ole seotud etteteatamise ega ette broneerimise piiriga.
+	 * @param int|null   $duration  kindel kestus minutites (olemasoleva broneeringu nihutamisel); null = teenus + praktikandi lisaaeg.
 	 */
-	public static function availability_input( array $service, ?array $staff_ids, string $date, int $exclude_booking = 0, bool $admin = false ): array {
+	public static function availability_input( array $service, ?array $staff_ids, string $date, int $exclude_booking = 0, bool $admin = false, ?int $duration = null ): array {
 		$set = Settings::get();
 		[ $from, $to ] = self::day_bounds( $date );
 		$bookings      = self::bookings_between( $from, $to, $exclude_booking );
 		$blocks        = self::blocks_between( $from, $to );
 
-		if ( null === $staff_ids ) {
-			$staff_ids = array_column( self::staff_for_service( $service['id'] ), 'id' );
-		}
+		$rows = null === $staff_ids
+			? self::staff_for_service( $service['id'] )
+			: array_filter( array_map( array( self::class, 'staff' ), array_map( 'intval', $staff_ids ) ) );
 		$staff = array();
-		foreach ( $staff_ids as $sid ) {
-			$staff[ (int) $sid ] = array(
-				'work'     => self::work_ranges( (int) $sid, $date ),
+		foreach ( $rows as $row ) {
+			$staff[ $row['id'] ] = array(
+				'work'     => self::work_ranges( $row['id'], $date ),
 				'bookings' => array(),
 				'blocks'   => array(),
+				// Kestus sõltub praktikandist (teenus + tema lisaaeg). $duration hoiab olemasoleva broneeringu pikkust.
+				'duration' => $duration ?? self::service_terms( $service, $row )['duration'],
 			);
 		}
 		$salon_blocks = array();

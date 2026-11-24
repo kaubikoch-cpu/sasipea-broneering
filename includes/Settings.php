@@ -25,6 +25,20 @@ final class Settings {
 			'max_days_ahead'      => 60,
 			'max_concurrent'      => 3,    // korraga juhendatavaid kliente
 			'cancel_hours'        => 24,   // kuni mitu h ette saab klient tühistada/muuta
+			// Praktikandi tasemed: soodustus teenuse hinnast (%) ja lisaaeg teenuse kestusele (min).
+			'levels'              => array(
+				array( 'id' => 'noorem', 'name' => 'Noorempraktikant', 'discount_pct' => 10, 'extra_min' => 30 ),
+				array( 'id' => 'vanem', 'name' => 'Vanempraktikant', 'discount_pct' => 0, 'extra_min' => 0 ),
+			),
+			// Kui sees, saab online broneerida ainult nendesse kuudesse, mille töögraafik on koostatud.
+			'require_month'       => false,
+			// Mida sisseloginud praktikant päevaplaanis näeb. Muuta ei saa ta midagi.
+			'trainee_view'        => array(
+				'phone'   => true,  // kliendi telefon
+				'price'   => true,  // teenuse hind
+				'details' => false, // kliendi e-post ja kommentaar
+				'others'  => false, // teiste praktikantide veerud (ilma klientide andmeteta)
+			),
 			'booking_page_url'    => '/broneeri/',
 			'privacy_url'         => '/privaatsuspoliitika/',
 			'notify_email'        => 'info@oppesalong.ee',

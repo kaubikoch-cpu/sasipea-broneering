@@ -98,15 +98,40 @@ final class PublicController {
 		return Repo::catalog();
 	}
 
+	/**
+	 * Praktikandid, kes teenust teevad, koos nende juures kehtiva kestuse ja hinnaga.
+	 * "any" on vahemik valiku "Ükskõik kes" jaoks.
+	 */
 	public static function staff( \WP_REST_Request $req ): array {
-		return array_map(
-			fn( $s ) => array(
-				'id'        => $s['id'],
-				'name'      => $s['name'],
-				'photo_url' => $s['photo_url'],
-			),
-			Repo::staff_for_service( (int) $req['service'] )
-		);
+		$service = Repo::service( (int) $req['service'] );
+		if ( ! $service || $service['hidden'] ) {
+			return array( 'staff' => array(), 'any' => null );
+		}
+		$out = array();
+		$dur = array();
+		$pri = array();
+		foreach ( Repo::staff_for_service( $service['id'] ) as $s ) {
+			$t     = Repo::service_terms( $service, $s );
+			$dur[] = $t['duration'];
+			$pri[] = $t['price_cents'];
+			$out[] = array(
+				'id'             => $s['id'],
+				'name'           => $s['name'],
+				'photo_url'      => $s['photo_url'],
+				'level'          => $s['level_name'],
+				'discount_pct'   => $t['price_cents'] < $service['price_cents'] ? $s['discount_pct'] : 0,
+				'duration_label' => Settings::duration( $t['duration'] ),
+				'price_label'    => Settings::money( $t['price_cents'] ),
+			);
+		}
+		$any = null;
+		if ( $out ) {
+			$any = array(
+				'duration_label' => min( $dur ) === max( $dur ) ? Settings::duration( $dur[0] ) : Settings::duration( min( $dur ) ) . ' – ' . Settings::duration( max( $dur ) ),
+				'price_label'    => min( $pri ) === max( $pri ) ? Settings::money( $pri[0] ) : Settings::money( min( $pri ) ) . ' – ' . Settings::money( max( $pri ) ),
+			);
+		}
+		return array( 'staff' => $out, 'any' => $any );
 	}
 
 	private static function staff_ids( int $service_id, int $staff ): ?array {
@@ -235,6 +260,7 @@ final class PublicController {
 			'date'           => $start->format( 'Y-m-d' ),
 			'date_label'     => \SB\Format::date_long( $start ),
 			'time'           => $start->format( 'H:i' ),
+			'end_time'       => \SB\Format::local( $b['end_utc'] )->format( 'H:i' ),
 			'price'          => Settings::money( (int) $b['price_cents'] ),
 			'material_extra' => (bool) $b['material_extra'],
 			'status'         => $b['status'],

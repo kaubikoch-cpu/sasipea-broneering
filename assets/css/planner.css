@@ -9,6 +9,7 @@
 .sb-p-grid { display: grid; min-width: min-content; }
 .sb-p-corner, .sb-p-head { position: sticky; top: 0; z-index: 3; background: #f6f7f7; border-bottom: 1px solid var(--sbp-line); padding: 8px; font-weight: 600; }
 .sb-p-head { border-left: 1px solid var(--sbp-line); text-align: center; }
+.sb-p-head-sub { display: block; font-weight: 400; font-size: 12px; color: #50575e; }
 .sb-p-times { position: relative; }
 .sb-p-hour { position: absolute; right: 6px; font-size: 12px; color: #50575e; transform: translateY(-1px); }
 .sb-p-col {
