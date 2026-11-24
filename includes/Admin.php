@@ -11,6 +11,7 @@ final class Admin {
 	/** Admini lehe slug => töölaua vaate nimi. */
 	public const VIEWS = array(
 		'sb-planner'  => 'paevaplaan',
+		'sb-kassa'    => 'kassa',
 		'sb-month'    => 'toograafik',
 		'sb-clients'  => 'kliendid',
 		'sb-staff'    => 'praktikandid',
@@ -30,6 +31,7 @@ final class Admin {
 			self::$front = true;
 		}
 		add_action( 'admin_menu', array( self::class, 'menu' ) );
+		Kassa::init();
 		foreach ( array( 'save_service', 'save_category', 'delete_service', 'save_staff', 'add_exception', 'delete_exception', 'save_settings', 'save_client', 'save_month', 'save_product', 'add_sale', 'delete_sale', 'pay_csv', 'vat_csv', 'shop_sync' ) as $a ) {
 			add_action( 'admin_post_sb_' . $a, array( self::class, 'handle_' . $a ) );
 		}
@@ -38,6 +40,7 @@ final class Admin {
 	public static function menu(): void {
 		add_menu_page( __( 'Broneeringud', 'sasipea-broneering' ), __( 'Broneeringud', 'sasipea-broneering' ), 'sb_view_own', 'sb-planner', array( self::class, 'page_planner' ), 'dashicons-calendar-alt', 3 );
 		add_submenu_page( 'sb-planner', __( 'Päevaplaan', 'sasipea-broneering' ), __( 'Päevaplaan', 'sasipea-broneering' ), 'sb_view_own', 'sb-planner', array( self::class, 'page_planner' ) );
+		add_submenu_page( 'sb-planner', __( 'Kassa', 'sasipea-broneering' ), __( 'Kassa', 'sasipea-broneering' ), 'sb_manage_bookings', 'sb-kassa', array( Kassa::class, 'page' ) );
 		add_submenu_page( 'sb-planner', __( 'Töögraafik', 'sasipea-broneering' ), __( 'Töögraafik', 'sasipea-broneering' ), 'sb_manage_bookings', 'sb-month', array( self::class, 'page_month' ) );
 		add_submenu_page( 'sb-planner', __( 'Kliendid', 'sasipea-broneering' ), __( 'Kliendid', 'sasipea-broneering' ), 'sb_manage_bookings', 'sb-clients', array( self::class, 'page_clients' ) );
 		add_submenu_page( 'sb-planner', __( 'Praktikandid', 'sasipea-broneering' ), __( 'Praktikandid', 'sasipea-broneering' ), 'sb_manage_settings', 'sb-staff', array( self::class, 'page_staff' ) );
@@ -64,19 +67,20 @@ final class Admin {
 				'canManage' => current_user_can( 'sb_manage_bookings' ),
 				'models'    => current_user_can( 'sb_manage_bookings' ) && Integrations\Modellid::active(),
 				'today'     => ( new \DateTimeImmutable( 'now', Settings::tz() ) )->format( 'Y-m-d' ),
+				'kassaUrl'  => current_user_can( 'sb_manage_bookings' ) && $in_admin ? self::url( 'sb-kassa&booking=' ) : '',
 				'clientUrl' => $in_admin ? self::url( 'sb-clients&client=' ) : '',
 			)
 		);
 	}
 
-	private static function guard( string $cap, string $action ): void {
+	public static function guard( string $cap, string $action ): void {
 		if ( ! current_user_can( $cap ) ) {
 			wp_die( esc_html__( 'Sul pole selleks õigust.', 'sasipea-broneering' ), 403 );
 		}
 		check_admin_referer( $action );
 	}
 
-	private static function back( string $page, array $args = array() ): void {
+	public static function back( string $page, array $args = array() ): void {
 		$args = array_merge( array( 'sb_saved' => 1 ), $args );
 		if ( isset( $args['sb_error'] ) ) {
 			$args['sb_error'] = rawurlencode( (string) $args['sb_error'] );
@@ -97,7 +101,7 @@ final class Admin {
 		return Dashboard::url( self::VIEWS[ $slug ] ?? '' ) . ( '' !== $rest ? '&' . $rest : '' );
 	}
 
-	private static function notice(): void {
+	public static function notice(): void {
 		if ( isset( $_GET['sb_saved'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
 			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Salvestatud.', 'sasipea-broneering' ) . '</p></div>';
 		}
@@ -106,7 +110,7 @@ final class Admin {
 		}
 	}
 
-	private static function post( string $k, string $default = '' ): string {
+	public static function post( string $k, string $default = '' ): string {
 		return isset( $_POST[ $k ] ) ? trim( sanitize_text_field( wp_unslash( $_POST[ $k ] ) ) ) : $default; // phpcs:ignore WordPress.Security.NonceVerification -- kontrollitud guard()'is.
 	}
 

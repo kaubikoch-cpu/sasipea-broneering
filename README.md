@@ -1,6 +1,6 @@
 # Sasipea Broneering
 
-Sasipea Akadeemia online-broneerimine ja päevaplaan WordPressi pluginana. Versioon 0.6.1 (1. etapp + kuu töögraafik, tasemed, tasude arvestus, veebipoe ladu, käibemaksu aruanne, oma töölaud /salong/ ja sidumine modellide andmebaasiga).
+Sasipea Akadeemia online-broneerimine ja päevaplaan WordPressi pluginana. Versioon 0.7.0 (1. etapp + kuu töögraafik, tasemed, tasude arvestus, veebipoe ladu, käibemaksu aruanne, oma töölaud /salong/ sidumine modellide andmebaasiga ja kassa).
 
 **NB! Paigalda esmalt staging-keskkonda, mitte päris lehele.**
 
@@ -53,6 +53,17 @@ Kui samal lehel on aktiivne plugin `sasipea-modellid`, seob broneering end selle
 - Avaliku vormi linnuke "Lisa mind modellide andmebaasi" loob uue modelli olekuga "Uus" ja allikaga "broneering", kui teda andmebaasis veel ei ole. Kategooriad ja pildid lisab juhendaja hiljem.
 - Modelle näevad ainult juhendaja ja omanik (õigus `sb_manage_bookings`), praktikant mitte. Andmed loetakse otse sama lehe andmebaasist ega liigu lehelt välja.
 - Modellide plugina juhendaja roll (`sam_juhendaja`) saab broneeringute juhendaja õigused ja võib kasutada töölauda /salong/.
+
+## Kassa
+
+Kassa on juhendajale ja omanikule (õigus `sb_manage_bookings`), töölaual menüüs "Kassa" ja WP adminis Broneeringud → Kassa.
+
+- Päeva vaade näitab maksmata broneeringuid ("Ootab maksmist"), makstud arveid ja päeva käivet makseviiside kaupa (sularaha, kaart, ülekanne).
+- "Vii kassasse" (päeva vaates või päevaplaanis broneeringu kaardil) avab arve: teenus on juba real, juurde saab lisada materjali grammides, oma tooteid ja poe laost tooteid triipkoodi või tootekoodi järgi. Päevaplaanis broneeringule varem lisatud materjal ja tooted tulevad arvele kaasa.
+- Teenuse hinda saab kassas muuta (soodustus). Makse lõpetamisel salvestatakse hind broneeringule, broneering läheb staatusesse "Kohal" ja teenus jõuab tasude arvestusse.
+- "Müük ilma broneeringuta" teeb arve ainult toodetest või materjalist; müüjaks valitud praktikant saab müügi oma tasude arvestusse.
+- Pärast makset avaneb kviitung, mille saab printida. Makse saab tühistada ainult omanik (arve avaneb uuesti).
+- Kassa ei suhtle kaarditerminali ega pangaga: makseviis on märge selle kohta, kuidas klient maksis. Kviitung ei ole ametlik arve (ettevõtte registrikoodi ja käibemaksu ridu sellel ei ole).
 
 ## Päris cron jagatud majutusel
 

@@ -115,6 +115,7 @@ final class Dashboard {
 		$add( 'avaleht', __( 'Avaleht', 'sasipea-broneering' ), 'home', '', array( self::class, 'view_home' ) );
 		$add( 'paevaplaan', __( 'Päevaplaan', 'sasipea-broneering' ), 'calendar', '', array( Admin::class, 'page_planner' ) );
 		if ( $manager ) {
+			$add( 'kassa', __( 'Kassa', 'sasipea-broneering' ), 'cash', '', array( Kassa::class, 'page' ) );
 			$add( 'toograafik', __( 'Töögraafik', 'sasipea-broneering' ), 'grid', '', array( Admin::class, 'page_month' ) );
 			$add( 'kliendid', __( 'Kliendid', 'sasipea-broneering' ), 'users', '', array( Admin::class, 'page_clients' ) );
 		}
@@ -390,6 +391,7 @@ final class Dashboard {
 			'list'     => '<path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="18" r="1"/>',
 			'gear'     => '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',
 			'user'     => '<circle cx="12" cy="8" r="4"/><path d="M4 21c.8-4 4-6 8-6s7.2 2 8 6"/>',
+			'cash'     => '<rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6.5 9.5v5M17.5 9.5v5"/>',
 			'logout'   => '<path d="M9 4H5v16h4M15 8l4 4-4 4M19 12H9"/>',
 		);
 		return '<svg class="sbd-ico" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' . ( $paths[ $name ] ?? '' ) . '</svg>';

@@ -194,11 +194,33 @@ final class Install {
   total_cents int(11) NOT NULL DEFAULT 0,
   sku varchar(100) NULL,
   woo_order_id bigint(20) unsigned NULL,
+  payment_id bigint(20) unsigned NULL,
   sold_at datetime NOT NULL,
   created_by bigint(20) unsigned NULL,
   PRIMARY KEY  (id),
   KEY booking (booking_id),
+  KEY payment (payment_id),
   KEY staff_time (staff_id,sold_at)
+) ENGINE=InnoDB $c;";
+
+		// Kassa arved ja maksed. status: open (koostamisel) või paid. method: cash, card, transfer.
+		$sql[] = "CREATE TABLE {$t('payments')} (
+  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  booking_id bigint(20) unsigned NULL,
+  staff_id bigint(20) unsigned NOT NULL,
+  client_name varchar(190) NOT NULL DEFAULT '',
+  service_label varchar(190) NOT NULL DEFAULT '',
+  service_cents int(11) NOT NULL DEFAULT 0,
+  total_cents int(11) NOT NULL DEFAULT 0,
+  method varchar(10) NULL,
+  status varchar(10) NOT NULL DEFAULT 'open',
+  created_at datetime NOT NULL,
+  paid_at datetime NULL,
+  created_by bigint(20) unsigned NULL,
+  paid_by bigint(20) unsigned NULL,
+  PRIMARY KEY  (id),
+  KEY booking (booking_id),
+  KEY status_paid (status,paid_at)
 ) ENGINE=InnoDB $c;";
 
 		foreach ( $sql as $q ) {
