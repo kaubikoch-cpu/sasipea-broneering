@@ -16,7 +16,7 @@ final class Kassa {
 	);
 
 	public static function init(): void {
-		foreach ( array( 'new', 'add', 'remove', 'pay', 'reopen', 'discard' ) as $a ) {
+		foreach ( array( 'new', 'add', 'remove', 'pay', 'reopen', 'discard', 'mail' ) as $a ) {
 			add_action( 'admin_post_sb_kassa_' . $a, array( self::class, 'handle_' . $a ) );
 		}
 	}
@@ -330,6 +330,7 @@ final class Kassa {
 				echo '<p><label for="sb-k-price"><strong>' . esc_html__( 'Teenuse hind (€)', 'sasipea-broneering' ) . '</strong></label><br><input id="sb-k-price" name="service_price" inputmode="decimal" value="' . esc_attr( number_format( (int) $t['service_cents'] / 100, 2, ',', '' ) ) . '" style="width:120px" data-cents="' . (int) ( $total - (int) $t['service_cents'] ) . '"><span class="description"> ' . esc_html__( 'Muuda, kui teed soodustust või hind erines.', 'sasipea-broneering' ) . '</span></p>';
 			}
 			echo '<div class="sb-k-total"><span>' . esc_html__( 'Kokku maksta', 'sasipea-broneering' ) . '</span><strong id="sb-k-total">' . esc_html( Settings::money( $total ) ) . '</strong></div>';
+			echo '<p><label for="sb-k-email"><strong>' . esc_html__( 'Kviitung e-postile', 'sasipea-broneering' ) . '</strong></label><br><input id="sb-k-email" type="email" name="email" value="' . esc_attr( (string) ( $b['email'] ?? '' ) ) . '" autocomplete="off" style="width:100%"><span class="description">' . esc_html__( 'Kviitung saadetakse sellele aadressile kohe pärast makset. Jäta tühjaks, kui klient kviitungit ei soovi.', 'sasipea-broneering' ) . '</span></p>';
 			echo '<fieldset style="border:0;padding:0;margin:0"><legend><strong>' . esc_html__( 'Makseviis', 'sasipea-broneering' ) . '</strong></legend><div class="sb-k-methods">';
 			foreach ( self::METHODS as $k => $label ) {
 				echo '<label><input type="radio" name="method" value="' . esc_attr( $k ) . '" required' . ( 'card' === $k ? ' checked' : '' ) . '> ' . esc_html( $label ) . '</label>';
@@ -346,7 +347,14 @@ final class Kassa {
 		} else {
 			echo '<div class="sb-k-total" style="border-top:0;padding-top:0;margin-top:0"><span>' . esc_html__( 'Kokku', 'sasipea-broneering' ) . '</span><strong>' . esc_html( Settings::money( $total ) ) . '</strong></div>';
 			echo '<p>' . esc_html__( 'Makseviis', 'sasipea-broneering' ) . ': <strong>' . esc_html( self::METHODS[ $t['method'] ] ?? '' ) . '</strong></p>';
-			echo '<p class="sb-noprint"><button class="button button-primary" type="button" onclick="window.print()">' . esc_html__( 'Prindi kviitung', 'sasipea-broneering' ) . '</button></p>';
+			if ( ! empty( $t['emailed_at'] ) ) {
+				/* translators: 1: e-mail address, 2: time */
+				echo '<p class="sb-noprint">' . esc_html( sprintf( __( 'Kviitung saadetud aadressile %1$s (%2$s).', 'sasipea-broneering' ), (string) $t['email'], Format::local( $t['emailed_at'] )->format( 'd.m.Y H:i' ) ) ) . '</p>';
+			} else {
+				echo '<p class="sb-noprint">' . esc_html__( 'Kviitungit ei ole e-postiga saadetud.', 'sasipea-broneering' ) . '</p>';
+			}
+			self::form_open( 'mail', 'sb-noprint' );
+			echo '<input type="hidden" name="arve" value="' . (int) $t['id'] . '"><p><label for="sb-k-email2"><strong>' . esc_html( ! empty( $t['emailed_at'] ) ? __( 'Saada uuesti', 'sasipea-broneering' ) : __( 'Saada kviitung e-postiga', 'sasipea-broneering' ) ) . '</strong></label><br><input id="sb-k-email2" type="email" name="email" value="' . esc_attr( (string) ( $t['email'] ?: ( $b['email'] ?? '' ) ) ) . '" required style="width:100%"></p><p><button class="button button-primary" type="submit">' . esc_html__( 'Saada kviitung', 'sasipea-broneering' ) . '</button> <button class="button" type="button" onclick="window.print()">' . esc_html__( 'Prindi', 'sasipea-broneering' ) . '</button></p></form>';
 			if ( current_user_can( 'sb_manage_settings' ) ) {
 				self::form_open( 'reopen', 'sb-noprint' );
 				echo '<input type="hidden" name="arve" value="' . (int) $t['id'] . '"><button class="button button-link-delete" type="submit">' . esc_html__( 'Tühista makse ja ava arve uuesti', 'sasipea-broneering' ) . '</button></form>';
@@ -474,7 +482,93 @@ final class Kassa {
 			}
 			Repo::log( (int) $t['booking_id'], 'paid', array( 'payment' => (int) $t['id'], 'method' => $method, 'total' => self::total( $service, $sales ) ) );
 		}
-		Admin::back( 'sb-kassa', array( 'arve' => (int) $t['id'] ) );
+		$args  = array( 'arve' => (int) $t['id'] );
+		$email = sanitize_email( Admin::post( 'email' ) );
+		if ( '' !== $email && ! self::send_receipt( (int) $t['id'], $email ) ) {
+			$args['sb_error'] = __( 'Makse on salvestatud, aga kviitungi saatmine e-postiga ebaõnnestus. Proovi kviitungi lehelt uuesti.', 'sasipea-broneering' );
+		}
+		Admin::back( 'sb-kassa', $args );
+	}
+
+	public static function handle_mail(): void {
+		Admin::guard( 'sb_manage_bookings', 'sb_kassa_mail' );
+		$id    = (int) Admin::post( 'arve' );
+		$t     = self::ticket( $id );
+		$email = sanitize_email( Admin::post( 'email' ) );
+		$args  = array( 'arve' => $id, 'sb_saved' => null );
+		if ( ! $t || 'paid' !== $t['status'] ) {
+			$args['sb_error'] = __( 'Kviitungit saab saata ainult makstud arve kohta.', 'sasipea-broneering' );
+		} elseif ( ! is_email( $email ) ) {
+			$args['sb_error'] = __( 'Sisesta korrektne e-posti aadress.', 'sasipea-broneering' );
+		} elseif ( ! self::send_receipt( $id, $email ) ) {
+			$args['sb_error'] = __( 'Kviitungi saatmine ebaõnnestus. Proovi uuesti.', 'sasipea-broneering' );
+		} else {
+			$args['sb_sent'] = 1;
+		}
+		Admin::back( 'sb-kassa', $args );
+	}
+
+	/**
+	 * Kviitungi read e-kirja jaoks. Puhas funktsioon (testitav).
+	 *
+	 * @param list<array{label:string,qty:string,total:string}> $lines
+	 */
+	public static function receipt_html( array $head, array $lines, string $total ): string {
+		$e    = static fn( string $v ): string => htmlspecialchars( $v, ENT_QUOTES, 'UTF-8' );
+		$td   = 'padding:8px 10px;border-bottom:1px solid #eee;';
+		$html = '<p style="margin:0 0 12px">' . implode( '<br>', array_map( $e, $head ) ) . '</p>';
+		$html .= '<table role="presentation" cellspacing="0" cellpadding="0" style="border-collapse:collapse;width:100%;max-width:520px">';
+		foreach ( $lines as $l ) {
+			$html .= '<tr><td style="' . $td . '">' . $e( $l['label'] ) . '</td><td style="' . $td . 'text-align:right;white-space:nowrap">' . $e( $l['qty'] ) . '</td><td style="' . $td . 'text-align:right;white-space:nowrap">' . $e( $l['total'] ) . '</td></tr>';
+		}
+		$html .= '<tr><td colspan="2" style="padding:10px;font-weight:bold">Kokku</td><td style="padding:10px;text-align:right;font-weight:bold;white-space:nowrap">' . $e( $total ) . '</td></tr></table>';
+		return $html;
+	}
+
+	/** Saadab makstud arve kviitungi e-postiga ja jätab meelde, kuhu ja millal. */
+	public static function send_receipt( int $id, string $to ): bool {
+		global $wpdb;
+		$t = self::ticket( $id );
+		if ( ! $t || 'paid' !== $t['status'] || ! is_email( $to ) ) {
+			return false;
+		}
+		$set   = Settings::get();
+		$staff = Repo::staff( (int) $t['staff_id'] );
+		$lines = array();
+		if ( $t['booking_id'] ) {
+			$lines[] = array( 'label' => (string) $t['service_label'], 'qty' => '1', 'total' => Settings::money( (int) $t['service_cents'] ) );
+		}
+		foreach ( self::sales( $t ) as $s ) {
+			$lines[] = array( 'label' => $s['label'], 'qty' => $s['qty_label'], 'total' => $s['total_label'] );
+		}
+		/* translators: %d: receipt number */
+		$title = sprintf( __( 'Kviitung nr %d', 'sasipea-broneering' ), $id );
+		$head  = array_filter(
+			array(
+				'' !== (string) $t['client_name'] ? __( 'Klient', 'sasipea-broneering' ) . ': ' . $t['client_name'] : '',
+				( $t['booking_id'] ? __( 'Teenindas', 'sasipea-broneering' ) : __( 'Müüja', 'sasipea-broneering' ) ) . ': ' . ( $staff['name'] ?? '' ),
+				__( 'Makstud', 'sasipea-broneering' ) . ': ' . Format::local( $t['paid_at'] )->format( 'd.m.Y H:i' ) . ', ' . mb_strtolower( self::METHODS[ $t['method'] ] ?? '' ),
+			)
+		);
+		$web  = esc_html( $set['salon_web'] );
+		$body = '<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.5;color:#222"><h2 style="margin:0 0 4px;font-size:20px">' . esc_html( $title ) . '</h2>'
+			. '<p style="margin:0 0 16px;color:#555">' . esc_html( $set['from_name'] ) . '</p>'
+			. self::receipt_html( array_values( $head ), $lines, Settings::money( (int) $t['total_cents'] ) )
+			. '<p style="margin:18px 0 0">' . esc_html__( 'Aitäh, et käisid! Ootame sind tagasi.', 'sasipea-broneering' ) . '</p>'
+			. '<hr style="border:none;border-top:1px solid #ddd;margin:24px 0 12px"><p style="color:#555;font-size:13px;margin:0">' . esc_html( $set['from_name'] . ' · ' . $set['salon_address'] . ' · tel ' . $set['salon_phone'] ) . ' · <a href="https://' . $web . '">' . $web . '</a></p></div>';
+		$ok = wp_mail(
+			$to,
+			$title . ' – ' . $set['from_name'],
+			$body,
+			array(
+				'Content-Type: text/html; charset=UTF-8',
+				sprintf( 'From: %s <%s>', $set['from_name'], $set['from_email'] ),
+			)
+		);
+		if ( $ok ) {
+			$wpdb->update( self::t( 'payments' ), array( 'email' => $to, 'emailed_at' => Repo::utc( time() ) ), array( 'id' => $id ) );
+		}
+		return (bool) $ok;
 	}
 
 	/** Omanik saab makse tühistada (nt vale makseviis); arve avaneb uuesti muutmiseks. */
@@ -482,7 +576,7 @@ final class Kassa {
 		global $wpdb;
 		Admin::guard( 'sb_manage_settings', 'sb_kassa_reopen' );
 		$id = (int) Admin::post( 'arve' );
-		$wpdb->update( self::t( 'payments' ), array( 'status' => 'open', 'method' => null, 'paid_at' => null, 'paid_by' => null, 'total_cents' => 0 ), array( 'id' => $id, 'status' => 'paid' ) );
+		$wpdb->update( self::t( 'payments' ), array( 'status' => 'open', 'method' => null, 'paid_at' => null, 'paid_by' => null, 'total_cents' => 0, 'emailed_at' => null ), array( 'id' => $id, 'status' => 'paid' ) );
 		Admin::back( 'sb-kassa', array( 'sb_saved' => null, 'arve' => $id ) );
 	}
 

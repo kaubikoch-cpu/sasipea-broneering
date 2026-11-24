@@ -24,6 +24,15 @@ final class KassaTest extends TestCase {
 		$this->assertSame( 11000, $s['total'] );
 	}
 
+	public function test_kviitungi_kiri_sisaldab_ridu_ja_kogusummat(): void {
+		$html = Kassa::receipt_html( array( 'Klient: Mari <Tamm>' ), array( array( 'label' => 'Juukselõikus', 'qty' => '1', 'total' => '20 €' ), array( 'label' => 'Värv', 'qty' => '45 g', 'total' => '13,50 €' ) ), '33,50 €' );
+		$this->assertSame( true, str_contains( $html, 'Juukselõikus' ) );
+		$this->assertSame( true, str_contains( $html, '45 g' ) );
+		$this->assertSame( true, str_contains( $html, '33,50 €' ) );
+		$this->assertSame( true, str_contains( $html, 'Mari &lt;Tamm&gt;' ) );
+		$this->assertSame( false, str_contains( $html, '<Tamm>' ) );
+	}
+
 	public function test_summa_sisestus_eurodes(): void {
 		$this->assertSame( 1250, Kassa::parse_money( '12,5' ) );
 		$this->assertSame( 1250, Kassa::parse_money( '12.50 €' ) );

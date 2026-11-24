@@ -218,6 +218,8 @@ final class Install {
   paid_at datetime NULL,
   created_by bigint(20) unsigned NULL,
   paid_by bigint(20) unsigned NULL,
+  email varchar(190) NULL,
+  emailed_at datetime NULL,
   PRIMARY KEY  (id),
   KEY booking (booking_id),
   KEY status_paid (status,paid_at)
