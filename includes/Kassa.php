@@ -16,7 +16,7 @@ final class Kassa {
 	);
 
 	public static function init(): void {
-		foreach ( array( 'new', 'add', 'remove', 'pay', 'reopen', 'discard', 'mail' ) as $a ) {
+		foreach ( array( 'new', 'add', 'remove', 'pay', 'reopen', 'delete', 'mail' ) as $a ) {
 			add_action( 'admin_post_sb_kassa_' . $a, array( self::class, 'handle_' . $a ) );
 		}
 	}
@@ -147,6 +147,15 @@ final class Kassa {
 			.sb-kassa .sb-k-methods label:has(input:checked){border-color:#8a2b52;background:#f6e9ef}
 			.sb-kassa .sb-k-add{display:flex;flex-wrap:wrap;gap:8px;align-items:end;margin:10px 0}
 			.sb-kassa .sb-k-add label{display:flex;flex-direction:column;gap:3px;font-size:13px}
+			.sb-kassa .sb-k-shop{flex:1 1 260px;position:relative}
+			.sb-kassa .sb-k-shop input{width:100%}
+			.sb-kassa .sb-k-hits{display:block}
+			.sb-kassa .sb-k-hits button{display:flex;justify-content:space-between;gap:10px;width:100%;margin-top:4px;padding:8px 10px;border:1px solid #c3c4c7;border-radius:6px;background:#fff;text-align:left;font:inherit;cursor:pointer}
+			.sb-kassa .sb-k-hits button:hover,.sb-kassa .sb-k-hits button:focus{border-color:#8a2b52;background:#f6e9ef}
+			.sb-kassa .sb-k-hits button[disabled]{opacity:.55;cursor:not-allowed}
+			.sb-kassa .sb-k-hits small{color:#50575e;white-space:nowrap}
+			.sb-kassa .sb-k-hits em{display:block;margin-top:4px;color:#50575e;font-style:normal}
+			.sb-kassa .sb-k-picked{border-color:#0f5c30!important;background:#e3f4ea!important}
 			.sb-kassa .sb-k-pay{width:100%;min-height:48px;font-size:16px;justify-content:center}
 			.sb-kassa .sb-k-meta{color:#50575e;margin:0 0 12px}
 			.sb-kassa .sb-k-paid{display:inline-block;padding:2px 10px;border-radius:999px;background:#e3f4ea;color:#0f5c30;font-weight:600;font-size:13px}
@@ -312,11 +321,26 @@ final class Kassa {
 			}
 			echo '</optgroup></select></label>';
 			if ( Integrations\Woo::enabled() ) {
-				echo '<label>' . esc_html__( 'või poe triipkood / tootekood', 'sasipea-broneering' ) . '<input name="shop_code" autocomplete="off" style="width:170px"></label>';
+				echo '<label class="sb-k-shop">' . esc_html__( 'või otsi poest: nimi, triipkood või tootekood', 'sasipea-broneering' ) . '<input id="sb-k-shop" name="shop_code" autocomplete="off" placeholder="' . esc_attr__( 'nt šampoon või 4040218838664', 'sasipea-broneering' ) . '" data-rest="' . esc_url( rest_url( 'sasipea/v1/admin/shop-search' ) ) . '" data-nonce="' . esc_attr( wp_create_nonce( 'wp_rest' ) ) . '"><input type="hidden" name="shop_key" id="sb-k-shop-key"><span id="sb-k-shop-list" class="sb-k-hits" role="listbox" aria-live="polite"></span></label>';
 			}
 			echo '<label>' . esc_html__( 'Kogus (g või tk)', 'sasipea-broneering' ) . '<input name="qty" inputmode="decimal" value="1" style="width:90px" required></label><button class="button" type="submit">' . esc_html__( 'Lisa arvele', 'sasipea-broneering' ) . '</button></form>';
 			if ( Integrations\Woo::enabled() ) {
-				echo '<p class="description">' . esc_html__( 'Poe laost müües tehakse veebipoodi kohe tellimus ja ladu väheneb. Rea eemaldamine tühistab tellimuse.', 'sasipea-broneering' ) . '</p>';
+				echo '<p class="description">' . esc_html__( 'Poe laost müües tehakse veebipoodi kohe tellimus ja ladu väheneb. Rea eemaldamine või arve kustutamine tühistab tellimuse ja toode tuleb lattu tagasi.', 'sasipea-broneering' ) . '</p>';
+				$i18n = array(
+					'searching' => __( 'Otsin…', 'sasipea-broneering' ),
+					'none'      => __( 'Sellist toodet poest ei leitud.', 'sasipea-broneering' ),
+					'error'     => __( 'Otsing ebaõnnestus. Proovi uuesti.', 'sasipea-broneering' ),
+				);
+				echo '<script>(function(){var T=' . wp_json_encode( $i18n ) . ';' . <<<'JS'
+var q=document.getElementById('sb-k-shop');if(!q)return;var key=document.getElementById('sb-k-shop-key'),list=document.getElementById('sb-k-shop-list'),timer=null,seq=0,sel=q.form.querySelector('select[name=item]');
+function msg(t){list.textContent='';var e=document.createElement('em');e.textContent=t;list.appendChild(e);}
+function pick(it,btn){key.value=it.key;q.value=it.name;if(sel)sel.value='';[].slice.call(list.children).forEach(function(c){if(c!==btn)list.removeChild(c);});btn.classList.add('sb-k-picked');var n=q.form.querySelector('input[name=qty]');if(n){n.focus();n.select();}}
+function show(items){list.textContent='';if(!items.length){msg(T.none);return;}items.forEach(function(it){var b=document.createElement('button');b.type='button';b.setAttribute('role','option');var a=document.createElement('span');a.textContent=it.name;var m=document.createElement('small');m.textContent=it.price_label+' · '+it.stock_label;b.appendChild(a);b.appendChild(m);if(!it.in_stock)b.disabled=true;b.addEventListener('click',function(){pick(it,b);});list.appendChild(b);});}
+function run(){var v=q.value.trim();key.value='';if(v.length<2){list.textContent='';return;}var my=++seq;msg(T.searching);fetch(q.getAttribute('data-rest')+(q.getAttribute('data-rest').indexOf('?')<0?'?':'&')+'q='+encodeURIComponent(v),{credentials:'same-origin',headers:{'X-WP-Nonce':q.getAttribute('data-nonce')}}).then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(j){if(my===seq)show(Array.isArray(j)?j:[]);}).catch(function(){if(my===seq)msg(T.error);});}
+q.addEventListener('input',function(){clearTimeout(timer);timer=setTimeout(run,350);});
+if(sel)sel.addEventListener('change',function(){if(sel.value){q.value='';key.value='';list.textContent='';}});
+})();</script>
+JS;
 			}
 		}
 		echo '</div>';
@@ -340,10 +364,7 @@ final class Kassa {
 				echo '<p class="description">' . esc_html__( 'Makse lõpetamisel märgitakse broneering staatusesse "Kohal" ja teenus läheb tasude arvestusse.', 'sasipea-broneering' ) . '</p>';
 			}
 			echo "<script>(function(){var p=document.getElementById('sb-k-price'),t=document.getElementById('sb-k-total');if(!p)return;p.addEventListener('input',function(){var v=parseFloat(p.value.replace(',','.'));if(isNaN(v)||v<0)return;var c=Math.round(v*100)+parseInt(p.getAttribute('data-cents'),10);t.textContent=(c%100?(c/100).toFixed(2).replace('.',','):String(c/100))+' €';});})();</script>";
-			if ( ! $t['booking_id'] && ! $sales ) {
-				self::form_open( 'discard' );
-				echo '<input type="hidden" name="arve" value="' . (int) $t['id'] . '"><p style="margin-top:14px"><button class="button button-link-delete" type="submit">' . esc_html__( 'Katkesta müük', 'sasipea-broneering' ) . '</button></p></form>';
-			}
+			self::delete_form( $t, $sales );
 		} else {
 			echo '<div class="sb-k-total" style="border-top:0;padding-top:0;margin-top:0"><span>' . esc_html__( 'Kokku', 'sasipea-broneering' ) . '</span><strong>' . esc_html( Settings::money( $total ) ) . '</strong></div>';
 			echo '<p>' . esc_html__( 'Makseviis', 'sasipea-broneering' ) . ': <strong>' . esc_html( self::METHODS[ $t['method'] ] ?? '' ) . '</strong></p>';
@@ -358,9 +379,24 @@ final class Kassa {
 			if ( current_user_can( 'sb_manage_settings' ) ) {
 				self::form_open( 'reopen', 'sb-noprint' );
 				echo '<input type="hidden" name="arve" value="' . (int) $t['id'] . '"><button class="button button-link-delete" type="submit">' . esc_html__( 'Tühista makse ja ava arve uuesti', 'sasipea-broneering' ) . '</button></form>';
+				self::delete_form( $t, $sales );
 			}
 		}
 		echo '</div></div>';
+	}
+
+	/** Nupp "Kustuta arve": read eemaldatakse ja poe laost müüdud tooted lähevad lattu tagasi. */
+	private static function delete_form( array $t, array $sales ): void {
+		$shop = (bool) array_filter( $sales, static fn( $s ) => ! empty( $s['woo_order_id'] ) );
+		$msg  = $shop
+			? __( 'Kustutan arve? Arve read eemaldatakse ja poe laost müüdud tooted lähevad lattu tagasi.', 'sasipea-broneering' )
+			: __( 'Kustutan arve? Arvele lisatud read eemaldatakse.', 'sasipea-broneering' );
+		self::form_open( 'delete', 'sb-noprint' );
+		echo '<input type="hidden" name="arve" value="' . (int) $t['id'] . '"><p style="margin-top:14px"><button class="button button-link-delete" type="submit" onclick="return window.confirm(this.getAttribute(\'data-confirm\'))" data-confirm="' . esc_attr( $msg ) . '">' . esc_html__( 'Kustuta arve', 'sasipea-broneering' ) . '</button></p>';
+		if ( $shop ) {
+			echo '<p class="description">' . esc_html__( 'Kustutamisel tühistatakse poe tellimused ja tooted lähevad lattu tagasi.', 'sasipea-broneering' ) . '</p>';
+		}
+		echo '</form>';
 	}
 
 	/* ================= Salvestamine ================= */
@@ -395,23 +431,40 @@ final class Kassa {
 		Admin::back( 'sb-kassa', array( 'sb_saved' => null, 'arve' => (int) $wpdb->insert_id ) );
 	}
 
+	/**
+	 * Otsingu tulemustest üheselt selge toode: ainus täpne koodivaste või ainus leid üldse.
+	 *
+	 * @param list<array> $found
+	 */
+	public static function pick_hit( array $found ): ?string {
+		$exact = array_values( array_filter( $found, static fn( $f ) => ! empty( $f['exact'] ) ) );
+		if ( 1 === count( $exact ) ) {
+			return (string) $exact[0]['key'];
+		}
+		return ! $exact && 1 === count( $found ) ? (string) $found[0]['key'] : null;
+	}
+
 	public static function handle_add(): void {
 		global $wpdb;
 		Admin::guard( 'sb_manage_bookings', 'sb_kassa_add' );
 		$t    = self::open_ticket_from_post();
 		$item = Admin::post( 'item' );
 		$code = Admin::post( 'shop_code' );
+		$key  = Admin::post( 'shop_key' );
 		$res  = null;
-		if ( '' !== $code ) {
-			// Veebipoe toode triipkoodi või tootekoodi järgi: peab leiduma täpselt üks vaste.
+		if ( preg_match( '/^woo:\d+:\d+$/', $key ) ) {
+			// Otsingu tulemustest valitud poe toode. Hind ja nimi võetakse müügi hetkel poest.
+			$item = $key;
+		} elseif ( '' !== $code ) {
+			// Kood või nimi ilma valikuta (nt triipkoodilugeja ja Enter): sobib täpne koodivaste või ainus leid.
 			$found = Integrations\Woo::search( $code );
-			$exact = is_wp_error( $found ) ? array() : array_values( array_filter( $found, static fn( $f ) => ! empty( $f['exact'] ) ) );
+			$pick  = self::pick_hit( is_wp_error( $found ) ? array() : $found );
 			if ( is_wp_error( $found ) ) {
 				$res = $found;
-			} elseif ( 1 !== count( $exact ) ) {
-				$res = new \WP_Error( 'sb_invalid', __( 'Selle koodiga toodet poest ei leitud.', 'sasipea-broneering' ) );
+			} elseif ( null === $pick ) {
+				$res = new \WP_Error( 'sb_invalid', $found ? __( 'Leiti mitu toodet. Vali õige toode otsingu tulemustest.', 'sasipea-broneering' ) : __( 'Sellist toodet poest ei leitud. Proovi nime osa või triipkoodi.', 'sasipea-broneering' ) );
 			} else {
-				$item = $exact[0]['key'];
+				$item = $pick;
 			}
 		}
 		$res = $res ?? Repo::add_sale( (int) $t['staff_id'], $t['booking_id'] ? (int) $t['booking_id'] : null, $item, (float) str_replace( ',', '.', Admin::post( 'qty' ) ), time() );
@@ -580,13 +633,32 @@ final class Kassa {
 		Admin::back( 'sb-kassa', array( 'sb_saved' => null, 'arve' => $id ) );
 	}
 
-	public static function handle_discard(): void {
+	/**
+	 * Kustutab arve koos ridadega. Poe laost müüdud toote rida eemaldatakse alles siis, kui poe tellimuse
+	 * tühistamine õnnestus (pood paneb toote lattu tagasi); kui mõni tühistamine ebaõnnestub, jääb arve alles.
+	 * Makstud arvet saab kustutada ainult omanik.
+	 */
+	public static function handle_delete(): void {
 		global $wpdb;
-		Admin::guard( 'sb_manage_bookings', 'sb_kassa_discard' );
-		$t = self::open_ticket_from_post();
-		if ( ! $t['booking_id'] && ! self::sales( $t ) ) {
-			$wpdb->delete( self::t( 'payments' ), array( 'id' => (int) $t['id'] ) );
+		Admin::guard( 'sb_manage_bookings', 'sb_kassa_delete' );
+		$t = self::ticket( (int) Admin::post( 'arve' ) );
+		if ( ! $t ) {
+			Admin::back( 'sb-kassa', array( 'sb_saved' => null, 'sb_error' => __( 'Arvet ei leitud.', 'sasipea-broneering' ) ) );
 		}
-		Admin::back( 'sb-kassa', array( 'sb_saved' => null ) );
+		if ( 'paid' === $t['status'] && ! current_user_can( 'sb_manage_settings' ) ) {
+			wp_die( esc_html__( 'Sul pole selleks õigust.', 'sasipea-broneering' ), 403 );
+		}
+		$ids = array_map( 'intval', $wpdb->get_col( $wpdb->prepare( 'SELECT id FROM ' . self::t( 'sales' ) . ' WHERE payment_id = %d OR ( booking_id IS NOT NULL AND booking_id = %d AND payment_id IS NULL ) ORDER BY id', (int) $t['id'], (int) $t['booking_id'] ) ) );
+		foreach ( $ids as $sale_id ) {
+			$res = Repo::delete_sale( $sale_id );
+			if ( is_wp_error( $res ) ) {
+				Admin::back( 'sb-kassa', array( 'sb_saved' => null, 'arve' => (int) $t['id'], 'sb_error' => __( 'Arvet ei kustutatud, sest poe tellimuse tühistamine ebaõnnestus: ', 'sasipea-broneering' ) . $res->get_error_message() ) );
+			}
+		}
+		$wpdb->delete( self::t( 'payments' ), array( 'id' => (int) $t['id'] ) );
+		if ( $t['booking_id'] ) {
+			Repo::log( (int) $t['booking_id'], 'payment_deleted', array( 'payment' => (int) $t['id'] ) );
+		}
+		Admin::back( 'sb-kassa', array( 'sb_saved' => null, 'sb_deleted' => 1 ) );
 	}
 }

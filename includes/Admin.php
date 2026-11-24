@@ -105,6 +105,9 @@ final class Admin {
 		if ( isset( $_GET['sb_saved'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
 			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Salvestatud.', 'sasipea-broneering' ) . '</p></div>';
 		}
+		if ( isset( $_GET['sb_deleted'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Arve kustutatud.', 'sasipea-broneering' ) . '</p></div>';
+		}
 		if ( isset( $_GET['sb_sent'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
 			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Kviitung saadetud.', 'sasipea-broneering' ) . '</p></div>';
 		}

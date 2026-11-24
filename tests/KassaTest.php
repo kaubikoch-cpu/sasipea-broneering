@@ -42,4 +42,15 @@ final class KassaTest extends TestCase {
 		$this->assertSame( null, Kassa::parse_money( 'abc' ) );
 		$this->assertSame( null, Kassa::parse_money( '-3' ) );
 	}
+
+	public function test_poe_otsingust_valitakse_ainult_uhene_toode(): void {
+		$a = array( 'key' => 'woo:1:0', 'exact' => true );
+		$b = array( 'key' => 'woo:2:0', 'exact' => false );
+		$c = array( 'key' => 'woo:3:0', 'exact' => false );
+		$this->assertSame( 'woo:1:0', Kassa::pick_hit( array( $b, $a, $c ) ) );
+		$this->assertSame( 'woo:2:0', Kassa::pick_hit( array( $b ) ) );
+		$this->assertSame( null, Kassa::pick_hit( array( $b, $c ) ) );
+		$this->assertSame( null, Kassa::pick_hit( array() ) );
+		$this->assertSame( null, Kassa::pick_hit( array( $a, array( 'key' => 'woo:9:0', 'exact' => true ) ) ) );
+	}
 }

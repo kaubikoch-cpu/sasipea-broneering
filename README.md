@@ -1,6 +1,6 @@
 # Sasipea Broneering
 
-Sasipea Akadeemia online-broneerimine ja päevaplaan WordPressi pluginana. Versioon 0.7.1 (1. etapp + kuu töögraafik, tasemed, tasude arvestus, veebipoe ladu, käibemaksu aruanne, oma töölaud /salong/ sidumine modellide andmebaasiga ja kassa).
+Sasipea Akadeemia online-broneerimine ja päevaplaan WordPressi pluginana. Versioon 0.7.2 (1. etapp + kuu töögraafik, tasemed, tasude arvestus, veebipoe ladu, käibemaksu aruanne, oma töölaud /salong/ sidumine modellide andmebaasiga ja kassa).
 
 **NB! Paigalda esmalt staging-keskkonda, mitte päris lehele.**
 
@@ -59,10 +59,11 @@ Kui samal lehel on aktiivne plugin `sasipea-modellid`, seob broneering end selle
 Kassa on juhendajale ja omanikule (õigus `sb_manage_bookings`), töölaual menüüs "Kassa" ja WP adminis Broneeringud → Kassa.
 
 - Päeva vaade näitab maksmata broneeringuid ("Ootab maksmist"), makstud arveid ja päeva käivet makseviiside kaupa (sularaha, kaart, ülekanne).
-- "Vii kassasse" (päeva vaates või päevaplaanis broneeringu kaardil) avab arve: teenus on juba real, juurde saab lisada materjali grammides, oma tooteid ja poe laost tooteid triipkoodi või tootekoodi järgi. Päevaplaanis broneeringule varem lisatud materjal ja tooted tulevad arvele kaasa.
+- "Vii kassasse" (päeva vaates või päevaplaanis broneeringu kaardil) avab arve: teenus on juba real, juurde saab lisada materjali grammides, oma tooteid ja poe laost tooteid: otsing nime, triipkoodi või tootekoodi järgi näitab leide koos hinna ja laoseisuga (triipkoodilugejaga piisab skännimisest ja Enterist). Päevaplaanis broneeringule varem lisatud materjal ja tooted tulevad arvele kaasa.
 - Teenuse hinda saab kassas muuta (soodustus). Makse lõpetamisel salvestatakse hind broneeringule, broneering läheb staatusesse "Kohal" ja teenus jõuab tasude arvestusse.
 - "Müük ilma broneeringuta" teeb arve ainult toodetest või materjalist; müüjaks valitud praktikant saab müügi oma tasude arvestusse.
 - Kviitung saadetakse kliendile e-postiga kohe pärast makset. Aadress on eeltäidetud broneeringu e-postiga ja seda saab enne makset muuta või tühjaks jätta. Kviitungi lehelt saab selle uuesti saata (ka teisele aadressile) või printida. Makse saab tühistada ainult omanik (arve avaneb uuesti).
+- "Kustuta arve" eemaldab arve koos ridadega. Poe laost müüdud toodete tellimused tühistatakse ja tooted lähevad lattu tagasi; broneering jääb alles ja ootab uuesti maksmist. Avatud arve saab kustutada juhendaja, makstud arve ainult omanik. Kui poe tellimuse tühistamine ei õnnestu, jääb arve alles.
 - Kassa ei suhtle kaarditerminali ega pangaga: makseviis on märge selle kohta, kuidas klient maksis. Kviitung ei ole ametlik arve (ettevõtte registrikoodi ja käibemaksu ridu sellel ei ole).
 
 ## Päris cron jagatud majutusel
