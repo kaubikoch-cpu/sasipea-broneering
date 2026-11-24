@@ -3,6 +3,7 @@
 require dirname( __DIR__ ) . '/includes/Availability.php';
 require dirname( __DIR__ ) . '/includes/Pricing.php';
 require dirname( __DIR__ ) . '/includes/Payroll.php';
+require dirname( __DIR__ ) . '/includes/Vat.php';
 $autoload = dirname( __DIR__ ) . '/vendor/autoload.php';
 if ( is_readable( $autoload ) ) {
 	require $autoload;

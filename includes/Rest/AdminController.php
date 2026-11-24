@@ -54,6 +54,16 @@ final class AdminController {
 		);
 		register_rest_route( $ns, '/admin/sales', array( 'methods' => 'POST', 'callback' => array( self::class, 'sale_create' ), 'permission_callback' => array( self::class, 'can_manage' ) ) );
 		register_rest_route( $ns, '/admin/sales/(?P<id>\d+)', array( 'methods' => 'DELETE', 'callback' => array( self::class, 'sale_delete' ), 'permission_callback' => array( self::class, 'can_manage' ) ) );
+		register_rest_route(
+			$ns,
+			'/admin/shop-search',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( self::class, 'shop_search' ),
+				'permission_callback' => array( self::class, 'can_manage' ),
+				'args'                => array( 'q' => array( 'type' => 'string', 'required' => true ) ),
+			)
+		);
 		register_rest_route( $ns, '/admin/blocks', array( 'methods' => 'POST', 'callback' => array( self::class, 'block_create' ), 'permission_callback' => array( self::class, 'can_manage' ) ) );
 		register_rest_route( $ns, '/admin/blocks/(?P<id>\d+)', array( 'methods' => 'DELETE', 'callback' => array( self::class, 'block_delete' ), 'permission_callback' => array( self::class, 'can_manage' ) ) );
 		register_rest_route(
@@ -191,7 +201,7 @@ final class AdminController {
 		if ( self::can_manage() ) {
 			$out['services'] = Repo::catalog( true );
 			// Valikud broneeringu juurde materjali ja toodete märkimiseks.
-			$out['sale_items'] = array( 'material' => array(), 'product' => array() );
+			$out['sale_items'] = array( 'material' => array(), 'product' => array(), 'shop' => \SB\Integrations\Woo::enabled() );
 			foreach ( (array) Settings::get()['materials'] as $m ) {
 				$out['sale_items']['material'][] = array( 'key' => 'material:' . $m['id'], 'name' => $m['name'] . ' (' . Settings::money( (int) $m['cents_per_g'] ) . '/g)' );
 			}
@@ -341,8 +351,13 @@ final class AdminController {
 	}
 
 	public static function sale_delete( \WP_REST_Request $req ) {
-		Repo::delete_sale( (int) $req['id'] );
-		return array( 'deleted' => true );
+		$res = Repo::delete_sale( (int) $req['id'] );
+		return is_wp_error( $res ) ? $res : array( 'deleted' => true );
+	}
+
+	/** Toote otsing veebipoest nime, tootekoodi või triipkoodi järgi. */
+	public static function shop_search( \WP_REST_Request $req ) {
+		return \SB\Integrations\Woo::search( sanitize_text_field( (string) $req['q'] ) );
 	}
 
 	public static function block_delete( \WP_REST_Request $req ) {

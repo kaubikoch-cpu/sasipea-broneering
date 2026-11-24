@@ -77,6 +77,12 @@
 .sb-p-sales-list li { margin: 0 0 2px; }
 .sb-p-sales-add { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .sb-p-sales-add select { max-width: 260px; }
+.sb-p-shop { margin-top: 12px; }
+.sb-p-shop label { display: block; font-weight: 600; margin-bottom: 3px; }
+.sb-p-shop input[type=search] { flex: 1 1 200px; }
+.sb-p-shop-results { margin: 8px 0 0; }
+.sb-p-shop-results li { display: flex; gap: 6px; align-items: center; margin: 0 0 4px; }
+.sb-p-shop-name { flex: 1 1 auto; min-width: 0; }
 
 .sb-toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 100000; background: #1d2327; color: #fff; padding: 10px 16px; border-radius: 6px; box-shadow: 0 4px 16px rgba(0, 0, 0, .3); }
 .sb-toast.is-error { background: #b32d2e; }
