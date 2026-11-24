@@ -10,7 +10,7 @@ final class Admin {
 
 	public static function init(): void {
 		add_action( 'admin_menu', array( self::class, 'menu' ) );
-		foreach ( array( 'save_service', 'save_category', 'delete_service', 'save_staff', 'add_exception', 'delete_exception', 'save_settings', 'save_client', 'save_month', 'save_product', 'add_sale', 'delete_sale', 'pay_csv', 'vat_csv' ) as $a ) {
+		foreach ( array( 'save_service', 'save_category', 'delete_service', 'save_staff', 'add_exception', 'delete_exception', 'save_settings', 'save_client', 'save_month', 'save_product', 'add_sale', 'delete_sale', 'pay_csv', 'vat_csv', 'shop_sync' ) as $a ) {
 			add_action( 'admin_post_sb_' . $a, array( self::class, 'handle_' . $a ) );
 		}
 	}
@@ -824,7 +824,7 @@ final class Admin {
 			}
 			echo '</optgroup></select></label> ';
 			if ( Integrations\Woo::enabled() ) {
-				echo '<label>' . esc_html__( 'või poe tootekood / triipkood', 'sasipea-broneering' ) . ' <input name="shop_code" style="width:150px" autocomplete="off"></label> ';
+				echo '<label>' . esc_html__( 'või poe triipkood / tootekood', 'sasipea-broneering' ) . ' <input name="shop_code" style="width:150px" autocomplete="off"></label> ';
 			}
 			echo '<label>' . esc_html__( 'Kogus', 'sasipea-broneering' ) . ' <input name="qty" inputmode="decimal" style="width:80px" value="1" required></label> <label>' . esc_html__( 'Kuupäev', 'sasipea-broneering' ) . ' <input type="date" name="day" value="' . esc_attr( $today ) . '" required></label> ';
 			submit_button( __( 'Lisa müük', 'sasipea-broneering' ), 'secondary', 'submit', false );
@@ -879,7 +879,7 @@ final class Admin {
 			if ( '' !== $code ) {
 				// Veebipoe toode tootekoodi või triipkoodi järgi: peab leiduma täpselt üks vaste.
 				$found = Integrations\Woo::search( $code );
-				$exact = is_wp_error( $found ) ? array() : array_values( array_filter( $found, static fn( $f ) => $f['sku'] === $code ) );
+				$exact = is_wp_error( $found ) ? array() : array_values( array_filter( $found, static fn( $f ) => ! empty( $f['exact'] ) ) );
 				if ( is_wp_error( $found ) ) {
 					$res = $found;
 				} elseif ( 1 !== count( $exact ) ) {
@@ -937,15 +937,22 @@ final class Admin {
 	/** Kuu käibemaksu aruanne: tehtud teenused (staatus "Kohal") ning materjali ja toodete müük. */
 	private static function vat_report( string $ym ): array {
 		$rows = array();
+		$shop = array( 'count' => 0, 'gross' => 0 );
 		foreach ( Repo::payroll_data( $ym ) as $d ) {
 			foreach ( $d['services'] as $b ) {
 				$rows[] = array( 'kind' => 'service', 'date' => Format::local( $b['start_utc'] )->format( 'Y-m-d' ), 'cents' => (int) $b['price_cents'] );
 			}
 			foreach ( $d['sales'] as $s ) {
+				// Veebipoe laost müüdud toode on poe (teise ettevõtte) tellimus ja käive, mitte salongi oma.
+				if ( $s['woo_order_id'] ) {
+					$shop['count']++;
+					$shop['gross'] += (int) $s['total_cents'];
+					continue;
+				}
 				$rows[] = array( 'kind' => 'product' === $s['kind'] ? 'product' : 'material', 'date' => Format::local( $s['sold_at'] )->format( 'Y-m-d' ), 'cents' => (int) $s['total_cents'] );
 			}
 		}
-		return Vat::report( (array) Settings::get()['vat_history'], $rows );
+		return Vat::report( (array) Settings::get()['vat_history'], $rows ) + array( 'shop' => $shop );
 	}
 
 	private static function vat_kinds(): array {
@@ -972,7 +979,7 @@ final class Admin {
 		if ( ! Vat::normalize( Settings::get()['vat_history'] ) ) {
 			echo '<div class="notice notice-info inline"><p>' . esc_html__( 'Käibemaksu määra pole seadistatud, seega käibemaksu ei arvestata ja aruanne näitab ainult käivet. Määra saad lisada lehel Seaded → Käibemaks.', 'sasipea-broneering' ) . '</p></div>';
 		}
-		echo '<p class="description">' . esc_html__( 'Arvesse lähevad teenused staatusega "Kohal" teenuse kuupäeva järgi ning materjali ja toodete müük müügi kuupäeva järgi. Hinnad on käibemaksuga; käibemaks arvutatakse rea kogusummalt. Veebipoe laost müüdud tooted on ka poe enda tellimustes, ära deklareeri neid kaks korda. Aruanne on abimaterjal raamatupidajale, mitte KMD.', 'sasipea-broneering' ) . '</p>';
+		echo '<p class="description">' . esc_html__( 'Arvesse lähevad teenused staatusega "Kohal" teenuse kuupäeva järgi ning materjali ja toodete müük müügi kuupäeva järgi. Hinnad on käibemaksuga; käibemaks arvutatakse rea kogusummalt. Veebipoe laost müüdud tooted siia ei kuulu: need on veebipoe tellimused ja lähevad veebipoe ettevõtte käibesse ja käibemaksu arvestusse. Aruanne on abimaterjal raamatupidajale, mitte KMD.', 'sasipea-broneering' ) . '</p>';
 		echo '<table class="widefat striped" style="max-width:820px"><thead><tr><th>' . esc_html__( 'Liik', 'sasipea-broneering' ) . '</th><th class="num">' . esc_html__( 'Määr', 'sasipea-broneering' ) . '</th><th class="num">' . esc_html__( 'Ridu', 'sasipea-broneering' ) . '</th><th class="num">' . esc_html__( 'Käive käibemaksuga', 'sasipea-broneering' ) . '</th><th class="num">' . esc_html__( 'Käibemaksuta', 'sasipea-broneering' ) . '</th><th class="num">' . esc_html__( 'Käibemaks', 'sasipea-broneering' ) . '</th></tr></thead><tbody>';
 		if ( ! $report['lines'] ) {
 			echo '<tr><td colspan="6">' . esc_html__( 'Selles kuus müüke ei ole.', 'sasipea-broneering' ) . '</td></tr>';
@@ -980,7 +987,12 @@ final class Admin {
 		foreach ( $report['lines'] as $l ) {
 			printf( '<tr><td>%s</td><td class="num">%s</td><td class="num">%d</td><td class="num">%s</td><td class="num">%s</td><td class="num">%s</td></tr>', esc_html( $kinds[ $l['kind'] ] ?? $l['kind'] ), esc_html( $pct( $l['rate'] ) ), (int) $l['count'], $m( $l['gross'] ), $m( $l['net'] ), $m( $l['vat'] ) );
 		}
-		echo '</tbody><tfoot><tr><th colspan="3">' . esc_html__( 'Kokku', 'sasipea-broneering' ) . '</th><th class="num">' . $m( $report['total']['gross'] ) . '</th><th class="num">' . $m( $report['total']['net'] ) . '</th><th class="num">' . $m( $report['total']['vat'] ) . '</th></tr></tfoot></table></div>';
+		echo '</tbody><tfoot><tr><th colspan="3">' . esc_html__( 'Kokku', 'sasipea-broneering' ) . '</th><th class="num">' . $m( $report['total']['gross'] ) . '</th><th class="num">' . $m( $report['total']['net'] ) . '</th><th class="num">' . $m( $report['total']['vat'] ) . '</th></tr></tfoot></table>';
+		if ( $report['shop']['count'] ) {
+			/* translators: 1: number of sales, 2: amount */
+			echo '<p>' . esc_html( sprintf( __( 'Lisaks müüdi salongis veebipoe laost %1$d rida summas %2$s. See on veebipoe tellimustes ja ei ole selle aruande käibes.', 'sasipea-broneering' ), $report['shop']['count'], number_format( $report['shop']['gross'] / 100, 2, ',', ' ' ) . ' €' ) ) . '</p>';
+		}
+		echo '</div>';
 	}
 
 	public static function handle_vat_csv(): void {
@@ -1001,6 +1013,9 @@ final class Admin {
 			fputcsv( $out, array( $ym, $kinds[ $l['kind'] ] ?? $l['kind'], str_replace( '.', ',', (string) $l['rate'] ), $l['count'], $eur( $l['gross'] ), $eur( $l['net'] ), $eur( $l['vat'] ) ), ';' );
 		}
 		fputcsv( $out, array( $ym, 'KOKKU', '', '', $eur( $report['total']['gross'] ), $eur( $report['total']['net'] ), $eur( $report['total']['vat'] ) ), ';' );
+		if ( $report['shop']['count'] ) {
+			fputcsv( $out, array( $ym, 'Veebipoe laost müüdud (ei ole käibes)', '', $report['shop']['count'], $eur( $report['shop']['gross'] ), '', '' ), ';' );
+		}
 		fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions
 		exit;
 	}
@@ -1149,6 +1164,16 @@ final class Admin {
 		if ( Integrations\Woo::enabled() ) {
 			$test = Integrations\Woo::test();
 			echo '<tr><th>' . esc_html__( 'Ühendus', 'sasipea-broneering' ) . '</th><td>' . ( is_wp_error( $test ) ? '<span style="color:#b32d2e;font-weight:600">' . esc_html( $test->get_error_message() ) . '</span>' : '<span style="color:#00733a;font-weight:600">' . esc_html__( 'Ühendus poega töötab.', 'sasipea-broneering' ) . '</span>' ) . '</td></tr>';
+			$idx   = Integrations\Woo::index();
+			$gtins = count( array_filter( array_column( $idx['items'], 'g' ) ) );
+			echo '<tr><th>' . esc_html__( 'Tootenimekiri', 'sasipea-broneering' ) . '</th><td>';
+			if ( $idx['time'] ) {
+				/* translators: 1: number of products, 2: number with barcode, 3: date and time */
+				echo esc_html( sprintf( __( '%1$d toodet, neist %2$d triipkoodiga. Viimati uuendatud %3$s.', 'sasipea-broneering' ), count( $idx['items'] ), $gtins, wp_date( 'd.m.Y H:i', $idx['time'], Settings::tz() ) ) );
+			} else {
+				echo '<strong>' . esc_html__( 'Tootenimekiri on laadimata. Triipkoodiga otsing hakkab tööle pärast esimest uuendamist.', 'sasipea-broneering' ) . '</strong>';
+			}
+			echo ' <a class="button" href="' . esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=sb_shop_sync' ), 'sb_shop_sync' ) ) . '">' . esc_html__( 'Uuenda tootenimekirja', 'sasipea-broneering' ) . '</a><p class="description">' . esc_html__( 'Otsing käib poe tootenimekirja koopiast (nimi, triipkood GTIN/EAN väljalt, tootekood SKU). Koopia uueneb ise kord ööpäevas; uue toote kohe leidmiseks vajuta nuppu. Hind ja laoseis küsitakse alati värskelt poest.', 'sasipea-broneering' ) . '</p></td></tr>';
 		}
 		echo '</table>';
 
@@ -1213,6 +1238,19 @@ final class Admin {
 		echo '</table>';
 		submit_button();
 		echo '</form></div>';
+	}
+
+	public static function handle_shop_sync(): void {
+		if ( ! current_user_can( 'sb_manage_settings' ) ) {
+			wp_die( esc_html__( 'Sul pole selleks õigust.', 'sasipea-broneering' ), 403 );
+		}
+		check_admin_referer( 'sb_shop_sync' );
+		$res = Integrations\Woo::sync();
+		if ( is_wp_error( $res ) ) {
+			wp_safe_redirect( add_query_arg( array( 'page' => 'sb-settings', 'sb_error' => rawurlencode( $res->get_error_message() ) ), admin_url( 'admin.php' ) ) );
+			exit;
+		}
+		self::back( 'sb-settings' );
 	}
 
 	public static function handle_save_settings(): void {

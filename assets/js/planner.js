@@ -429,7 +429,7 @@
 	/* Toote otsing veebipoest: nimi, tootekood või skännitud triipkood. Müük arvatakse poe laost maha. */
 	function shopSearch(b, draw, err) {
 		var results = h('ul', { class: 'sb-p-shop-results', 'aria-live': 'polite' });
-		var input = h('input', { id: 'sb-shop-q', type: 'search', placeholder: 'nimi, tootekood või triipkood', autocomplete: 'off' });
+		var input = h('input', { id: 'sb-shop-q', type: 'search', placeholder: 'nimi, triipkood või tootekood', autocomplete: 'off' });
 		function sell(item, n) {
 			err.textContent = '';
 			results.textContent = '';
@@ -450,7 +450,7 @@
 				list.forEach(function (it) {
 					var n = h('input', { type: 'number', min: 1, value: 1, 'aria-label': 'Kogus: ' + it.name, style: 'width:60px' });
 					results.appendChild(h('li', null,
-						h('span', { class: 'sb-p-shop-name' }, it.name, h('span', { class: 'sb-p-hint' }, ' ' + [it.sku, it.price_label, it.stock_label].filter(Boolean).join(' · '))),
+						h('span', { class: 'sb-p-shop-name' }, it.name, h('span', { class: 'sb-p-hint' }, ' ' + [it.gtin || it.sku, it.price_label, it.stock_label].filter(Boolean).join(' · '))),
 						n,
 						h('button', { type: 'button', class: 'button', disabled: !it.in_stock, onclick: function () { sell(it, Math.max(1, parseInt(n.value, 10) || 1)); } }, it.in_stock ? 'Müü' : 'Otsas')));
 				});

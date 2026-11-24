@@ -13,6 +13,7 @@ final class Cron {
 		add_filter( 'cron_schedules', array( self::class, 'intervals' ) );
 		add_action( 'sb_cron_reminders', array( self::class, 'reminders' ) );
 		add_action( 'sb_cron_daily', array( self::class, 'anonymize' ) );
+		add_action( 'sb_cron_daily', array( self::class, 'shop_sync' ) );
 		if ( ! wp_next_scheduled( 'sb_cron_reminders' ) ) {
 			self::schedule();
 		}
@@ -36,6 +37,13 @@ final class Cron {
 	public static function unschedule(): void {
 		wp_clear_scheduled_hook( 'sb_cron_reminders' );
 		wp_clear_scheduled_hook( 'sb_cron_daily' );
+	}
+
+	/** Uuendab kord ööpäevas veebipoe tootenimekirja koopiat (triipkoodi otsingu jaoks). */
+	public static function shop_sync(): void {
+		if ( Integrations\Woo::enabled() ) {
+			Integrations\Woo::sync();
+		}
 	}
 
 	/** Saadab meeldetuletuse broneeringutele, mis algavad järgmise 24 tunni jooksul. */

@@ -8,7 +8,10 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Sidumine WooCommerce'i veebipoega (nt sasipea.ee) selle REST API kaudu (wc/v3).
  *
- * - Toodete otsing nime, tootekoodi (SKU) või triipkoodi järgi koos hinna ja laoseisuga.
+ * - Toodete otsing nime, triipkoodi (WooCommerce'i GTIN/EAN väli) või tootekoodi (SKU) järgi koos
+ *   hinna ja laoseisuga. Otsing käib kohalikust tootenimekirja koopiast (sync), sest REST API
+ *   ei luba kõigis WooCommerce'i versioonides GTIN välja järgi filtreerida; hind ja laoseis
+ *   küsitakse alati värskelt poest.
  * - Salongis müüdud toode salvestatakse poodi lõpetatud tellimusena, nii et WooCommerce
  *   arvab koguse ise laost maha ja müük on poe aruannetes.
  * - Müügirea eemaldamisel tellimus tühistatakse ja WooCommerce taastab laoseisu.
@@ -98,6 +101,7 @@ final class Woo {
 			'key'         => 'woo:' . $pid . ':' . $vid,
 			'name'        => wp_strip_all_tags( $name ),
 			'sku'         => (string) ( $p['sku'] ?? '' ),
+			'gtin'        => (string) ( $p['global_unique_id'] ?? '' ),
 			'price_cents' => $price,
 			'price_label' => Settings::money( $price ),
 			'stock'       => $qty,
@@ -107,9 +111,102 @@ final class Woo {
 		);
 	}
 
+	public const INDEX = 'sb_woo_index';
+
+	/** @return array{time:int,items:list<array{p:int,v:int,n:string,s:string,g:string}>} */
+	public static function index(): array {
+		$i = get_option( self::INDEX );
+		return is_array( $i ) && isset( $i['items'] ) ? $i : array( 'time' => 0, 'items' => array() );
+	}
+
 	/**
-	 * Otsib tooteid. Täpne tootekoodi (SKU) vaste tuleb esimesena, seejärel nimeotsing.
-	 * Variatsioonidega toote puhul tagastatakse iga variatsioon eraldi.
+	 * Laeb poe tootenimekirja (nimi, tootekood, triipkood) kohalikku koopiasse. Ainult loeb poest.
+	 *
+	 * @return int|\WP_Error kirjete arv
+	 */
+	public static function sync() {
+		$items = array();
+		$entry = static function ( array $p, ?array $parent = null ) use ( &$items ): void {
+			$it      = self::item( $p, $parent );
+			[ , $pid, $vid ] = explode( ':', $it['key'] );
+			$items[] = array( 'p' => (int) $pid, 'v' => (int) $vid, 'n' => $it['name'], 's' => $it['sku'], 'g' => $it['gtin'] );
+		};
+		for ( $page = 1; $page <= 50; $page++ ) {
+			$rows = self::request( 'GET', 'products', array( 'per_page' => 100, 'page' => $page, 'status' => 'publish' ) );
+			if ( is_wp_error( $rows ) ) {
+				return $rows;
+			}
+			foreach ( $rows as $p ) {
+				if ( 'variable' === ( $p['type'] ?? '' ) ) {
+					$vars = self::request( 'GET', 'products/' . (int) $p['id'] . '/variations', array( 'per_page' => 100 ) );
+					if ( is_wp_error( $vars ) ) {
+						return $vars;
+					}
+					foreach ( $vars as $v ) {
+						$entry( $v, $p );
+					}
+				} elseif ( in_array( $p['type'] ?? 'simple', array( 'simple', 'external' ), true ) ) {
+					$entry( $p );
+				}
+			}
+			if ( count( $rows ) < 100 ) {
+				break;
+			}
+		}
+		update_option( self::INDEX, array( 'time' => time(), 'items' => $items ), false );
+		return count( $items );
+	}
+
+	/** Triipkoodi võrdlus: ainult numbrid ja tähed, ilma tühikute ja kriipsudeta. */
+	private static function code( string $s ): string {
+		return strtolower( (string) preg_replace( '/[^0-9a-z]/i', '', $s ) );
+	}
+
+	/**
+	 * Otsing kohalikust koopiast: täpne triipkood, siis täpne tootekood, siis nimi ja koodi algus.
+	 * Puhas funktsioon, et seda saaks eraldi testida.
+	 *
+	 * @param list<array{p:int,v:int,n:string,s:string,g:string}> $items
+	 * @return list<array> koopia kirjed koos väljaga 'exact' (bool)
+	 */
+	public static function match( array $items, string $q, int $limit = 10 ): array {
+		$code  = self::code( $q );
+		$words = array_filter( preg_split( '/\s+/', mb_strtolower( trim( $q ) ) ) );
+		$rank  = array();
+		foreach ( $items as $i => $it ) {
+			$g = self::code( $it['g'] );
+			$s = self::code( $it['s'] );
+			if ( '' !== $code && $g === $code ) {
+				$rank[ $i ] = 0;
+			} elseif ( '' !== $code && $s === $code ) {
+				$rank[ $i ] = 1;
+			} else {
+				$name = mb_strtolower( $it['n'] );
+				$all  = (bool) $words;
+				foreach ( $words as $w ) {
+					if ( false === mb_strpos( $name, $w ) ) {
+						$all = false;
+						break;
+					}
+				}
+				if ( $all ) {
+					$rank[ $i ] = 2;
+				} elseif ( strlen( $code ) >= 3 && ( str_starts_with( $s, $code ) || str_starts_with( $g, $code ) ) ) {
+					$rank[ $i ] = 3;
+				}
+			}
+		}
+		asort( $rank );
+		$out = array();
+		foreach ( array_slice( $rank, 0, $limit, true ) as $i => $r ) {
+			$out[] = $items[ $i ] + array( 'exact' => $r <= 1 );
+		}
+		return $out;
+	}
+
+	/**
+	 * Otsib tooteid nime, triipkoodi või tootekoodi järgi. Variatsioonidega toote iga variatsioon
+	 * on eraldi vaste. Täpne koodivaste on esimene ja märgitud väljaga 'exact'.
 	 *
 	 * @return list<array>|\WP_Error
 	 */
@@ -117,6 +214,39 @@ final class Woo {
 		$q = trim( $q );
 		if ( mb_strlen( $q ) < 2 ) {
 			return array();
+		}
+		$index = self::index();
+		if ( $index['items'] ) {
+			$hits = self::match( $index['items'], $q );
+			$out  = array();
+			// Hind ja laoseis värskelt poest: lihttooted ühe päringuga, variatsioonid ükshaaval.
+			$simple = array_values( array_unique( array_column( array_filter( $hits, static fn( $h ) => ! $h['v'] ), 'p' ) ) );
+			$live   = array();
+			if ( $simple ) {
+				$rows = self::request( 'GET', 'products', array( 'include' => implode( ',', $simple ), 'per_page' => 100 ) );
+				if ( is_wp_error( $rows ) ) {
+					return $rows;
+				}
+				foreach ( $rows as $p ) {
+					$live[ (int) $p['id'] ] = $p;
+				}
+			}
+			foreach ( $hits as $h ) {
+				if ( $h['v'] ) {
+					$v = self::request( 'GET', 'products/' . $h['p'] . '/variations/' . $h['v'] );
+					if ( is_wp_error( $v ) ) {
+						continue;
+					}
+					$item         = self::item( $v, array( 'id' => $h['p'], 'name' => $h['n'] ) );
+					$item['name'] = $h['n'];
+				} elseif ( isset( $live[ $h['p'] ] ) ) {
+					$item = self::item( $live[ $h['p'] ] );
+				} else {
+					continue; // toode on poest vahepeal kadunud
+				}
+				$out[] = $item + array( 'exact' => $h['exact'] );
+			}
+			return $out;
 		}
 		$out  = array();
 		$seen = array();
@@ -155,8 +285,11 @@ final class Woo {
 				$add( self::item( $p ) );
 			}
 		}
-		// Täpne koodivaste ettepoole, et skänner leiaks kohe õige toote.
-		usort( $out, static fn( $a, $b ) => ( $b['sku'] === $q ) <=> ( $a['sku'] === $q ) );
+		// Koopiata varuvariant leiab ainult nime ja tootekoodi järgi. Täpne koodivaste ettepoole.
+		foreach ( $out as $k => $it ) {
+			$out[ $k ]['exact'] = $it['sku'] === $q || ( '' !== $it['gtin'] && $it['gtin'] === $q );
+		}
+		usort( $out, static fn( $a, $b ) => $b['exact'] <=> $a['exact'] );
 		return $out;
 	}
 
