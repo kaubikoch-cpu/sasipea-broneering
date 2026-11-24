@@ -1,6 +1,6 @@
 # Sasipea Broneering
 
-Sasipea Akadeemia online-broneerimine ja päevaplaan WordPressi pluginana. Versioon 0.4.0 (1. etapp + kuu töögraafik, tasemed, tasude arvestus, veebipoe ladu ja käibemaksu aruanne).
+Sasipea Akadeemia online-broneerimine ja päevaplaan WordPressi pluginana. Versioon 0.5.0 (1. etapp + kuu töögraafik, tasemed, tasude arvestus, veebipoe ladu, käibemaksu aruanne ja oma töölaud /salong/).
 
 **NB! Paigalda esmalt staging-keskkonda, mitte päris lehele.**
 
@@ -28,6 +28,20 @@ Nõuded: PHP 8.1+, WordPress 6.2+, MySQL 5.7+ või MariaDB 10.3+ (InnoDB).
 - **Haldus**: praktikandid (tase, nädalapõhi, päevade erandid, teenused, seotud WP kasutaja), teenused ja kategooriad, kliendid (otsing, külastuste ajalugu, märkmed), seaded.
 - **Rollid**: admin teeb kõike. Roll, mille nimes on "juhendaja", haldab kõiki broneeringuid ja töögraafikut. Roll "Praktikant" logib sisse ja näeb oma veergu; Seadete jaotises "Praktikandi vaade" määratakse, kas ta näeb kliendi telefoni, hinda, e-posti ja kommentaari ning teiste praktikantide veerge. Muuta ei saa ta midagi.
 - **Isikuandmed**: iga nõusolek salvestatakse aja ja tekstiversiooniga; 2 aastat pärast viimast kontakti anonüümitakse klient automaatselt; WordPressi isikuandmete eksport ja kustutamine on toetatud.
+
+## Töölaud (/salong/)
+
+Töölaud on oma kujundusega vaade väljaspool WordPressi adminni. Aadress on vaikimisi `/salong/` (muudetav: Seaded → Salongi andmed ja lingid → Töölaua aadressi lõpp). Lehte ei ole vaja WordPressis luua, plugin näitab selle ise ilma teema ja admini ribata. Kui püsilingid on välja lülitatud, töötab aadress `/?sb_toolaud=1`.
+
+- Sisselogimine käib töölaua enda vormiga (WordPressi kasutajanimi või e-post ja parool). Katseid piiratakse: 10 katset 10 minuti jooksul.
+- Menüü sõltub rollist:
+  - **Praktikant** (roll "Praktikant"): Avaleht, Päevaplaan (ainult see, mida juhendaja on lubanud), Minu tasu (kui lubatud), Minu konto.
+  - **Juhendaja** (roll "Salongi juhendaja" või modellide plugina juhendaja): lisaks Töögraafik ja Kliendid.
+  - **Omanik** (roll "Salongi omanik" või administraator): lisaks Tasud, Käibemaks, Tooted, Praktikandid, Teenused, Seaded.
+- Keelatud vaate aadressi käsitsi avamine annab teate "Seda vaadet sul näha ei ole lubatud" (403). Õigusi kontrollitakse serveris nii vaate näitamisel kui ka salvestamisel.
+- Rollidega "Praktikant", "Salongi juhendaja" ja "Salongi omanik" kasutajad WP adminni ei pääse: nad suunatakse töölauale ja admini riba neile ei näidata. Administraator näeb endiselt mõlemat.
+- "Minu konto" all saab igaüks oma parooli muuta.
+- Kasutajakontod loob administraator WordPressis (Kasutajad → Lisa uus) ja valib rolli. Praktikandi konto seotakse praktikandiga lehel Praktikandid.
 
 ## Päris cron jagatud majutusel
 

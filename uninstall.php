@@ -19,4 +19,6 @@ if ( defined( 'SB_REMOVE_DATA_ON_UNINSTALL' ) && SB_REMOVE_DATA_ON_UNINSTALL ) {
 	delete_option( 'sb_months' );
 	delete_option( 'sb_woo_index' );
 	remove_role( 'sb_praktikant' );
+	remove_role( 'sb_juhendaja' );
+	remove_role( 'sb_omanik' );
 }
