@@ -1205,6 +1205,10 @@ final class Admin {
 			if ( $idx['time'] ) {
 				/* translators: 1: number of products, 2: number with barcode, 3: date and time */
 				echo esc_html( sprintf( __( '%1$d toodet, neist %2$d triipkoodiga. Viimati uuendatud %3$s.', 'sasipea-broneering' ), count( $idx['items'] ), $gtins, wp_date( 'd.m.Y H:i', $idx['time'], Settings::tz() ) ) );
+				if ( ! empty( $idx['shop_total'] ) ) {
+					/* translators: 1: products in shop, 2: pages read */
+					echo ' ' . esc_html( sprintf( __( 'Poe andmetel on avaldatud tooteid %1$d (loetud %2$d lehte; variatsioonid on nimekirjas eraldi ridadena).', 'sasipea-broneering' ), (int) $idx['shop_total'], (int) ( $idx['pages'] ?? 0 ) ) );
+				}
 			} else {
 				echo '<strong>' . esc_html__( 'Tootenimekiri on laadimata. Triipkoodiga otsing hakkab tööle pärast esimest uuendamist.', 'sasipea-broneering' ) . '</strong>';
 			}
