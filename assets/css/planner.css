@@ -1,0 +1,81 @@
+/* Sasipea broneering – päevaplaan */
+#sb-planner { --sbp-line: #dcdcde; --sbp-off: #f0f0f1; --sbp-work: #ffffff; max-width: 100%; }
+.sb-p-bar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin: 12px 0; }
+.sb-p-nav, .sb-p-views, .sb-p-actions { display: flex; gap: 4px; align-items: center; }
+.sb-p-nav input[type=date] { margin-left: 6px; }
+.sb-p-title { font-size: 1.3em; margin: 8px 0; }
+.sb-p-closed { color: #8a2424; font-weight: 600; }
+.sb-p-scroll { overflow-x: auto; border: 1px solid var(--sbp-line); background: #fff; }
+.sb-p-grid { display: grid; min-width: min-content; }
+.sb-p-corner, .sb-p-head { position: sticky; top: 0; z-index: 3; background: #f6f7f7; border-bottom: 1px solid var(--sbp-line); padding: 8px; font-weight: 600; }
+.sb-p-head { border-left: 1px solid var(--sbp-line); text-align: center; }
+.sb-p-times { position: relative; }
+.sb-p-hour { position: absolute; right: 6px; font-size: 12px; color: #50575e; transform: translateY(-1px); }
+.sb-p-col {
+	position: relative; border-left: 1px solid var(--sbp-line); background-color: var(--sbp-off);
+	background-image: linear-gradient(to bottom, #c3c4c7 1px, transparent 1px);
+}
+.sb-p-col.is-target { outline: 2px dashed #2271b1; outline-offset: -2px; }
+.sb-p-work { position: absolute; left: 0; right: 0; background: rgba(255, 255, 255, .85); cursor: copy; }
+.sb-p-block {
+	position: absolute; left: 0; right: 0; border: none; padding: 2px 6px; text-align: left; font-size: 12px; color: #3c434a; cursor: pointer; z-index: 1;
+	background: repeating-linear-gradient(45deg, #e2e4e7, #e2e4e7 6px, #d0d3d7 6px, #d0d3d7 12px);
+}
+.sb-p-booking {
+	position: absolute; left: 3px; right: 3px; z-index: 2; overflow: hidden; text-align: left; cursor: grab;
+	display: flex; flex-direction: column; gap: 1px; padding: 3px 6px; font-size: 12px; line-height: 1.3;
+	border-radius: 4px; border: 1px solid #2271b1; border-left-width: 4px; background: #e7f0f9; color: #1d2327; touch-action: none;
+}
+.sb-p-booking:focus-visible { outline: 3px solid #1d2327; outline-offset: 1px; }
+.sb-p-booking strong { font-size: 13px; }
+.sb-p-b-time { color: #3c434a; }
+.sb-p-booking.is-arrived { border-color: #00733a; background: #e3f4ea; }
+.sb-p-booking.is-no_show { border-color: #b32d2e; background: #fbeaea; }
+.sb-p-booking.is-cancelled { border-color: #8c8f94; background: #f6f7f7; color: #50575e; opacity: .75; text-decoration: line-through; cursor: pointer; left: 55%; z-index: 1; }
+.sb-p-booking.is-dragging { z-index: 10; box-shadow: 0 6px 18px rgba(0, 0, 0, .25); cursor: grabbing; opacity: .9; }
+.sb-p-booking.is-saving { opacity: .5; }
+.sb-p-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 8px 0; font-size: 13px; align-items: center; }
+.sb-p-legend span { display: inline-flex; align-items: center; gap: 4px; }
+.sb-p-dot { display: inline-block; width: 12px; height: 12px; border-radius: 3px; border: 1px solid #2271b1; background: #e7f0f9; }
+.sb-p-dot.is-arrived { border-color: #00733a; background: #e3f4ea; }
+.sb-p-dot.is-no_show { border-color: #b32d2e; background: #fbeaea; }
+.sb-p-dot.is-cancelled { border-color: #8c8f94; background: #f6f7f7; }
+.sb-p-hint { color: #50575e; }
+
+/* Nädal */
+.sb-p-week th, .sb-p-week td { vertical-align: top; min-width: 120px; }
+.sb-p-week td.is-off { background: #f6f7f7; }
+.sb-p-w-hours { font-size: 12px; color: #50575e; margin-bottom: 4px; }
+.sb-p-w-item { display: block; width: 100%; text-align: left; margin-bottom: 4px; padding: 4px 6px; border: 1px solid #2271b1; border-left-width: 4px; border-radius: 4px; background: #e7f0f9; cursor: pointer; font-size: 12px; }
+.sb-p-w-item.is-arrived { border-color: #00733a; background: #e3f4ea; }
+.sb-p-w-item.is-no_show { border-color: #b32d2e; background: #fbeaea; }
+.sb-p-w-item.is-cancelled_client, .sb-p-w-item.is-cancelled_salon { border-color: #8c8f94; background: #f6f7f7; text-decoration: line-through; }
+.sb-link { background: none; border: none; padding: 0; color: #2271b1; text-decoration: underline; cursor: pointer; font: inherit; }
+
+/* Dialoog */
+.sb-p-dialog { width: min(560px, calc(100vw - 32px)); border: none; border-radius: 8px; padding: 0; box-shadow: 0 10px 40px rgba(0, 0, 0, .3); }
+.sb-p-dialog::backdrop { background: rgba(0, 0, 0, .4); }
+.sb-p-dlg-head { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--sbp-line, #dcdcde); }
+.sb-p-dlg-head h2 { margin: 0; font-size: 1.2em; }
+.sb-p-close { background: none; border: none; font-size: 26px; line-height: 1; cursor: pointer; width: 40px; height: 40px; }
+.sb-p-dialog > :not(.sb-p-dlg-head) { padding: 12px 16px 16px; }
+.sb-p-form .sb-p-row { display: flex; flex-direction: column; gap: 3px; margin: 0 0 10px; }
+.sb-p-form label { font-weight: 600; }
+.sb-p-form input, .sb-p-form select, .sb-p-form textarea { width: 100%; max-width: 100%; }
+.sb-p-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+.sb-p-err { color: #b32d2e; font-weight: 600; }
+.sb-p-err:empty { display: none; }
+.sb-p-clients { margin: -6px 0 10px; }
+.sb-p-details dl { display: grid; grid-template-columns: 110px 1fr; gap: 4px 12px; margin: 0; }
+.sb-p-details dt { font-weight: 600; }
+.sb-p-details dd { margin: 0; }
+.sb-p-status { display: flex; flex-wrap: wrap; gap: 4px; }
+.sb-p-tag { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 10px; background: #f0e6ec; color: #6b1f42; font-size: 12px; }
+.sb-p-history { margin: 0; font-size: 13px; }
+
+.sb-toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 100000; background: #1d2327; color: #fff; padding: 10px 16px; border-radius: 6px; box-shadow: 0 4px 16px rgba(0, 0, 0, .3); }
+.sb-toast.is-error { background: #b32d2e; }
+
+/* Praktikandi vaade avalikul lehel */
+.sb-planner-front .button { display: inline-block; padding: 6px 12px; border: 1px solid #2271b1; border-radius: 4px; background: #fff; color: #2271b1; cursor: pointer; }
+.sb-planner-front .button-primary { background: #2271b1; color: #fff; }
