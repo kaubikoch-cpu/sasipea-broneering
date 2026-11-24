@@ -8,7 +8,27 @@ defined( 'ABSPATH' ) || exit;
  */
 final class Admin {
 
+	/** Admini lehe slug => töölaua vaate nimi. */
+	public const VIEWS = array(
+		'sb-planner'  => 'paevaplaan',
+		'sb-month'    => 'toograafik',
+		'sb-clients'  => 'kliendid',
+		'sb-staff'    => 'praktikandid',
+		'sb-services' => 'teenused',
+		'sb-products' => 'tooted',
+		'sb-pay'      => 'tasud',
+		'sb-vat'      => 'kaibemaks',
+		'sb-settings' => 'seaded',
+	);
+
+	/** Kas lehti näidatakse töölaual (true) või WP adminis (false). */
+	public static bool $front = false;
+
 	public static function init(): void {
+		// Töölaualt saadetud vorm suunatakse pärast salvestamist töölauale tagasi.
+		if ( Dashboard::from_dashboard() ) {
+			self::$front = true;
+		}
 		add_action( 'admin_menu', array( self::class, 'menu' ) );
 		foreach ( array( 'save_service', 'save_category', 'delete_service', 'save_staff', 'add_exception', 'delete_exception', 'save_settings', 'save_client', 'save_month', 'save_product', 'add_sale', 'delete_sale', 'pay_csv', 'vat_csv', 'shop_sync' ) as $a ) {
 			add_action( 'admin_post_sb_' . $a, array( self::class, 'handle_' . $a ) );
@@ -43,7 +63,7 @@ final class Admin {
 				'nonce'     => wp_create_nonce( 'wp_rest' ),
 				'canManage' => current_user_can( 'sb_manage_bookings' ),
 				'today'     => ( new \DateTimeImmutable( 'now', Settings::tz() ) )->format( 'Y-m-d' ),
-				'clientUrl' => $in_admin ? admin_url( 'admin.php?page=sb-clients&client=' ) : '',
+				'clientUrl' => $in_admin ? self::url( 'sb-clients&client=' ) : '',
 			)
 		);
 	}
@@ -56,8 +76,24 @@ final class Admin {
 	}
 
 	private static function back( string $page, array $args = array() ): void {
-		wp_safe_redirect( add_query_arg( array_merge( array( 'page' => $page, 'sb_saved' => 1 ), $args ), admin_url( 'admin.php' ) ) );
+		$args = array_merge( array( 'sb_saved' => 1 ), $args );
+		if ( isset( $args['sb_error'] ) ) {
+			$args['sb_error'] = rawurlencode( (string) $args['sb_error'] );
+		}
+		wp_safe_redirect( add_query_arg( $args, self::url( $page ) ) );
 		exit;
+	}
+
+	/**
+	 * Lehe aadress: töölaual (/salong/) töölaua vaade, muidu WP admini leht.
+	 * $page võib sisaldada lisaparameetreid kujul "sb-staff&edit=3".
+	 */
+	public static function url( string $page ): string {
+		if ( ! self::$front ) {
+			return admin_url( 'admin.php?page=' . $page );
+		}
+		[ $slug, $rest ] = array_pad( explode( '&', $page, 2 ), 2, '' );
+		return Dashboard::url( self::VIEWS[ $slug ] ?? '' ) . ( '' !== $rest ? '&' . $rest : '' );
 	}
 
 	private static function notice(): void {
@@ -125,7 +161,7 @@ final class Admin {
 					esc_html( $s['price_label'] ),
 					$s['material_extra'] ? ' + ' . esc_html__( 'materjal', 'sasipea-broneering' ) : '',
 					(int) $s['sort_order'],
-					esc_url( admin_url( 'admin.php?page=sb-services&edit=' . $s['id'] ) ),
+					esc_url( self::url( 'sb-services&edit=' . $s['id'] ) ),
 					esc_html__( 'Muuda', 'sasipea-broneering' )
 				);
 			}
@@ -266,12 +302,12 @@ final class Admin {
 				esc_html( self::terms_label( $s ) ),
 				$s['active'] ? esc_html__( 'aktiivne', 'sasipea-broneering' ) : '<em>' . esc_html__( 'mitteaktiivne', 'sasipea-broneering' ) . '</em>',
 				esc_html( implode( '; ', $txt ) ),
-				esc_url( admin_url( 'admin.php?page=sb-staff&edit=' . $s['id'] ) ),
+				esc_url( self::url( 'sb-staff&edit=' . $s['id'] ) ),
 				esc_html__( 'Muuda', 'sasipea-broneering' )
 			);
 		}
 		echo '</tbody></table>';
-		echo '<p><a class="button" href="' . esc_url( admin_url( 'admin.php?page=sb-staff&edit=new' ) ) . '">' . esc_html__( 'Lisa praktikant', 'sasipea-broneering' ) . '</a></p>';
+		echo '<p><a class="button" href="' . esc_url( self::url( 'sb-staff&edit=new' ) ) . '">' . esc_html__( 'Lisa praktikant', 'sasipea-broneering' ) . '</a></p>';
 
 		$is_new = isset( $_GET['edit'] ) && 'new' === $_GET['edit']; // phpcs:ignore WordPress.Security.NonceVerification
 		if ( ! $edit && ! $is_new ) {
@@ -503,7 +539,7 @@ final class Admin {
 		$staff  = Repo::staff_list( true );
 		$counts = Repo::booking_counts( $ym );
 		$title  = ucfirst( Format::months()[ (int) $first->format( 'n' ) ] ) . ' ' . $first->format( 'Y' );
-		$url    = static fn( \DateTimeImmutable $d ) => esc_url( admin_url( 'admin.php?page=sb-month&month=' . $d->format( 'Y-m' ) ) );
+		$url    = static fn( \DateTimeImmutable $d ) => esc_url( self::url( 'sb-month&month=' . $d->format( 'Y-m' ) ) );
 		$short  = array( 1 => 'E', 'T', 'K', 'N', 'R', 'L', 'P' );
 
 		echo '<div class="wrap sb-month"><h1>' . esc_html__( 'Töögraafik', 'sasipea-broneering' ) . '</h1>';
@@ -660,7 +696,7 @@ final class Admin {
 				esc_html( $p['name'] ),
 				esc_html( $p['price_label'] ),
 				$p['active'] ? esc_html__( 'müügis', 'sasipea-broneering' ) : '<em>' . esc_html__( 'peidetud', 'sasipea-broneering' ) . '</em>',
-				esc_url( admin_url( 'admin.php?page=sb-products&edit=' . $p['id'] ) ),
+				esc_url( self::url( 'sb-products&edit=' . $p['id'] ) ),
 				esc_html__( 'Muuda', 'sasipea-broneering' )
 			);
 		}
@@ -736,7 +772,7 @@ final class Admin {
 		$ym    = self::month_param();
 		$first = new \DateTimeImmutable( $ym . '-01', Settings::tz() );
 		$title = ucfirst( Format::months()[ (int) $first->format( 'n' ) ] ) . ' ' . $first->format( 'Y' );
-		$url   = static fn( \DateTimeImmutable $d ) => esc_url( admin_url( 'admin.php?page=sb-pay&month=' . $d->format( 'Y-m' ) ) );
+		$url   = static fn( \DateTimeImmutable $d ) => esc_url( self::url( 'sb-pay&month=' . $d->format( 'Y-m' ) ) );
 		$rows  = self::pay_rows( $ym );
 		$m     = static fn( int $c ) => esc_html( Settings::money( $c ) );
 
@@ -890,8 +926,7 @@ final class Admin {
 			}
 			$res = $res ?? Repo::add_sale( (int) self::post( 'staff_id' ), null, $item, (float) str_replace( ',', '.', self::post( 'qty' ) ), $ts );
 			if ( is_wp_error( $res ) ) {
-				wp_safe_redirect( add_query_arg( array( 'page' => 'sb-pay', 'month' => $ym, 'sb_error' => rawurlencode( $res->get_error_message() ) ), admin_url( 'admin.php' ) ) );
-				exit;
+				self::back( 'sb-pay', array( 'month' => $ym, 'sb_saved' => null, 'sb_error' => $res->get_error_message() ) );
 			}
 			$ym = substr( $day, 0, 7 );
 		}
@@ -902,8 +937,7 @@ final class Admin {
 		self::guard( 'sb_manage_settings', 'sb_delete_sale' );
 		$res = Repo::delete_sale( (int) self::post( 'id' ) );
 		if ( is_wp_error( $res ) ) {
-			wp_safe_redirect( add_query_arg( array( 'page' => 'sb-pay', 'month' => self::post( 'month' ), 'sb_error' => rawurlencode( $res->get_error_message() ) ), admin_url( 'admin.php' ) ) );
-			exit;
+			self::back( 'sb-pay', array( 'month' => self::post( 'month' ), 'sb_saved' => null, 'sb_error' => $res->get_error_message() ) );
 		}
 		self::back( 'sb-pay', array( 'month' => self::post( 'month' ) ) );
 	}
@@ -967,7 +1001,7 @@ final class Admin {
 		$ym     = self::month_param();
 		$first  = new \DateTimeImmutable( $ym . '-01', Settings::tz() );
 		$title  = ucfirst( Format::months()[ (int) $first->format( 'n' ) ] ) . ' ' . $first->format( 'Y' );
-		$url    = static fn( \DateTimeImmutable $d ) => esc_url( admin_url( 'admin.php?page=sb-vat&month=' . $d->format( 'Y-m' ) ) );
+		$url    = static fn( \DateTimeImmutable $d ) => esc_url( self::url( 'sb-vat&month=' . $d->format( 'Y-m' ) ) );
 		$report = self::vat_report( $ym );
 		$m      = static fn( int $c ) => esc_html( number_format( $c / 100, 2, ',', ' ' ) . ' €' );
 		$kinds  = self::vat_kinds();
@@ -1028,7 +1062,7 @@ final class Admin {
 		$id = isset( $_GET['client'] ) ? (int) $_GET['client'] : 0; // phpcs:ignore WordPress.Security.NonceVerification
 		echo '<div class="wrap"><h1>' . esc_html__( 'Kliendid', 'sasipea-broneering' ) . '</h1>';
 		self::notice();
-		echo '<form method="get"><input type="hidden" name="page" value="sb-clients"><label class="screen-reader-text" for="sb-q">' . esc_html__( 'Otsi', 'sasipea-broneering' ) . '</label><input id="sb-q" type="search" name="q" value="' . esc_attr( $q ) . '" placeholder="' . esc_attr__( 'Nimi, telefon või e-post', 'sasipea-broneering' ) . '"> ';
+		echo '<form method="get"><input type="hidden" name="' . ( self::$front ? 'vaade' : 'page' ) . '" value="' . ( self::$front ? 'kliendid' : 'sb-clients' ) . '"><label class="screen-reader-text" for="sb-q">' . esc_html__( 'Otsi', 'sasipea-broneering' ) . '</label><input id="sb-q" type="search" name="q" value="' . esc_attr( $q ) . '" placeholder="' . esc_attr__( 'Nimi, telefon või e-post', 'sasipea-broneering' ) . '"> ';
 		submit_button( __( 'Otsi', 'sasipea-broneering' ), 'secondary', '', false );
 		echo '</form>';
 
@@ -1055,7 +1089,7 @@ final class Admin {
 		} elseif ( '' !== $q ) {
 			echo '<table class="widefat striped" style="max-width:900px;margin-top:12px"><tbody>';
 			foreach ( Repo::search_clients( $q, 50 ) as $c ) {
-				printf( '<tr><td><a href="%s">%s</a></td><td>%s</td><td>%s</td></tr>', esc_url( admin_url( 'admin.php?page=sb-clients&client=' . $c['id'] ) ), esc_html( trim( $c['first_name'] . ' ' . $c['last_name'] ) ), esc_html( $c['phone'] ), esc_html( $c['email'] ) );
+				printf( '<tr><td><a href="%s">%s</a></td><td>%s</td><td>%s</td></tr>', esc_url( self::url( 'sb-clients&client=' . $c['id'] ) ), esc_html( trim( $c['first_name'] . ' ' . $c['last_name'] ) ), esc_html( $c['phone'] ), esc_html( $c['email'] ) );
 			}
 			echo '</tbody></table>';
 		}
@@ -1195,6 +1229,7 @@ final class Admin {
 
 		echo '<h2>' . esc_html__( 'Salongi andmed ja lingid', 'sasipea-broneering' ) . '</h2><table class="form-table">';
 		$txt = array(
+			'dashboard_slug'   => __( 'Töölaua aadressi lõpp', 'sasipea-broneering' ),
 			'booking_page_url' => __( 'Broneerimise lehe aadress', 'sasipea-broneering' ),
 			'privacy_url'      => __( 'Privaatsuspoliitika aadress', 'sasipea-broneering' ),
 			'from_name'        => __( 'Kirjade saatja nimi', 'sasipea-broneering' ),
@@ -1247,8 +1282,7 @@ final class Admin {
 		check_admin_referer( 'sb_shop_sync' );
 		$res = Integrations\Woo::sync();
 		if ( is_wp_error( $res ) ) {
-			wp_safe_redirect( add_query_arg( array( 'page' => 'sb-settings', 'sb_error' => rawurlencode( $res->get_error_message() ) ), admin_url( 'admin.php' ) ) );
-			exit;
+			self::back( 'sb-settings', array( 'sb_saved' => null, 'sb_error' => $res->get_error_message() ) );
 		}
 		self::back( 'sb-settings' );
 	}
@@ -1330,6 +1364,7 @@ final class Admin {
 				'extra_min'    => max( 0, min( 240, (int) ( $l['extra_min'] ?? 0 ) ) ),
 			);
 		}
+		$vals['dashboard_slug'] = sanitize_title( (string) ( $p['dashboard_slug'] ?? '' ) ) ?: 'salong';
 		foreach ( array( 'booking_page_url', 'privacy_url', 'from_name', 'salon_address', 'salon_phone', 'salon_web', 'consent_version' ) as $k ) {
 			$vals[ $k ] = sanitize_text_field( (string) ( $p[ $k ] ?? '' ) );
 		}

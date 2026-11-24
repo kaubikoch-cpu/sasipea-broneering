@@ -51,6 +51,8 @@ final class Settings {
 				'others'  => false, // teiste praktikantide veerud (ilma klientide andmeteta)
 				'pay'     => false, // enda kuu tasu kokkuvõte
 			),
+			// Töölaua (oma sisselogimisega vaade väljaspool WP adminni) aadressi lõpp: /salong/.
+			'dashboard_slug'      => 'salong',
 			'booking_page_url'    => '/broneeri/',
 			'privacy_url'         => '/privaatsuspoliitika/',
 			'notify_email'        => 'info@oppesalong.ee',

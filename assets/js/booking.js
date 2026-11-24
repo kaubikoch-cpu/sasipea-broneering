@@ -56,7 +56,9 @@
 		return fetch(cfg.rest + path, {
 			method: opts.method || 'GET',
 			headers: headers,
-			credentials: 'same-origin',
+			// Avalik broneerimine käib alati külastajana. Sisseloginud kasutaja küpsisega ei klapiks
+			// külastaja turvakood ja WordPress vastaks "Küpsiste kontroll ebaõnnestus".
+			credentials: 'omit',
 			body: opts.body ? JSON.stringify(opts.body) : undefined
 		}).then(function (r) {
 			return r.json().catch(function () { return {}; }).then(function (data) {
