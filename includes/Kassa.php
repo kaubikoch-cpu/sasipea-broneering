@@ -84,13 +84,14 @@ final class Kassa {
 	}
 
 	/**
-	 * Kontrollib makse osad kogusumma vastu. Tühi väli on 0.
+	 * Kontrollib makse osad kogusumma vastu. Tühi väli on 0. Sularaha real on summa, mille klient
+	 * tegelikult andis: kui kokku tuleb rohkem kui arve, on ülejääk tagasi antav raha ja sularahana
+	 * läheb kirja ainult arve katmiseks kulunud osa.
 	 *
-	 * @param array<string,string> $raw     makseviis => sisestatud summa eurodes
-	 * @param string               $given   kliendi antud sularaha eurodes (võib olla tühi)
+	 * @param array<string,string> $raw makseviis => sisestatud summa eurodes
 	 * @return array{parts: array<string,int>, method: string, given: ?int, change: int}|string viga tekstina
 	 */
-	public static function settle( int $total, array $raw, string $given = '' ) {
+	public static function settle( int $total, array $raw ) {
 		$parts = array();
 		foreach ( array_keys( self::METHODS ) as $m ) {
 			$v = trim( (string) ( $raw[ $m ] ?? '' ) );
@@ -106,20 +107,17 @@ final class Kassa {
 			/* translators: %s: amount */
 			return sprintf( __( 'Maksta on veel %s. Jaga kogu summa makseviiside vahel ära.', 'sasipea-broneering' ), Settings::money( $total - $sum ) );
 		}
-		if ( $sum > $total ) {
+		// Ülejääk on kliendile tagasi antav raha ja seda saab anda ainult sularahast.
+		$change = $sum - $total;
+		if ( $change > $parts['cash'] ) {
 			/* translators: %s: amount */
-			return sprintf( __( 'Makseid on %s rohkem kui arve summa. Tagasi antav sularaha käib väljale "Klient andis".', 'sasipea-broneering' ), Settings::money( $sum - $total ) );
+			return sprintf( __( 'Kaardi ja ülekandega on makstud %s rohkem kui arve summa. Tagasi saab anda ainult sularaha.', 'sasipea-broneering' ), Settings::money( $change - $parts['cash'] ) );
 		}
-		$g = '' === trim( $given ) ? null : self::parse_money( $given );
-		if ( '' !== trim( $given ) && null === $g ) {
-			return __( 'Kliendi antud sularaha summa ei ole korrektne.', 'sasipea-broneering' );
-		}
-		if ( null !== $g && $g < $parts['cash'] ) {
-			return __( 'Klient andis vähem sularaha, kui sularahas maksta tuleb.', 'sasipea-broneering' );
-		}
-		$used   = array_keys( array_filter( $parts ) );
-		$method = count( $used ) > 1 ? 'mixed' : ( $used[0] ?? 'cash' );
-		return array( 'parts' => $parts, 'method' => $method, 'given' => $parts['cash'] > 0 ? $g : null, 'change' => null !== $g && $parts['cash'] > 0 ? $g - $parts['cash'] : 0 );
+		$given          = $parts['cash'];
+		$parts['cash'] -= $change;
+		$used           = array_keys( array_filter( $parts ) );
+		$method         = count( $used ) > 1 ? 'mixed' : ( $used[0] ?? 'cash' );
+		return array( 'parts' => $parts, 'method' => $method, 'given' => $change > 0 ? $given : null, 'change' => $change );
 	}
 
 	/** "12,5" või "12.50" eurodes -> sendid; vigane sisend annab null. */
@@ -438,35 +436,34 @@ JS;
 			}
 			echo '<div class="sb-k-total"><span>' . esc_html__( 'Kokku maksta', 'sasipea-broneering' ) . '</span><strong id="sb-k-total">' . esc_html( Settings::money( $total ) ) . '</strong></div>';
 			echo '<p><label for="sb-k-email"><strong>' . esc_html__( 'Kviitung e-postile', 'sasipea-broneering' ) . '</strong></label><br><input id="sb-k-email" type="email" name="email" value="' . esc_attr( (string) ( $b['email'] ?? '' ) ) . '" autocomplete="off" style="width:100%"><span class="description">' . esc_html__( 'Kviitung saadetakse sellele aadressile kohe pärast makset. Jäta tühjaks, kui klient kviitungit ei soovi.', 'sasipea-broneering' ) . '</span></p>';
-			echo '<fieldset style="border:0;padding:0;margin:0"><legend><strong>' . esc_html__( 'Kuidas klient maksab', 'sasipea-broneering' ) . '</strong></legend><p class="description" style="margin:2px 0 8px">' . esc_html__( 'Ühe makseviisi korral vajuta selle real "Kogu jääk". Jagatud makse korral kirjuta igale reale oma summa.', 'sasipea-broneering' ) . '</p><div class="sb-k-split" id="sb-k-split" data-total="' . (int) $total . '">';
+			echo '<fieldset style="border:0;padding:0;margin:0"><legend><strong>' . esc_html__( 'Kuidas klient maksab', 'sasipea-broneering' ) . '</strong></legend><p class="description" style="margin:2px 0 8px">' . esc_html__( 'Kirjuta igale reale summa, mille klient selle makseviisiga annab. Sularaha reale kirjuta see, mis klient tegelikult ulatas (nt 100): kassa arvutab tagasi antava raha.', 'sasipea-broneering' ) . '</p><div class="sb-k-split" id="sb-k-split" data-total="' . (int) $total . '">';
 			foreach ( self::METHODS as $k => $label ) {
-				echo '<div class="sb-k-row"><label for="sb-k-pay-' . esc_attr( $k ) . '">' . esc_html( $label ) . '</label><input id="sb-k-pay-' . esc_attr( $k ) . '" class="sb-k-part" name="pay_' . esc_attr( $k ) . '" inputmode="decimal" autocomplete="off" placeholder="0"><button type="button" class="button sb-k-rest" data-for="sb-k-pay-' . esc_attr( $k ) . '" aria-label="' . esc_attr( sprintf( /* translators: %s: payment method */ __( 'Kogu jääk: %s', 'sasipea-broneering' ), $label ) ) . '">' . esc_html__( 'Kogu jääk', 'sasipea-broneering' ) . '</button></div>';
+				echo '<div class="sb-k-row"><label for="sb-k-pay-' . esc_attr( $k ) . '">' . esc_html( 'cash' === $k ? __( 'Sularaha (klient andis)', 'sasipea-broneering' ) : $label ) . '</label><input id="sb-k-pay-' . esc_attr( $k ) . '" class="sb-k-part" name="pay_' . esc_attr( $k ) . '" inputmode="decimal" autocomplete="off" placeholder="0"><button type="button" class="button sb-k-rest" data-for="sb-k-pay-' . esc_attr( $k ) . '" aria-label="' . esc_attr( sprintf( /* translators: %s: payment method */ __( 'Kogu jääk: %s', 'sasipea-broneering' ), $label ) ) . '">' . esc_html__( 'Kogu jääk', 'sasipea-broneering' ) . '</button></div>';
 			}
 			echo '</div><div class="sb-k-left" id="sb-k-left" aria-live="polite"><span>' . esc_html__( 'Veel maksta', 'sasipea-broneering' ) . '</span><strong>' . esc_html( Settings::money( $total ) ) . '</strong></div>';
-			echo '<div class="sb-k-change" id="sb-k-change" hidden><div class="sb-k-row"><label for="sb-k-given">' . esc_html__( 'Klient andis sularaha', 'sasipea-broneering' ) . '</label><input id="sb-k-given" name="cash_given" inputmode="decimal" autocomplete="off"></div><div class="sb-k-back" aria-live="polite"><span>' . esc_html__( 'Tagasi anda', 'sasipea-broneering' ) . '</span><strong id="sb-k-back">–</strong></div></div>';
 			echo '</fieldset><button class="button button-primary sb-k-pay" type="submit">' . esc_html__( 'Lõpeta makse', 'sasipea-broneering' ) . '</button></form>';
 			if ( $t['booking_id'] ) {
 				echo '<p class="description">' . esc_html__( 'Makse lõpetamisel märgitakse broneering staatusesse "Kohal" ja teenus läheb tasude arvestusse.', 'sasipea-broneering' ) . '</p>';
 			}
 			$i18n = array(
 				'left' => __( 'Veel maksta', 'sasipea-broneering' ),
-				'done' => __( 'Kogu summa on jagatud', 'sasipea-broneering' ),
-				'over' => __( 'Liiga palju', 'sasipea-broneering' ),
-				'less' => __( 'Puudu', 'sasipea-broneering' ),
+				'done' => __( 'Makstud täpselt', 'sasipea-broneering' ),
+				'back' => __( 'Tagasi anda', 'sasipea-broneering' ),
+				'over' => __( 'Kaardi ja ülekandega liiga palju', 'sasipea-broneering' ),
 			);
 			echo '<script>(function(){var T=' . wp_json_encode( $i18n ) . ';' . <<<'JS'
 var box=document.getElementById('sb-k-split');if(!box)return;
-var price=document.getElementById('sb-k-price'),tot=document.getElementById('sb-k-total'),left=document.getElementById('sb-k-left'),chg=document.getElementById('sb-k-change'),given=document.getElementById('sb-k-given'),back=document.getElementById('sb-k-back'),cash=document.getElementById('sb-k-pay-cash'),parts=[].slice.call(box.querySelectorAll('.sb-k-part')),base=parseInt(box.getAttribute('data-total'),10),extra=price?parseInt(price.getAttribute('data-cents'),10):0;
+var price=document.getElementById('sb-k-price'),tot=document.getElementById('sb-k-total'),left=document.getElementById('sb-k-left'),cash=document.getElementById('sb-k-pay-cash'),parts=[].slice.call(box.querySelectorAll('.sb-k-part')),base=parseInt(box.getAttribute('data-total'),10),extra=price?parseInt(price.getAttribute('data-cents'),10):0;
 function cents(v){v=String(v).replace(/\s|€/g,'').replace(',','.');if(v==='')return 0;var n=parseFloat(v);return isNaN(n)||n<0?null:Math.round(n*100);}
 function eur(c){return (c%100?(c/100).toFixed(2).replace('.',','):String(c/100))+' €';}
 function plain(c){return c%100?(c/100).toFixed(2).replace('.',','):String(c/100);}
 function total(){if(!price)return base;var c=cents(price.value);return c===null?base:c+extra;}
 function paid(skip){return parts.reduce(function(a,i){return a+(i===skip?0:(cents(i.value)||0));},0);}
-function draw(){var t=total(),r=t-paid(null);tot.textContent=eur(t);left.className='sb-k-left'+(r===0?' is-ok':(r<0?' is-over':''));left.firstChild.textContent=r===0?T.done:(r<0?T.over:T.left);left.lastChild.textContent=r===0?'✓':eur(Math.abs(r));
-var c=cents(cash.value)||0;chg.hidden=c<=0;if(c>0){var g=cents(given.value);if(given.value.trim()===''||g===null){back.textContent='–';back.parentNode.className='sb-k-back';}else if(g<c){back.textContent=T.less+' '+eur(c-g);back.parentNode.className='sb-k-back is-over';}else{back.textContent=eur(g-c);back.parentNode.className='sb-k-back is-ok';}}}
-parts.forEach(function(i){i.addEventListener('input',draw);});given.addEventListener('input',draw);if(price)price.addEventListener('input',draw);
-[].forEach.call(box.querySelectorAll('.sb-k-rest'),function(b){b.addEventListener('click',function(){var i=document.getElementById(b.getAttribute('data-for')),r=total()-paid(i);i.value=r>0?plain(r):'';draw();if(i===cash&&r>0){given.focus();}});});
-box.closest('form').addEventListener('submit',function(e){if(total()-paid(null)!==0){e.preventDefault();draw();left.className+=' is-over';left.scrollIntoView({block:'center'});}});
+function state(){var r=total()-paid(null),c=cents(cash.value)||0;if(r>0)return{k:'',t:T.left,v:eur(r),ok:false};if(r===0)return{k:' is-ok',t:T.done,v:'✓',ok:true};if(-r<=c)return{k:' is-ok',t:T.back,v:eur(-r),ok:true};return{k:' is-over',t:T.over,v:eur(-r-c),ok:false};}
+function draw(){var s=state();tot.textContent=eur(total());left.className='sb-k-left'+s.k;left.firstChild.textContent=s.t;left.lastChild.textContent=s.v;return s;}
+parts.forEach(function(i){i.addEventListener('input',draw);});if(price)price.addEventListener('input',draw);
+[].forEach.call(box.querySelectorAll('.sb-k-rest'),function(b){b.addEventListener('click',function(){var i=document.getElementById(b.getAttribute('data-for')),r=total()-paid(i);i.value=r>0?plain(r):'';draw();i.focus();i.select();});});
+box.closest('form').addEventListener('submit',function(e){if(!draw().ok){e.preventDefault();left.className='sb-k-left is-over';left.scrollIntoView({block:'center'});}});
 draw();
 })();</script>
 JS;
@@ -623,7 +620,7 @@ JS;
 			foreach ( array_keys( self::METHODS ) as $m ) {
 				$raw[ $m ] = Admin::post( 'pay_' . $m );
 			}
-			$split = self::settle( self::total( $service, $sales ), $raw, Admin::post( 'cash_given' ) );
+			$split = self::settle( self::total( $service, $sales ), $raw );
 			$err   = is_string( $split ) ? $split : null;
 		}
 		if ( $err ) {

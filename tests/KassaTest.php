@@ -67,17 +67,25 @@ final class KassaTest extends TestCase {
 	}
 
 	public function test_sularaha_tagasiandmine(): void {
-		$r = Kassa::settle( 5600, array( 'cash' => '56' ), '100' );
+		// Arve 56 €, klient annab 100 €: tagasi 44 €, sularahana läheb kirja 56 €.
+		$r = Kassa::settle( 5600, array( 'cash' => '100' ) );
 		$this->assertSame( 'cash', $r['method'] );
+		$this->assertSame( 5600, $r['parts']['cash'] );
 		$this->assertSame( 10000, $r['given'] );
 		$this->assertSame( 4400, $r['change'] );
-		$this->assertSame( 0, Kassa::settle( 5600, array( 'cash' => '56' ) )['change'] );
-		$this->assertSame( true, is_string( Kassa::settle( 5600, array( 'cash' => '56' ), '50' ) ) );
-		// Jagatud makse: tagasi antakse ainult sularaha osast.
-		$m = Kassa::settle( 5000, array( 'cash' => '10', 'card' => '40' ), '20' );
+		$exact = Kassa::settle( 5600, array( 'cash' => '56' ) );
+		$this->assertSame( 0, $exact['change'] );
+		$this->assertSame( null, $exact['given'] );
+		// Jagatud makse: kaart 40, sularaha 20 antud, arve 50: tagasi 10, sularaha kirjas 10.
+		$m = Kassa::settle( 5000, array( 'cash' => '20', 'card' => '40' ) );
 		$this->assertSame( 1000, $m['change'] );
-		// Sularaha ei ole: antud summa ei loe.
-		$this->assertSame( null, Kassa::settle( 5000, array( 'card' => '50' ), '100' )['given'] );
+		$this->assertSame( array( 'cash' => 1000, 'card' => 4000, 'transfer' => 0 ), $m['parts'] );
+		// Kaardiga üle makstud summat ei saa sularahas tagasi anda.
+		$this->assertSame( true, is_string( Kassa::settle( 5000, array( 'card' => '60', 'cash' => '5' ) ) ) );
+		// Kogu arve kaeti kaardiga, sularaha anti asjata: kõik sularaha tagasi, kirja läheb ainult kaart.
+		$c = Kassa::settle( 5000, array( 'card' => '50', 'cash' => '5' ) );
+		$this->assertSame( 'card', $c['method'] );
+		$this->assertSame( 500, $c['change'] );
 	}
 
 	public function test_paeva_kokkuvote_jagab_jagatud_makse_makseviisidesse(): void {
