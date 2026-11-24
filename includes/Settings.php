@@ -30,6 +30,11 @@ final class Settings {
 				array( 'id' => 'noorem', 'name' => 'Noorempraktikant', 'discount_pct' => 10, 'extra_min' => 30 ),
 				array( 'id' => 'vanem', 'name' => 'Vanempraktikant', 'discount_pct' => 0, 'extra_min' => 0 ),
 			),
+			// Materjalid, mida müüakse grammi kaupa (hind sentides grammi kohta).
+			'materials'           => array(
+				array( 'id' => 'pulber', 'name' => 'Blondeerimispulber', 'cents_per_g' => 20 ),
+				array( 'id' => 'varv', 'name' => 'Värv', 'cents_per_g' => 30 ),
+			),
 			// Kui sees, saab online broneerida ainult nendesse kuudesse, mille töögraafik on koostatud.
 			'require_month'       => false,
 			// Mida sisseloginud praktikant päevaplaanis näeb. Muuta ei saa ta midagi.
@@ -38,6 +43,7 @@ final class Settings {
 				'price'   => true,  // teenuse hind
 				'details' => false, // kliendi e-post ja kommentaar
 				'others'  => false, // teiste praktikantide veerud (ilma klientide andmeteta)
+				'pay'     => false, // enda kuu tasu kokkuvõte
 			),
 			'booking_page_url'    => '/broneeri/',
 			'privacy_url'         => '/privaatsuspoliitika/',

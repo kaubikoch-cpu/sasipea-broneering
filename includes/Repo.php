@@ -97,6 +97,7 @@ final class Repo {
 			'level'             => (string) ( $r['level'] ?? '' ),
 			'discount_override' => isset( $r['discount_pct'] ) ? (int) $r['discount_pct'] : null,
 			'extra_override'    => isset( $r['extra_min'] ) ? (int) $r['extra_min'] : null,
+			'pay'               => Payroll::normalize( $r['pay'] ?? null ),
 		);
 		// Kehtivad tingimused: tase + praktikandi enda erisused.
 		return $out + Pricing::terms( $out, (array) Settings::get()['levels'] );
@@ -361,6 +362,132 @@ final class Repo {
 				'created_at' => self::utc( time() ),
 			)
 		);
+	}
+
+	/* ---------- Tooted, müük ja tasud ---------- */
+
+	public static function products( bool $active_only = true ): array {
+		global $wpdb;
+		$where = $active_only ? 'WHERE active = 1' : '';
+		return array_map(
+			fn( $r ) => array(
+				'id'          => (int) $r['id'],
+				'name'        => $r['name'],
+				'price_cents' => (int) $r['price_cents'],
+				'price_label' => Settings::money( (int) $r['price_cents'] ),
+				'active'      => (bool) $r['active'],
+				'sort_order'  => (int) $r['sort_order'],
+			),
+			$wpdb->get_results( 'SELECT * FROM ' . self::t( 'products' ) . " $where ORDER BY sort_order, name", ARRAY_A )
+		);
+	}
+
+	/**
+	 * Lisab müügirea. Materjali hind tuleb seadetest (senti grammi kohta), toote hind toodete nimekirjast.
+	 *
+	 * @param string $item "material:<id>" või "product:<id>"
+	 * @return int|\WP_Error rea id
+	 */
+	public static function add_sale( int $staff_id, ?int $booking_id, string $item, float $qty, int $sold_at ) {
+		global $wpdb;
+		[ $kind, $ref ] = explode( ':', $item, 2 ) + array( '', '' );
+		$bad            = new \WP_Error( 'sb_invalid', __( 'Vali materjal või toode ja sisesta kogus.', 'sasipea-broneering' ), array( 'status' => 400 ) );
+		if ( $qty <= 0 || $qty > 100000 || ! $staff_id ) {
+			return $bad;
+		}
+		$row = null;
+		if ( 'material' === $kind ) {
+			foreach ( (array) Settings::get()['materials'] as $m ) {
+				if ( (string) $m['id'] === $ref ) {
+					$row = array( 'product_id' => null, 'label' => $m['name'], 'unit_cents' => (int) $m['cents_per_g'] );
+				}
+			}
+		} elseif ( 'product' === $kind ) {
+			foreach ( self::products() as $p ) {
+				if ( $p['id'] === (int) $ref ) {
+					$row = array( 'product_id' => $p['id'], 'label' => $p['name'], 'unit_cents' => $p['price_cents'] );
+					$qty = (float) max( 1, round( $qty ) );
+				}
+			}
+		}
+		if ( ! $row ) {
+			return $bad;
+		}
+		$wpdb->insert(
+			self::t( 'sales' ),
+			$row + array(
+				'booking_id'  => $booking_id ?: null,
+				'staff_id'    => $staff_id,
+				'kind'        => $kind,
+				'qty'         => $qty,
+				'total_cents' => (int) round( $row['unit_cents'] * $qty ),
+				'sold_at'     => self::utc( $sold_at ),
+				'created_by'  => get_current_user_id() ?: null,
+			)
+		);
+		return (int) $wpdb->insert_id;
+	}
+
+	public static function delete_sale( int $id ): void {
+		global $wpdb;
+		$wpdb->delete( self::t( 'sales' ), array( 'id' => $id ) );
+	}
+
+	public static function sale_out( array $r ): array {
+		$qty = (float) $r['qty'];
+		return array(
+			'id'          => (int) $r['id'],
+			'booking_id'  => $r['booking_id'] ? (int) $r['booking_id'] : null,
+			'staff_id'    => (int) $r['staff_id'],
+			'kind'        => $r['kind'],
+			'label'       => $r['label'],
+			'qty'         => $qty,
+			'qty_label'   => rtrim( rtrim( number_format( $qty, 2, ',', '' ), '0' ), ',' ) . ( 'material' === $r['kind'] ? ' g' : ' tk' ),
+			'total_cents' => (int) $r['total_cents'],
+			'total_label' => Settings::money( (int) $r['total_cents'] ),
+			'sold_at'     => $r['sold_at'],
+		);
+	}
+
+	public static function sales_for_booking( int $booking_id ): array {
+		global $wpdb;
+		return array_map( array( self::class, 'sale_out' ), $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'sales' ) . ' WHERE booking_id = %d ORDER BY id', $booking_id ), ARRAY_A ) );
+	}
+
+	/**
+	 * Kuu tasude alusandmed praktikandi kaupa: tehtud teenused (staatus "Kohal") ja müügiread.
+	 *
+	 * @return array<int, array{services: list<array>, sales: list<array>}>
+	 */
+	public static function payroll_data( string $ym ): array {
+		global $wpdb;
+		$first = new \DateTimeImmutable( $ym . '-01 00:00:00', Settings::tz() );
+		$from  = self::utc( $first->getTimestamp() );
+		$to    = self::utc( $first->modify( '+1 month' )->getTimestamp() );
+		$out   = array();
+		$rows  = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT b.id, b.staff_id, b.start_utc, b.price_cents, s.name AS service_name, c.first_name, c.last_name
+				 FROM ' . self::t( 'bookings' ) . ' b
+				 LEFT JOIN ' . self::t( 'services' ) . ' s ON s.id = b.service_id
+				 LEFT JOIN ' . self::t( 'clients' ) . " c ON c.id = b.client_id
+				 WHERE b.status = 'arrived' AND b.start_utc >= %s AND b.start_utc < %s ORDER BY b.start_utc",
+				$from,
+				$to
+			),
+			ARRAY_A
+		);
+		foreach ( $rows as $r ) {
+			$out[ (int) $r['staff_id'] ]['services'][] = $r;
+		}
+		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'sales' ) . ' WHERE sold_at >= %s AND sold_at < %s ORDER BY sold_at, id', $from, $to ), ARRAY_A );
+		foreach ( $rows as $r ) {
+			$out[ (int) $r['staff_id'] ]['sales'][] = self::sale_out( $r );
+		}
+		foreach ( $out as $sid => $d ) {
+			$out[ $sid ] += array( 'services' => array(), 'sales' => array() );
+		}
+		return $out;
 	}
 
 	/* ---------- Kliendid ---------- */

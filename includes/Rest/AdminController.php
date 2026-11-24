@@ -52,6 +52,8 @@ final class AdminController {
 				array( 'methods' => 'PATCH', 'callback' => array( self::class, 'update' ), 'permission_callback' => array( self::class, 'can_manage' ) ),
 			)
 		);
+		register_rest_route( $ns, '/admin/sales', array( 'methods' => 'POST', 'callback' => array( self::class, 'sale_create' ), 'permission_callback' => array( self::class, 'can_manage' ) ) );
+		register_rest_route( $ns, '/admin/sales/(?P<id>\d+)', array( 'methods' => 'DELETE', 'callback' => array( self::class, 'sale_delete' ), 'permission_callback' => array( self::class, 'can_manage' ) ) );
 		register_rest_route( $ns, '/admin/blocks', array( 'methods' => 'POST', 'callback' => array( self::class, 'block_create' ), 'permission_callback' => array( self::class, 'can_manage' ) ) );
 		register_rest_route( $ns, '/admin/blocks/(?P<id>\d+)', array( 'methods' => 'DELETE', 'callback' => array( self::class, 'block_delete' ), 'permission_callback' => array( self::class, 'can_manage' ) ) );
 		register_rest_route(
@@ -188,6 +190,14 @@ final class AdminController {
 		}
 		if ( self::can_manage() ) {
 			$out['services'] = Repo::catalog( true );
+			// Valikud broneeringu juurde materjali ja toodete märkimiseks.
+			$out['sale_items'] = array( 'material' => array(), 'product' => array() );
+			foreach ( (array) Settings::get()['materials'] as $m ) {
+				$out['sale_items']['material'][] = array( 'key' => 'material:' . $m['id'], 'name' => $m['name'] . ' (' . Settings::money( (int) $m['cents_per_g'] ) . '/g)' );
+			}
+			foreach ( Repo::products() as $p ) {
+				$out['sale_items']['product'][] = array( 'key' => 'product:' . $p['id'], 'name' => $p['name'] . ' (' . $p['price_label'] . ')' );
+			}
 		}
 		return $out;
 	}
@@ -203,6 +213,7 @@ final class AdminController {
 		$out            = self::can_manage() ? self::booking_out( $b, true ) : self::booking_for_trainee( $b );
 		$out['history'] = array();
 		if ( self::can_manage() ) {
+			$out['sales'] = Repo::sales_for_booking( (int) $b['id'] );
 			foreach ( array_slice( Repo::client_history( (int) $b['client_id'] ), 0, 10 ) as $h ) {
 				$out['history'][] = array(
 					'date'    => Format::local( $h['start_utc'] )->format( 'd.m.Y H:i' ),
@@ -313,6 +324,25 @@ final class AdminController {
 			)
 		);
 		return array( 'id' => (int) $wpdb->insert_id );
+	}
+
+	/** Materjal (grammid) või toode (tükid) broneeringu juurde. Müük läheb broneeringu praktikandi arvele. */
+	public static function sale_create( \WP_REST_Request $req ) {
+		$b = Repo::booking( (int) $req->get_param( 'booking_id' ) );
+		if ( ! $b ) {
+			return new \WP_Error( 'sb_404', __( 'Broneeringut ei leitud.', 'sasipea-broneering' ), array( 'status' => 404 ) );
+		}
+		$qty = (float) str_replace( ',', '.', (string) $req->get_param( 'qty' ) );
+		$id  = Repo::add_sale( (int) $b['staff_id'], (int) $b['id'], sanitize_text_field( (string) $req->get_param( 'item' ) ), $qty, Repo::ts( $b['start_utc'] ) );
+		if ( is_wp_error( $id ) ) {
+			return $id;
+		}
+		return array( 'sales' => Repo::sales_for_booking( (int) $b['id'] ) );
+	}
+
+	public static function sale_delete( \WP_REST_Request $req ) {
+		Repo::delete_sale( (int) $req['id'] );
+		return array( 'deleted' => true );
 	}
 
 	public static function block_delete( \WP_REST_Request $req ) {

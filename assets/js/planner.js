@@ -378,6 +378,7 @@
 				content.appendChild(h('h3', null, 'Staatus'));
 				content.appendChild(statusRow);
 				content.appendChild(h('p', null, h('button', { type: 'button', class: 'button', onclick: function () { dlg.close(); bookingDialog(b, {}); } }, 'Muuda aega, praktikanti või teenust')));
+				content.appendChild(salesBox(b));
 				if (b.history && b.history.length > 1) {
 					content.appendChild(h('h3', null, 'Kliendi varasemad külastused'));
 					content.appendChild(h('ul', { class: 'sb-p-history' }, b.history.map(function (x) { return h('li', null, x.date + ' · ' + x.service + ' · ' + x.staff + ' · ' + x.status); })));
@@ -385,6 +386,43 @@
 			}
 			dlg = dialog(b.client || 'Broneering', content);
 		}).catch(function (e) { toast(e.message, true); });
+	}
+
+	/* Materjal ja tooted broneeringu juures (lähevad praktikandi tasu arvestusse). */
+	function salesBox(b) {
+		var items = state.data.sale_items || { material: [], product: [] };
+		var box = h('div', { class: 'sb-p-sales' });
+		var list = h('ul', { class: 'sb-p-sales-list' });
+		var err = h('div', { class: 'sb-p-err', role: 'alert' });
+		function draw(sales) {
+			list.textContent = '';
+			var sum = 0;
+			sales.forEach(function (s) {
+				sum += s.total_cents;
+				list.appendChild(h('li', null, s.label + ' · ' + s.qty_label + ' · ' + s.total_label + ' ',
+					h('button', { type: 'button', class: 'sb-link', 'aria-label': 'Eemalda ' + s.label, onclick: function () {
+						api('admin/sales/' + s.id, 'DELETE').then(function () { draw(sales.filter(function (x) { return x.id !== s.id; })); }).catch(function (e) { err.textContent = e.message; });
+					} }, 'eemalda')));
+			});
+			if (!sales.length) list.appendChild(h('li', { class: 'sb-p-hint' }, 'Midagi pole veel lisatud.'));
+			else list.appendChild(h('li', null, h('strong', null, 'Kokku: ' + (sum / 100).toFixed(2).replace('.', ',') + ' €')));
+		}
+		var sel = h('select', { id: 'sb-sale-item', 'aria-label': 'Materjal või toode' },
+			h('optgroup', { label: 'Materjal (grammides)' }, items.material.map(function (m) { return h('option', { value: m.key }, m.name); })),
+			items.product.length ? h('optgroup', { label: 'Tooted (tükkides)' }, items.product.map(function (p) { return h('option', { value: p.key }, p.name); })) : null);
+		var qty = h('input', { id: 'sb-sale-qty', type: 'text', inputmode: 'decimal', placeholder: 'kogus', 'aria-label': 'Kogus (grammi või tükki)', style: 'width:90px' });
+		var add = h('button', { type: 'button', class: 'button', onclick: function () {
+			err.textContent = '';
+			api('admin/sales', 'POST', { booking_id: b.id, item: sel.value, qty: qty.value })
+				.then(function (r) { qty.value = ''; draw(r.sales); })
+				.catch(function (e) { err.textContent = e.message; });
+		} }, 'Lisa');
+		box.appendChild(h('h3', null, 'Materjal ja tooted'));
+		box.appendChild(list);
+		box.appendChild(h('div', { class: 'sb-p-sales-add' }, sel, qty, add));
+		box.appendChild(err);
+		draw(b.sales || []);
+		return box;
 	}
 
 	function blockDialog(pre) {
