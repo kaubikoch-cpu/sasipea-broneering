@@ -10,7 +10,7 @@ final class Admin {
 
 	public static function init(): void {
 		add_action( 'admin_menu', array( self::class, 'menu' ) );
-		foreach ( array( 'save_service', 'save_category', 'delete_service', 'save_staff', 'add_exception', 'delete_exception', 'save_settings', 'save_client', 'save_month' ) as $a ) {
+		foreach ( array( 'save_service', 'save_category', 'delete_service', 'save_staff', 'add_exception', 'delete_exception', 'save_settings', 'save_client', 'save_month', 'save_product', 'add_sale', 'delete_sale', 'pay_csv' ) as $a ) {
 			add_action( 'admin_post_sb_' . $a, array( self::class, 'handle_' . $a ) );
 		}
 	}
@@ -22,6 +22,12 @@ final class Admin {
 		add_submenu_page( 'sb-planner', __( 'Kliendid', 'sasipea-broneering' ), __( 'Kliendid', 'sasipea-broneering' ), 'sb_manage_bookings', 'sb-clients', array( self::class, 'page_clients' ) );
 		add_submenu_page( 'sb-planner', __( 'Praktikandid', 'sasipea-broneering' ), __( 'Praktikandid', 'sasipea-broneering' ), 'sb_manage_settings', 'sb-staff', array( self::class, 'page_staff' ) );
 		add_submenu_page( 'sb-planner', __( 'Teenused', 'sasipea-broneering' ), __( 'Teenused', 'sasipea-broneering' ), 'sb_manage_settings', 'sb-services', array( self::class, 'page_services' ) );
+		add_submenu_page( 'sb-planner', __( 'Tooted', 'sasipea-broneering' ), __( 'Tooted', 'sasipea-broneering' ), 'sb_manage_settings', 'sb-products', array( self::class, 'page_products' ) );
+		if ( current_user_can( 'sb_manage_settings' ) ) {
+			add_submenu_page( 'sb-planner', __( 'Tasud', 'sasipea-broneering' ), __( 'Tasud', 'sasipea-broneering' ), 'sb_manage_settings', 'sb-pay', array( self::class, 'page_pay' ) );
+		} elseif ( ! empty( Settings::get()['trainee_view']['pay'] ) && Roles::current_staff_id() ) {
+			add_submenu_page( 'sb-planner', __( 'Minu tasu', 'sasipea-broneering' ), __( 'Minu tasu', 'sasipea-broneering' ), 'sb_view_own', 'sb-pay', array( self::class, 'page_pay' ) );
+		}
 		add_submenu_page( 'sb-planner', __( 'Seaded', 'sasipea-broneering' ), __( 'Seaded', 'sasipea-broneering' ), 'sb_manage_settings', 'sb-settings', array( self::class, 'page_settings' ) );
 	}
 
@@ -316,6 +322,29 @@ final class Admin {
 			esc_html__( 'Täida ainult siis, kui see praktikant erineb oma tasemest. Tühi = taseme järgi.', 'sasipea-broneering' )
 		);
 
+		echo '<tr><th>' . esc_html__( 'Tasu', 'sasipea-broneering' ) . '</th><td>';
+		$pay    = $s['pay'] ?? Payroll::normalize( null );
+		$plabel = array(
+			'service'  => array( __( 'Teenustelt', 'sasipea-broneering' ), __( '€ iga tehtud teenuse eest', 'sasipea-broneering' ) ),
+			'material' => array( __( 'Materjali müügilt', 'sasipea-broneering' ), __( '€ iga müügirea eest', 'sasipea-broneering' ) ),
+			'product'  => array( __( 'Toodete müügilt', 'sasipea-broneering' ), __( '€ iga müüdud toote eest', 'sasipea-broneering' ) ),
+		);
+		foreach ( $plabel as $k => $l ) {
+			$v = 'fixed' === $pay[ $k ]['type'] ? $pay[ $k ]['value'] / 100 : $pay[ $k ]['value'];
+			printf(
+				'<p><label style="display:inline-block;width:150px" for="sb-pay-%1$s">%2$s</label><input id="sb-pay-%1$s" name="pay[%1$s][value]" inputmode="decimal" style="width:90px" value="%3$s"> <select name="pay[%1$s][type]" aria-label="%6$s"><option value="pct"%4$s>%% %7$s</option><option value="fixed"%5$s>%8$s</option></select></p>',
+				esc_attr( $k ),
+				esc_html( $l[0] ),
+				esc_attr( str_replace( '.', ',', (string) round( $v, 2 ) ) ),
+				selected( $pay[ $k ]['type'], 'pct', false ),
+				selected( $pay[ $k ]['type'], 'fixed', false ),
+				esc_attr__( 'Tasu liik', 'sasipea-broneering' ),
+				esc_html__( 'käibest', 'sasipea-broneering' ),
+				esc_html( $l[1] )
+			);
+		}
+		echo '<p class="description">' . esc_html__( 'Teenuse tasu arvestatakse broneeringutelt staatusega "Kohal", kliendi makstud hinnast. 0 = tasu ei arvestata.', 'sasipea-broneering' ) . '</p></td></tr>';
+
 		echo '<tr><th>' . esc_html__( 'Nädalapõhi', 'sasipea-broneering' ) . '</th><td><p class="description">' . esc_html__( 'Tavaline nädal, mille järgi kuu töögraafik eeltäidetakse. Näiteks 12:00-19:00. Pausiga päev: 10:00-13:00, 13:30-16:00. Tühi = ei tööta.', 'sasipea-broneering' ) . '</p>';
 		$long = Format::days();
 		foreach ( $long as $wd => $name ) {
@@ -376,6 +405,7 @@ final class Admin {
 			'level'      => in_array( self::post( 'level' ), array_column( (array) Settings::get()['levels'], 'id' ), true ) ? self::post( 'level' ) : '',
 			'discount_pct' => '' === self::post( 'discount_pct' ) ? null : max( 0, min( 100, (int) self::post( 'discount_pct' ) ) ),
 			'extra_min'  => '' === self::post( 'extra_min' ) ? null : max( 0, min( 240, (int) self::post( 'extra_min' ) ) ),
+			'pay'        => wp_json_encode( self::pay_from_post() ),
 		);
 		if ( $id ) {
 			$wpdb->update( Install::table( 'staff' ), $data, array( 'id' => $id ) );
@@ -402,6 +432,18 @@ final class Admin {
 			}
 		}
 		self::back( 'sb-staff', array( 'edit' => $id ) );
+	}
+
+	/** Tasumäärad vormist: protsent jääb protsendiks, kindel summa eurodes teisendatakse sentideks. */
+	private static function pay_from_post(): array {
+		$in  = (array) wp_unslash( $_POST['pay'] ?? array() ); // phpcs:ignore WordPress.Security.NonceVerification, WordPress.Security.ValidatedSanitizedInput -- kontrollitud guard()'is, väärtused teisendatakse arvuks.
+		$raw = array();
+		foreach ( Payroll::KINDS as $k ) {
+			$type      = ( $in[ $k ]['type'] ?? 'pct' ) === 'fixed' ? 'fixed' : 'pct';
+			$value     = (float) str_replace( ',', '.', sanitize_text_field( (string) ( $in[ $k ]['value'] ?? '0' ) ) );
+			$raw[ $k ] = array( 'type' => $type, 'value' => 'fixed' === $type ? round( $value * 100 ) : $value );
+		}
+		return Payroll::normalize( $raw );
 	}
 
 	public static function handle_add_exception(): void {
@@ -593,6 +635,279 @@ final class Admin {
 		self::back( 'sb-month', array( 'month' => $ym ) );
 	}
 
+	/* ================= Tooted ================= */
+
+	public static function page_products(): void {
+		$products = Repo::products( false );
+		$id       = isset( $_GET['edit'] ) ? (int) $_GET['edit'] : 0; // phpcs:ignore WordPress.Security.NonceVerification
+		$edit     = array( 'id' => 0, 'name' => '', 'price_cents' => 0, 'active' => true, 'sort_order' => count( $products ) );
+		foreach ( $products as $p ) {
+			if ( $p['id'] === $id ) {
+				$edit = $p;
+			}
+		}
+		echo '<div class="wrap"><h1>' . esc_html__( 'Tooted', 'sasipea-broneering' ) . '</h1>';
+		self::notice();
+		echo '<p class="description">' . esc_html__( 'Müügitooted, mida saab päevaplaanis broneeringu juurde või Tasude lehel eraldi müügina märkida.', 'sasipea-broneering' ) . '</p>';
+		echo '<table class="widefat striped" style="max-width:700px"><thead><tr><th>' . esc_html__( 'Toode', 'sasipea-broneering' ) . '</th><th>' . esc_html__( 'Hind', 'sasipea-broneering' ) . '</th><th>' . esc_html__( 'Olek', 'sasipea-broneering' ) . '</th><th></th></tr></thead><tbody>';
+		if ( ! $products ) {
+			echo '<tr><td colspan="4">' . esc_html__( 'Tooteid pole veel lisatud.', 'sasipea-broneering' ) . '</td></tr>';
+		}
+		foreach ( $products as $p ) {
+			printf(
+				'<tr><td>%s</td><td>%s</td><td>%s</td><td><a href="%s">%s</a></td></tr>',
+				esc_html( $p['name'] ),
+				esc_html( $p['price_label'] ),
+				$p['active'] ? esc_html__( 'müügis', 'sasipea-broneering' ) : '<em>' . esc_html__( 'peidetud', 'sasipea-broneering' ) . '</em>',
+				esc_url( admin_url( 'admin.php?page=sb-products&edit=' . $p['id'] ) ),
+				esc_html__( 'Muuda', 'sasipea-broneering' )
+			);
+		}
+		echo '</tbody></table>';
+		echo '<h2>' . ( $edit['id'] ? esc_html__( 'Muuda toodet', 'sasipea-broneering' ) : esc_html__( 'Lisa toode', 'sasipea-broneering' ) ) . '</h2>';
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+		wp_nonce_field( 'sb_save_product' );
+		echo '<input type="hidden" name="action" value="sb_save_product"><input type="hidden" name="id" value="' . (int) $edit['id'] . '"><table class="form-table">';
+		printf( '<tr><th><label for="sb-pn">%s</label></th><td><input id="sb-pn" name="name" class="regular-text" required value="%s"></td></tr>', esc_html__( 'Nimi', 'sasipea-broneering' ), esc_attr( $edit['name'] ) );
+		printf( '<tr><th><label for="sb-pp">%s</label></th><td><input id="sb-pp" name="price" inputmode="decimal" required value="%s"></td></tr>', esc_html__( 'Hind (€)', 'sasipea-broneering' ), esc_attr( number_format( $edit['price_cents'] / 100, 2, ',', '' ) ) );
+		printf( '<tr><th>%s</th><td><label><input type="checkbox" name="active" value="1"%s> %s</label></td></tr>', esc_html__( 'Olek', 'sasipea-broneering' ), checked( $edit['active'], true, false ), esc_html__( 'Müügis', 'sasipea-broneering' ) );
+		printf( '<tr><th><label for="sb-po">%s</label></th><td><input id="sb-po" name="sort_order" type="number" value="%d"></td></tr>', esc_html__( 'Järjekord', 'sasipea-broneering' ), (int) $edit['sort_order'] );
+		echo '</table>';
+		submit_button();
+		echo '</form></div>';
+	}
+
+	public static function handle_save_product(): void {
+		global $wpdb;
+		self::guard( 'sb_manage_settings', 'sb_save_product' );
+		$id   = (int) self::post( 'id' );
+		$data = array(
+			'name'        => self::post( 'name' ),
+			'price_cents' => max( 0, (int) round( (float) str_replace( ',', '.', self::post( 'price' ) ) * 100 ) ),
+			'active'      => self::post( 'active' ) ? 1 : 0,
+			'sort_order'  => (int) self::post( 'sort_order' ),
+		);
+		if ( $id ) {
+			$wpdb->update( Install::table( 'products' ), $data, array( 'id' => $id ) );
+		} else {
+			$wpdb->insert( Install::table( 'products' ), $data );
+		}
+		self::back( 'sb-products' );
+	}
+
+	/* ================= Tasud ================= */
+
+	/** Kuu tasude read: iga nähtava praktikandi kokkuvõte ja alusandmed. */
+	private static function pay_rows( string $ym ): array {
+		$data  = Repo::payroll_data( $ym );
+		$all   = current_user_can( 'sb_manage_settings' );
+		$own   = Roles::current_staff_id();
+		$rows  = array();
+		foreach ( Repo::staff_list( false ) as $s ) {
+			if ( ! $all && $s['id'] !== $own ) {
+				continue;
+			}
+			$d = $data[ $s['id'] ] ?? array( 'services' => array(), 'sales' => array() );
+			if ( ! $s['active'] && ! $d['services'] && ! $d['sales'] ) {
+				continue;
+			}
+			$rows[] = array(
+				'staff'   => $s,
+				'data'    => $d,
+				'summary' => Payroll::summarize( $s['pay'], array_map( 'intval', array_column( $d['services'], 'price_cents' ) ), $d['sales'] ),
+			);
+		}
+		return $rows;
+	}
+
+	private static function rate_label( array $rate, string $unit ): string {
+		if ( 'fixed' === $rate['type'] ) {
+			return Settings::money( (int) $rate['value'] ) . '/' . $unit;
+		}
+		return rtrim( rtrim( number_format( $rate['value'], 2, ',', '' ), '0' ), ',' ) . '%';
+	}
+
+	public static function page_pay(): void {
+		$manager = current_user_can( 'sb_manage_settings' );
+		if ( ! $manager && ( empty( Settings::get()['trainee_view']['pay'] ) || ! Roles::current_staff_id() ) ) {
+			wp_die( esc_html__( 'Sul pole selleks õigust.', 'sasipea-broneering' ), 403 );
+		}
+		$ym    = self::month_param();
+		$first = new \DateTimeImmutable( $ym . '-01', Settings::tz() );
+		$title = ucfirst( Format::months()[ (int) $first->format( 'n' ) ] ) . ' ' . $first->format( 'Y' );
+		$url   = static fn( \DateTimeImmutable $d ) => esc_url( admin_url( 'admin.php?page=sb-pay&month=' . $d->format( 'Y-m' ) ) );
+		$rows  = self::pay_rows( $ym );
+		$m     = static fn( int $c ) => esc_html( Settings::money( $c ) );
+
+		echo '<div class="wrap sb-pay"><h1>' . esc_html( $manager ? __( 'Tasud', 'sasipea-broneering' ) : __( 'Minu tasu', 'sasipea-broneering' ) ) . '</h1>';
+		self::notice();
+		echo '<style>.sb-pay .sb-m-nav{display:flex;gap:8px;align-items:center;margin:12px 0}.sb-pay .sb-m-nav h2{margin:0 8px;min-width:180px;text-align:center}.sb-pay td.num,.sb-pay th.num{text-align:right;white-space:nowrap}.sb-pay tfoot th{font-weight:700}.sb-pay .sb-pay-rate{display:block;font-size:12px;color:#50575e}.sb-pay details{margin:8px 0;max-width:1100px}.sb-pay summary{cursor:pointer;font-weight:600}</style>';
+		echo '<div class="sb-m-nav"><a class="button" href="' . $url( $first->modify( '-1 month' ) ) . '">‹ ' . esc_html__( 'Eelmine kuu', 'sasipea-broneering' ) . '</a><h2>' . esc_html( $title ) . '</h2><a class="button" href="' . $url( $first->modify( '+1 month' ) ) . '">' . esc_html__( 'Järgmine kuu', 'sasipea-broneering' ) . ' ›</a>';
+		if ( $manager ) {
+			echo ' <a class="button" href="' . esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=sb_pay_csv&month=' . $ym ), 'sb_pay_csv' ) ) . '">' . esc_html__( 'Laadi alla CSV', 'sasipea-broneering' ) . '</a>';
+		}
+		echo '</div>';
+		echo '<p class="description">' . esc_html__( 'Teenused lähevad arvesse siis, kui broneeringu staatus on "Kohal". Materjal ja tooted märgitakse päevaplaanis broneeringu juurde. See on tasu arvestus, mitte palgaleht: makse siin ei arvutata.', 'sasipea-broneering' ) . '</p>';
+
+		echo '<table class="widefat striped" style="max-width:1100px"><thead><tr><th>' . esc_html__( 'Praktikant', 'sasipea-broneering' ) . '</th><th class="num">' . esc_html__( 'Teenuseid', 'sasipea-broneering' ) . '</th><th class="num">' . esc_html__( 'Teenuste käive', 'sasipea-broneering' ) . '</th><th class="num">' . esc_html__( 'Tasu teenustelt', 'sasipea-broneering' ) . '</th><th class="num">' . esc_html__( 'Materjali müük', 'sasipea-broneering' ) . '</th><th class="num">' . esc_html__( 'Tasu materjalilt', 'sasipea-broneering' ) . '</th><th class="num">' . esc_html__( 'Toodete müük', 'sasipea-broneering' ) . '</th><th class="num">' . esc_html__( 'Tasu toodetelt', 'sasipea-broneering' ) . '</th><th class="num">' . esc_html__( 'Tasu kokku', 'sasipea-broneering' ) . '</th></tr></thead><tbody>';
+		$tot = array_fill_keys( array( 'n', 'st', 'sp', 'mt', 'mp', 'pt', 'pp', 'all' ), 0 );
+		foreach ( $rows as $r ) {
+			$x   = $r['summary'];
+			$pay = $r['staff']['pay'];
+			printf(
+				'<tr><td><strong>%s</strong></td><td class="num">%d</td><td class="num">%s</td><td class="num">%s<span class="sb-pay-rate">%s</span></td><td class="num">%s</td><td class="num">%s<span class="sb-pay-rate">%s</span></td><td class="num">%s</td><td class="num">%s<span class="sb-pay-rate">%s</span></td><td class="num"><strong>%s</strong></td></tr>',
+				esc_html( $r['staff']['name'] ),
+				(int) $x['service']['count'],
+				$m( $x['service']['turnover'] ),
+				$m( $x['service']['pay'] ),
+				esc_html( self::rate_label( $pay['service'], __( 'teenus', 'sasipea-broneering' ) ) ),
+				$m( $x['material']['turnover'] ),
+				$m( $x['material']['pay'] ),
+				esc_html( self::rate_label( $pay['material'], __( 'rida', 'sasipea-broneering' ) ) ),
+				$m( $x['product']['turnover'] ),
+				$m( $x['product']['pay'] ),
+				esc_html( self::rate_label( $pay['product'], __( 'tk', 'sasipea-broneering' ) ) ),
+				$m( $x['total_pay'] )
+			);
+			$tot['n']   += $x['service']['count'];
+			$tot['st']  += $x['service']['turnover'];
+			$tot['sp']  += $x['service']['pay'];
+			$tot['mt']  += $x['material']['turnover'];
+			$tot['mp']  += $x['material']['pay'];
+			$tot['pt']  += $x['product']['turnover'];
+			$tot['pp']  += $x['product']['pay'];
+			$tot['all'] += $x['total_pay'];
+		}
+		echo '</tbody>';
+		if ( count( $rows ) > 1 ) {
+			printf( '<tfoot><tr><th>%s</th><th class="num">%d</th><th class="num">%s</th><th class="num">%s</th><th class="num">%s</th><th class="num">%s</th><th class="num">%s</th><th class="num">%s</th><th class="num">%s</th></tr></tfoot>', esc_html__( 'Kokku', 'sasipea-broneering' ), (int) $tot['n'], $m( $tot['st'] ), $m( $tot['sp'] ), $m( $tot['mt'] ), $m( $tot['mp'] ), $m( $tot['pt'] ), $m( $tot['pp'] ), $m( $tot['all'] ) );
+		}
+		echo '</table>';
+
+		// Alusandmed praktikandi kaupa.
+		foreach ( $rows as $r ) {
+			if ( ! $r['data']['services'] && ! $r['data']['sales'] ) {
+				continue;
+			}
+			echo '<details' . ( $manager ? '' : ' open' ) . '><summary>' . esc_html( $r['staff']['name'] ) . ': ' . esc_html__( 'read', 'sasipea-broneering' ) . '</summary><table class="widefat striped"><thead><tr><th>' . esc_html__( 'Kuupäev', 'sasipea-broneering' ) . '</th><th>' . esc_html__( 'Liik', 'sasipea-broneering' ) . '</th><th>' . esc_html__( 'Kirjeldus', 'sasipea-broneering' ) . '</th><th class="num">' . esc_html__( 'Kogus', 'sasipea-broneering' ) . '</th><th class="num">' . esc_html__( 'Summa', 'sasipea-broneering' ) . '</th><th class="num">' . esc_html__( 'Tasu', 'sasipea-broneering' ) . '</th><th></th></tr></thead><tbody>';
+			foreach ( self::pay_lines( $r ) as $l ) {
+				echo '<tr><td>' . esc_html( $l['date'] ) . '</td><td>' . esc_html( $l['kind_label'] ) . '</td><td>' . esc_html( $l['label'] ) . '</td><td class="num">' . esc_html( $l['qty'] ) . '</td><td class="num">' . $m( $l['total'] ) . '</td><td class="num">' . $m( $l['pay'] ) . '</td><td>';
+				if ( $manager && $l['sale_id'] ) {
+					echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+					wp_nonce_field( 'sb_delete_sale' );
+					echo '<input type="hidden" name="action" value="sb_delete_sale"><input type="hidden" name="id" value="' . (int) $l['sale_id'] . '"><input type="hidden" name="month" value="' . esc_attr( $ym ) . '">';
+					submit_button( __( 'Eemalda', 'sasipea-broneering' ), 'link-delete small', 'submit', false );
+					echo '</form>';
+				}
+				echo '</td></tr>';
+			}
+			echo '</tbody></table></details>';
+		}
+
+		if ( $manager ) {
+			$today = ( new \DateTimeImmutable( 'now', Settings::tz() ) )->format( 'Y-m-d' );
+			echo '<h2>' . esc_html__( 'Lisa müük ilma broneeringuta', 'sasipea-broneering' ) . '</h2><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+			wp_nonce_field( 'sb_add_sale' );
+			echo '<input type="hidden" name="action" value="sb_add_sale"><input type="hidden" name="month" value="' . esc_attr( $ym ) . '">';
+			echo '<label>' . esc_html__( 'Müüja', 'sasipea-broneering' ) . ' <select name="staff_id" required>';
+			foreach ( Repo::staff_list( true ) as $s ) {
+				printf( '<option value="%d">%s</option>', (int) $s['id'], esc_html( $s['name'] ) );
+			}
+			echo '</select></label> <label>' . esc_html__( 'Mida', 'sasipea-broneering' ) . ' <select name="item" required><optgroup label="' . esc_attr__( 'Tooted (tükkides)', 'sasipea-broneering' ) . '">';
+			foreach ( Repo::products() as $p ) {
+				printf( '<option value="product:%d">%s (%s)</option>', (int) $p['id'], esc_html( $p['name'] ), esc_html( $p['price_label'] ) );
+			}
+			echo '</optgroup><optgroup label="' . esc_attr__( 'Materjal (grammides)', 'sasipea-broneering' ) . '">';
+			foreach ( (array) Settings::get()['materials'] as $mat ) {
+				printf( '<option value="material:%s">%s (%s/g)</option>', esc_attr( $mat['id'] ), esc_html( $mat['name'] ), esc_html( Settings::money( (int) $mat['cents_per_g'] ) ) );
+			}
+			echo '</optgroup></select></label> <label>' . esc_html__( 'Kogus', 'sasipea-broneering' ) . ' <input name="qty" inputmode="decimal" style="width:80px" value="1" required></label> <label>' . esc_html__( 'Kuupäev', 'sasipea-broneering' ) . ' <input type="date" name="day" value="' . esc_attr( $today ) . '" required></label> ';
+			submit_button( __( 'Lisa müük', 'sasipea-broneering' ), 'secondary', 'submit', false );
+			echo '</form>';
+		}
+		echo '</div>';
+	}
+
+	/** Ühe praktikandi read kuupäeva järgi: teenused ja müügid koos tasuga. */
+	private static function pay_lines( array $r ): array {
+		$pay   = $r['staff']['pay'];
+		$kinds = array( 'material' => __( 'materjal', 'sasipea-broneering' ), 'product' => __( 'toode', 'sasipea-broneering' ) );
+		$out   = array();
+		foreach ( $r['data']['services'] as $b ) {
+			$out[] = array(
+				'sort'       => $b['start_utc'],
+				'date'       => Format::local( $b['start_utc'] )->format( 'd.m.Y' ),
+				'kind_label' => __( 'teenus', 'sasipea-broneering' ),
+				'label'      => $b['service_name'] . ' · ' . trim( $b['first_name'] . ' ' . $b['last_name'] ),
+				'qty'        => '1',
+				'total'      => (int) $b['price_cents'],
+				'pay'        => Payroll::amount( $pay['service'], (int) $b['price_cents'] ),
+				'sale_id'    => 0,
+			);
+		}
+		foreach ( $r['data']['sales'] as $s ) {
+			$k     = 'product' === $s['kind'] ? 'product' : 'material';
+			$out[] = array(
+				'sort'       => $s['sold_at'],
+				'date'       => Format::local( $s['sold_at'] )->format( 'd.m.Y' ),
+				'kind_label' => $kinds[ $k ],
+				'label'      => $s['label'],
+				'qty'        => $s['qty_label'],
+				'total'      => $s['total_cents'],
+				'pay'        => Payroll::amount( $pay[ $k ], $s['total_cents'], 'product' === $k ? $s['qty'] : 1.0 ),
+				'sale_id'    => $s['id'],
+			);
+		}
+		usort( $out, static fn( $a, $b ) => strcmp( $a['sort'], $b['sort'] ) );
+		return $out;
+	}
+
+	public static function handle_add_sale(): void {
+		self::guard( 'sb_manage_settings', 'sb_add_sale' );
+		$day = self::post( 'day' );
+		$ym  = self::post( 'month' );
+		if ( preg_match( '/^\d{4}-\d{2}-\d{2}$/', $day ) ) {
+			$ts  = ( new \DateTimeImmutable( $day . ' 12:00:00', Settings::tz() ) )->getTimestamp();
+			$res = Repo::add_sale( (int) self::post( 'staff_id' ), null, self::post( 'item' ), (float) str_replace( ',', '.', self::post( 'qty' ) ), $ts );
+			if ( is_wp_error( $res ) ) {
+				wp_safe_redirect( add_query_arg( array( 'page' => 'sb-pay', 'month' => $ym, 'sb_error' => rawurlencode( $res->get_error_message() ) ), admin_url( 'admin.php' ) ) );
+				exit;
+			}
+			$ym = substr( $day, 0, 7 );
+		}
+		self::back( 'sb-pay', array( 'month' => $ym ) );
+	}
+
+	public static function handle_delete_sale(): void {
+		self::guard( 'sb_manage_settings', 'sb_delete_sale' );
+		Repo::delete_sale( (int) self::post( 'id' ) );
+		self::back( 'sb-pay', array( 'month' => self::post( 'month' ) ) );
+	}
+
+	public static function handle_pay_csv(): void {
+		if ( ! current_user_can( 'sb_manage_settings' ) ) {
+			wp_die( esc_html__( 'Sul pole selleks õigust.', 'sasipea-broneering' ), 403 );
+		}
+		check_admin_referer( 'sb_pay_csv' );
+		$ym  = self::month_param();
+		$eur = static fn( int $c ) => number_format( $c / 100, 2, ',', '' );
+		// Valemisüsti vältimiseks ei tohi lahter alata märgiga = + - @.
+		$safe = static fn( string $v ) => preg_match( '/^[=+\-@\t\r]/', $v ) ? "'" . $v : $v;
+		header( 'Content-Type: text/csv; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename="tasud-' . $ym . '.csv"' );
+		$out = fopen( 'php://output', 'w' );
+		fwrite( $out, "\xEF\xBB\xBF" ); // BOM, et Excel loeks täpitähti õigesti.
+		fputcsv( $out, array( 'Praktikant', 'Kuupäev', 'Liik', 'Kirjeldus', 'Kogus', 'Summa (€)', 'Tasu (€)' ), ';' );
+		foreach ( self::pay_rows( $ym ) as $r ) {
+			foreach ( self::pay_lines( $r ) as $l ) {
+				fputcsv( $out, array( $safe( $r['staff']['name'] ), $l['date'], $l['kind_label'], $safe( $l['label'] ), $l['qty'], $eur( $l['total'] ), $eur( $l['pay'] ) ), ';' );
+			}
+			fputcsv( $out, array( $safe( $r['staff']['name'] ), '', 'KOKKU', '', '', $eur( $r['summary']['total_turnover'] ), $eur( $r['summary']['total_pay'] ) ), ';' );
+		}
+		fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions
+		exit;
+	}
+
 	/* ================= Kliendid ================= */
 
 	public static function page_clients(): void {
@@ -686,6 +1001,7 @@ final class Admin {
 			'price'   => __( 'Teenuse hind', 'sasipea-broneering' ),
 			'details' => __( 'Kliendi e-post ja kommentaar', 'sasipea-broneering' ),
 			'others'  => __( 'Teiste praktikantide veerud (ajad ja teenused, ilma klientide andmeteta)', 'sasipea-broneering' ),
+			'pay'     => __( 'Enda kuu tasu kokkuvõte (menüüs "Minu tasu")', 'sasipea-broneering' ),
 		);
 		foreach ( $tv as $k => $l ) {
 			printf( '<p><label><input type="checkbox" name="trainee_view[%s]" value="1"%s> %s</label></p>', esc_attr( $k ), checked( ! empty( $s['trainee_view'][ $k ] ), true, false ), esc_html( $l ) );
@@ -707,6 +1023,24 @@ final class Admin {
 				esc_attr__( 'Taseme nimi', 'sasipea-broneering' ),
 				esc_attr__( 'Soodustus protsentides', 'sasipea-broneering' ),
 				esc_attr__( 'Lisaaeg minutites', 'sasipea-broneering' )
+			);
+		}
+		echo '</tbody></table>';
+
+		echo '<h2>' . esc_html__( 'Materjalid', 'sasipea-broneering' ) . '</h2><p class="description">' . esc_html__( 'Materjal, mida müüakse kliendile grammi kaupa ja märgitakse päevaplaanis broneeringu juurde. Eemaldamiseks tühjenda nimi.', 'sasipea-broneering' ) . '</p>';
+		echo '<table class="widefat" style="max-width:480px"><thead><tr><th>' . esc_html__( 'Materjal', 'sasipea-broneering' ) . '</th><th>' . esc_html__( 'Hind (€/g)', 'sasipea-broneering' ) . '</th></tr></thead><tbody>';
+		$mats   = (array) $s['materials'];
+		$mats[] = array( 'id' => '', 'name' => '', 'cents_per_g' => 0 );
+		foreach ( $mats as $i => $m ) {
+			printf(
+				'<tr><td><input type="hidden" name="materials[%1$d][id]" value="%2$s"><input name="materials[%1$d][name]" value="%3$s" placeholder="%5$s" aria-label="%6$s"></td><td><input name="materials[%1$d][price]" inputmode="decimal" style="width:90px" value="%4$s" aria-label="%7$s"></td></tr>',
+				(int) $i,
+				esc_attr( $m['id'] ),
+				esc_attr( $m['name'] ),
+				esc_attr( number_format( (int) $m['cents_per_g'] / 100, 2, ',', '' ) ),
+				esc_attr__( 'Lisa uus materjal', 'sasipea-broneering' ),
+				esc_attr__( 'Materjali nimi', 'sasipea-broneering' ),
+				esc_attr__( 'Hind eurodes grammi kohta', 'sasipea-broneering' )
 			);
 		}
 		echo '</tbody></table>';
@@ -774,8 +1108,27 @@ final class Admin {
 		$vals['slot_step']     = max( 5, $vals['slot_step'] );
 		$vals['require_month'] = ! empty( $p['require_month'] );
 		$vals['trainee_view']  = array();
-		foreach ( array( 'phone', 'price', 'details', 'others' ) as $k ) {
+		foreach ( array( 'phone', 'price', 'details', 'others', 'pay' ) as $k ) {
 			$vals['trainee_view'][ $k ] = ! empty( $p['trainee_view'][ $k ] );
+		}
+		$vals['materials']     = array();
+		foreach ( (array) ( $p['materials'] ?? array() ) as $m ) {
+			$name = sanitize_text_field( (string) ( $m['name'] ?? '' ) );
+			if ( '' === $name ) {
+				continue;
+			}
+			$mid = sanitize_key( (string) ( $m['id'] ?? '' ) );
+			if ( '' === $mid ) {
+				$mid = substr( sanitize_title( $name ), 0, 30 ) ?: 'materjal';
+				while ( in_array( $mid, array_column( $vals['materials'], 'id' ), true ) ) {
+					$mid .= '2';
+				}
+			}
+			$vals['materials'][] = array(
+				'id'          => substr( $mid, 0, 40 ),
+				'name'        => $name,
+				'cents_per_g' => max( 0, (int) round( (float) str_replace( ',', '.', sanitize_text_field( (string) ( $m['price'] ?? '0' ) ) ) * 100 ) ),
+			);
 		}
 		$vals['levels']        = array();
 		foreach ( (array) ( $p['levels'] ?? array() ) as $l ) {

@@ -68,6 +68,7 @@ final class Install {
   level varchar(40) NOT NULL DEFAULT '',
   discount_pct tinyint(3) unsigned NULL,
   extra_min smallint(5) unsigned NULL,
+  pay text NULL,
   PRIMARY KEY  (id),
   KEY user_id (user_id)
 ) ENGINE=InnoDB $c;";
@@ -169,6 +170,33 @@ final class Install {
   created_at datetime NOT NULL,
   PRIMARY KEY  (id),
   KEY booking (booking_id)
+) ENGINE=InnoDB $c;";
+
+		$sql[] = "CREATE TABLE {$t('products')} (
+  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  name varchar(190) NOT NULL,
+  price_cents int(11) NOT NULL DEFAULT 0,
+  active tinyint(1) NOT NULL DEFAULT 1,
+  sort_order int(11) NOT NULL DEFAULT 0,
+  PRIMARY KEY  (id)
+) ENGINE=InnoDB $c;";
+
+		// Materjali ja toodete müügiread. kind: material (qty = grammid) või product (qty = tükid).
+		$sql[] = "CREATE TABLE {$t('sales')} (
+  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  booking_id bigint(20) unsigned NULL,
+  staff_id bigint(20) unsigned NOT NULL,
+  kind varchar(10) NOT NULL,
+  product_id bigint(20) unsigned NULL,
+  label varchar(190) NOT NULL,
+  qty decimal(10,2) NOT NULL DEFAULT 1,
+  unit_cents int(11) NOT NULL DEFAULT 0,
+  total_cents int(11) NOT NULL DEFAULT 0,
+  sold_at datetime NOT NULL,
+  created_by bigint(20) unsigned NULL,
+  PRIMARY KEY  (id),
+  KEY booking (booking_id),
+  KEY staff_time (staff_id,sold_at)
 ) ENGINE=InnoDB $c;";
 
 		foreach ( $sql as $q ) {

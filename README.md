@@ -1,6 +1,6 @@
 # Sasipea Broneering
 
-Sasipea Akadeemia online-broneerimine ja päevaplaan WordPressi pluginana. Versioon 0.2.0 (1. etapp + kuu töögraafik ja praktikantide tasemed).
+Sasipea Akadeemia online-broneerimine ja päevaplaan WordPressi pluginana. Versioon 0.3.0 (1. etapp + kuu töögraafik, praktikantide tasemed ja tasude arvestus).
 
 **NB! Paigalda esmalt staging-keskkonda, mitte päris lehele.**
 
@@ -21,6 +21,8 @@ Nõuded: PHP 8.1+, WordPress 6.2+, MySQL 5.7+ või MariaDB 10.3+ (InnoDB).
 - **Päevaplaan** (Broneeringud → Päevaplaan): iga praktikant on veerg, päeva- ja nädalavaade, uue broneeringu loomine, lohistamine teisele ajale või praktikandile, staatused, blokeeringud ühele praktikandile või kogu salongile.
 - **Kuu töögraafik** (Broneeringud → Töögraafik): juhendaja avab kuu, märgib linnukesega, kes mis päeval töötab, muudab vajadusel kellaaegu ja salvestab. Kuu on eeltäidetud iga praktikandi nädalapõhjaga. Lahtris on näha, mitu broneeringut sel päeval juba on. Seadetes saab sisse lülitada, et aegu pakutakse ainult koostatud graafikuga kuudes.
 - **Praktikantide tasemed** (Seaded → Praktikantide tasemed): igal tasemel on soodustus teenuse hinnast (%) ja lisaaeg teenuse kestusele (min). Vaikimisi Noorempraktikant (−10%, +30 min) ja Vanempraktikant. Praktikandile saab määrata taseme ja vajadusel isikliku erisuse. Avalik vorm näitab iga praktikandi juures tema hinda ja kestust ning vaba aja arvutus kasutab pikemat kestust.
+- **Materjal ja tooted**: päevaplaanis saab broneeringu juurde märkida kulunud materjali (grammides, hind Seadetes) ja müüdud tooted (Broneeringud → Tooted). Toote saab müüa ka ilma broneeringuta Tasude lehel.
+- **Tasud** (Broneeringud → Tasud, ainult admin): iga praktikandi lehel määratakse tasu eraldi teenustelt, materjali müügilt ja toodete müügilt, kas protsendina käibest või kindla summana. Kuu aruanne näitab praktikandi kaupa käivet ja tasu, alusridu ning lubab CSV-eksporti. Teenus läheb arvesse, kui broneeringu staatus on "Kohal". See on tasu arvestus, mitte palgaleht: makse ei arvutata. Kui Seadetes on lubatud, näeb praktikant menüüs "Minu tasu" enda kuu kokkuvõtet.
 - **Haldus**: praktikandid (tase, nädalapõhi, päevade erandid, teenused, seotud WP kasutaja), teenused ja kategooriad, kliendid (otsing, külastuste ajalugu, märkmed), seaded.
 - **Rollid**: admin teeb kõike. Roll, mille nimes on "juhendaja", haldab kõiki broneeringuid ja töögraafikut. Roll "Praktikant" logib sisse ja näeb oma veergu; Seadete jaotises "Praktikandi vaade" määratakse, kas ta näeb kliendi telefoni, hinda, e-posti ja kommentaari ning teiste praktikantide veerge. Muuta ei saa ta midagi.
 - **Isikuandmed**: iga nõusolek salvestatakse aja ja tekstiversiooniga; 2 aastat pärast viimast kontakti anonüümitakse klient automaatselt; WordPressi isikuandmete eksport ja kustutamine on toetatud.
@@ -51,7 +53,7 @@ php tests/run.php          # ilma lisatarkvarata
 composer install && composer test   # PHPUnitiga
 ```
 
-Testid katavad vaba aja arvutuse (tööaeg, pausid, puhver, kattumised, juhendaja maht, etteteatamine, suveaja vahetus, praktikandi lisaaeg) ning taseme soodustuse ja lisaaja arvutuse.
+Testid katavad vaba aja arvutuse (tööaeg, pausid, puhver, kattumised, juhendaja maht, etteteatamine, suveaja vahetus, praktikandi lisaaeg) ning taseme soodustuse, lisaaja ja tasude arvutuse.
 
 ## Käsitsi testimise nimekiri
 
@@ -75,6 +77,9 @@ Admin:
 - [ ] Töögraafik: uue kuu salvestamine, vaba päev ja lühem päev jõuavad avalikku vormi ja päevaplaani.
 - [ ] Noorempraktikandi juures on hind soodsam ja teenus pikem; kinnitusel on õige lõpuaeg ja hind.
 - [ ] Broneeringu lohistamine teise taseme praktikandile arvutab hinna ja kestuse ümber; ainult aja muutmine neid ei muuda.
+- [ ] Materjali (grammid) ja toote lisamine broneeringu juurde; summa on õige ja rea saab eemaldada.
+- [ ] Tasude lehel on kuu kokkuvõte õige nii protsendi kui kindla summaga; CSV avaneb Excelis täpitähtedega.
+- [ ] Praktikant näeb "Minu tasu" ainult siis, kui see on Seadetes lubatud, ja ainult enda rida.
 - [ ] Salongi teavituskirjad jõuavad aadressile info@oppesalong.ee.
 
 ## Mis on veel tegemata
@@ -82,7 +87,6 @@ Admin:
 - Otsene sidumine pluginaga `sasipea-modellid` (ootab selle koodi). Praegu on olemas filtrid `sb_find_model_id`, `sb_model_db_optin` ja `sb_model_admin_url`.
 - Saloninfra CSV-import.
 - Tõlkefail (.pot). Kõik tekstid PHP-s on tõlgitavad; JavaScripti tekstid on praegu otse eesti keeles.
-- Palgaarvestus (teenused, materjal, toodete müük).
 - 2. etapp: ICS-kalendrivood, materjali arvestus, aruanded, ootenimekiri, SMS.
 
 ## Üleminek Saloninfrast

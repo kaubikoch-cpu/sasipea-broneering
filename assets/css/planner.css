@@ -73,6 +73,10 @@
 .sb-p-status { display: flex; flex-wrap: wrap; gap: 4px; }
 .sb-p-tag { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 10px; background: #f0e6ec; color: #6b1f42; font-size: 12px; }
 .sb-p-history { margin: 0; font-size: 13px; }
+.sb-p-sales-list { margin: 0 0 8px; }
+.sb-p-sales-list li { margin: 0 0 2px; }
+.sb-p-sales-add { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.sb-p-sales-add select { max-width: 260px; }
 
 .sb-toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 100000; background: #1d2327; color: #fff; padding: 10px 16px; border-radius: 6px; box-shadow: 0 4px 16px rgba(0, 0, 0, .3); }
 .sb-toast.is-error { background: #b32d2e; }
