@@ -295,7 +295,7 @@ final class Kassa {
 					esc_html( (string) $b['staff_name'] ),
 					esc_html( Settings::money( (int) $b['price_cents'] ) ),
 					$url( 'booking=' . (int) $b['id'] ), // phpcs:ignore WordPress.Security.EscapeOutput -- $url() teeb esc_url.
-					esc_html__( 'Vii kassasse', 'sasipea-broneering' )
+					esc_html__( 'Kassasse', 'sasipea-broneering' )
 				);
 			}
 			echo '</tbody></table>';

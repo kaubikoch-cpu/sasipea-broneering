@@ -414,7 +414,7 @@
 						}
 					}, s[1]));
 				});
-				if (C.kassaUrl && ['booked', 'arrived'].indexOf(b.status) !== -1) content.appendChild(h('p', null, h('a', { class: 'button button-primary sb-p-kassa', href: C.kassaUrl + b.id }, 'Vii kassasse')));
+				if (C.kassaUrl && ['booked', 'arrived'].indexOf(b.status) !== -1) content.appendChild(h('p', null, h('a', { class: 'button button-primary sb-p-kassa', href: C.kassaUrl + b.id }, 'Kassasse')));
 				content.appendChild(h('h3', null, 'Staatus'));
 				content.appendChild(statusRow);
 				content.appendChild(h('p', null, h('button', { type: 'button', class: 'button', onclick: function () { dlg.close(); bookingDialog(b, {}); } }, 'Muuda aega, praktikanti või teenust')));
