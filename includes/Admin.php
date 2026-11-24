@@ -62,6 +62,7 @@ final class Admin {
 				'rest'      => esc_url_raw( rest_url( Rest\PublicController::NS . '/' ) ),
 				'nonce'     => wp_create_nonce( 'wp_rest' ),
 				'canManage' => current_user_can( 'sb_manage_bookings' ),
+				'models'    => current_user_can( 'sb_manage_bookings' ) && Integrations\Modellid::active(),
 				'today'     => ( new \DateTimeImmutable( 'now', Settings::tz() ) )->format( 'Y-m-d' ),
 				'clientUrl' => $in_admin ? self::url( 'sb-clients&client=' ) : '',
 			)

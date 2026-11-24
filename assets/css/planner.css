@@ -90,3 +90,17 @@
 /* Praktikandi vaade avalikul lehel */
 .sb-planner-front .button { display: inline-block; padding: 6px 12px; border: 1px solid #2271b1; border-radius: 4px; background: #fff; color: #2271b1; cursor: pointer; }
 .sb-planner-front .button-primary { background: #2271b1; color: #fff; }
+
+/* Modelli valik uue broneeringu aknas */
+.sb-p-modelbox { margin: 0 0 12px; padding: 8px 10px; border: 1px solid var(--sbp-line, #dcdcde); border-radius: 6px; background: #faf7f9; }
+.sb-p-modelbox summary { cursor: pointer; font-weight: 600; }
+.sb-p-models-bar { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; margin: 8px 0; }
+.sb-p-models-bar input[type=search] { flex: 1 1 180px; }
+.sb-p-models-info { flex-basis: 100%; font-size: 12px; color: #50575e; }
+.sb-p-models { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow-y: auto; }
+.sb-p-models li { margin: 0 0 4px; }
+.sb-p-models button { display: block; width: 100%; padding: 6px 8px; border: 1px solid #dcdcde; border-radius: 6px; background: #fff; text-align: left; font: inherit; cursor: pointer; white-space: normal; }
+.sb-p-models button:hover { border-color: #8a2b52; }
+.sb-p-models button.is-picked { border-color: #8a2b52; background: #f6e9ef; }
+.sb-p-models small { display: block; color: #50575e; font-size: 12px; font-weight: 400; }
+.sb-p-models-empty { color: #50575e; font-size: 13px; }

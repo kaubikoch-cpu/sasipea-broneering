@@ -66,6 +66,7 @@ final class AdminController {
 		);
 		register_rest_route( $ns, '/admin/blocks', array( 'methods' => 'POST', 'callback' => array( self::class, 'block_create' ), 'permission_callback' => array( self::class, 'can_manage' ) ) );
 		register_rest_route( $ns, '/admin/blocks/(?P<id>\d+)', array( 'methods' => 'DELETE', 'callback' => array( self::class, 'block_delete' ), 'permission_callback' => array( self::class, 'can_manage' ) ) );
+		register_rest_route( $ns, '/admin/models', array( 'methods' => 'GET', 'callback' => array( self::class, 'models' ), 'permission_callback' => array( self::class, 'can_manage' ) ) );
 		register_rest_route(
 			$ns,
 			'/admin/clients',
@@ -112,7 +113,7 @@ final class AdminController {
 		if ( ! self::trainee_may( 'price' ) ) {
 			$out['price'] = '';
 		}
-		unset( $out['client_id'], $out['model_id'] );
+		unset( $out['client_id'], $out['model_id'], $out['model_url'] );
 		return $out;
 	}
 
@@ -143,6 +144,7 @@ final class AdminController {
 			$out['comment']   = (string) $b['comment'];
 			$out['client_id'] = (int) $b['client_id'];
 			$out['model_id']  = $b['model_id'] ? (int) $b['model_id'] : null;
+			$out['model_url'] = $b['model_id'] ? (string) \SB\Integrations\Modellid::model_url( (int) $b['model_id'] ) : '';
 		}
 		return $out;
 	}
@@ -364,6 +366,27 @@ final class AdminController {
 		global $wpdb;
 		$wpdb->delete( Install::table( 'blocks' ), array( 'id' => (int) $req['id'] ) );
 		return array( 'deleted' => true );
+	}
+
+	/** Modellid andmebaasist: teenusele sobivad (või kõik), nime järgi otsitavad. Ainult juhendajale ja omanikule. */
+	public static function models( \WP_REST_Request $req ) {
+		$terms   = \SB\Integrations\Modellid::service_terms();
+		$matched = array();
+		$service = Repo::service( (int) $req['service_id'] );
+		if ( $service && ! rest_sanitize_boolean( $req['all'] ) ) {
+			$cat = '';
+			foreach ( Repo::catalog( true ) as $c ) {
+				if ( $c['id'] === $service['category_id'] ) {
+					$cat = $c['name'];
+				}
+			}
+			$matched = \SB\Integrations\Modellid::match_terms( $terms, $service['name'] . ' ' . $cat );
+		}
+		return array(
+			'active' => \SB\Integrations\Modellid::active(),
+			'filter' => array_values( array_intersect_key( $terms, array_flip( $matched ) ) ),
+			'models' => \SB\Integrations\Modellid::search( sanitize_text_field( (string) $req['q'] ), $matched ),
+		);
 	}
 
 	public static function clients( \WP_REST_Request $req ) {

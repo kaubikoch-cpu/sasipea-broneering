@@ -146,6 +146,10 @@ final class BookingService {
 			Integrations\Modellid::opt_in( $result['client_id'], $in['client'] );
 		}
 		$booking = Repo::booking( $result['id'] );
+		// Modellide andmebaasis olevale inimesele tehtud broneering loeb temaga ühenduse võtmiseks.
+		if ( ! empty( $booking['model_id'] ) ) {
+			Integrations\Modellid::touch( (int) $booking['model_id'] );
+		}
 		do_action( 'sb_booking_created', $booking, $result['token'] );
 		return array(
 			'booking' => $booking,
