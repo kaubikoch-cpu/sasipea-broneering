@@ -174,4 +174,45 @@ final class AvailabilityTest extends TestCase {
 		$this->assertSame( array(), Availability::free_staff( $p, $this->ts( '2026-12-01 18:00' ) ) ); // lõpeks 19:30
 		$this->assertSame( array(), Availability::free_staff( $p, $this->ts( '2026-12-01 11:30' ) ) );
 	}
+
+	/* ---------- praktikandi enda kestus (teenus + lisaaeg) ---------- */
+
+	public function test_praktikandi_lisaaeg_lyhendab_viimast_algusaega(): void {
+		// 90 min teenus, praktikant 2 teeb seda 30 min kauem: tema viimane algus on 17:00, mitte 17:30.
+		$p = $this->base(
+			array(
+				'staff' => array(
+					1 => array( 'work' => array( array( 720, 1140 ) ), 'bookings' => array(), 'blocks' => array() ),
+					2 => array( 'work' => array( array( 720, 1140 ) ), 'bookings' => array(), 'blocks' => array(), 'duration' => 120 ),
+				),
+			)
+		);
+		$this->assertSame( array( 1, 2 ), Availability::free_staff( $p, $this->ts( '2026-12-01 17:00' ) ) );
+		$this->assertSame( array( 1 ), Availability::free_staff( $p, $this->ts( '2026-12-01 17:30' ) ) );
+	}
+
+	public function test_ainult_aeglasem_praktikant_maarab_viimase_aja(): void {
+		$p = $this->base(
+			array( 'staff' => array( 2 => array( 'work' => array( array( 720, 1140 ) ), 'bookings' => array(), 'blocks' => array(), 'duration' => 120 ) ) )
+		);
+		$times = $this->times( $p );
+		$this->assertContains( '17:00', $times );
+		$this->assertNotContains( '17:30', $times );
+	}
+
+	public function test_lisaaeg_kattub_jargmise_broneeringuga(): void {
+		// Järgmine klient kell 14:00. Tavakestusega mahub 12:30 algus ära, lisaajaga mitte.
+		$busy = array( array( $this->ts( '2026-12-01 14:00' ), $this->ts( '2026-12-01 15:30' ) ) );
+		$p    = $this->base(
+			array(
+				'staff'          => array(
+					1 => array( 'work' => array( array( 720, 1140 ) ), 'bookings' => $busy, 'blocks' => array() ),
+					2 => array( 'work' => array( array( 720, 1140 ) ), 'bookings' => $busy, 'blocks' => array(), 'duration' => 120 ),
+				),
+				'salon_bookings' => array(),
+			)
+		);
+		$this->assertSame( array( 1 ), Availability::free_staff( $p, $this->ts( '2026-12-01 12:30' ) ) );
+		$this->assertSame( array( 1, 2 ), Availability::free_staff( $p, $this->ts( '2026-12-01 12:00' ) ) );
+	}
 }

@@ -53,7 +53,7 @@ final class BookingService {
 	 *
 	 * @return int|\WP_Error
 	 */
-	public static function pick_staff( array $service, int $staff_id, int $start, int $exclude = 0, bool $admin = false ) {
+	public static function pick_staff( array $service, int $staff_id, int $start, int $exclude = 0, bool $admin = false, ?int $duration = null ) {
 		$date = self::local_date( $start );
 		if ( $staff_id ) {
 			if ( ! $admin && ! in_array( $service['id'], Repo::staff_service_ids( $staff_id ), true ) ) {
@@ -63,7 +63,7 @@ final class BookingService {
 		} else {
 			$ids = null;
 		}
-		$input = Repo::availability_input( $service, $ids, $date, $exclude, $admin );
+		$input = Repo::availability_input( $service, $ids, $date, $exclude, $admin, $duration );
 		$free  = Availability::free_staff( $input, $start );
 		if ( ! $free ) {
 			return new \WP_Error( 'sb_taken', __( 'Kahjuks see aeg ei ole enam vaba. Palun vali uus aeg.', 'sasipea-broneering' ), array( 'status' => 409 ) );
@@ -102,6 +102,8 @@ final class BookingService {
 				if ( is_wp_error( $staff ) ) {
 					return $staff;
 				}
+				// Kestus ja hind sõltuvad praktikandi tasemest (lisaaeg, soodustus).
+				$terms     = Repo::service_terms( $service, Repo::staff( (int) $staff ) );
 				$client_id = Repo::upsert_client( $in['client'] );
 				$token     = bin2hex( random_bytes( 32 ) );
 				$now       = Repo::utc( time() );
@@ -112,8 +114,8 @@ final class BookingService {
 						'staff_id'    => $staff,
 						'service_id'  => $service['id'],
 						'start_utc'   => Repo::utc( $start ),
-						'end_utc'     => Repo::utc( $start + $service['duration'] * 60 ),
-						'price_cents' => $service['price_cents'],
+						'end_utc'     => Repo::utc( $start + $terms['duration'] * 60 ),
+						'price_cents' => $terms['price_cents'],
 						'status'      => 'booked',
 						'source'      => $in['source'],
 						'comment'     => $in['comment'] ?? '',
@@ -177,9 +179,14 @@ final class BookingService {
 				}
 
 				$moved = $start !== Repo::ts( $b['start_utc'] ) || $staff !== (int) $b['staff_id'] || $service_id !== (int) $b['service_id'];
+				// Ainult aja muutmisel jääb kestus ja hind samaks, mis kliendile lubati. Teise praktikandi
+				// või teenuse korral arvutatakse need uuesti selle praktikandi taseme järgi.
+				$reprice  = $staff !== (int) $b['staff_id'] || $service_id !== (int) $b['service_id'];
+				$terms    = Repo::service_terms( $service, Repo::staff( $staff ) );
+				$duration = $reprice ? $terms['duration'] : (int) round( ( Repo::ts( $b['end_utc'] ) - Repo::ts( $b['start_utc'] ) ) / 60 );
 				$reactivated = in_array( $status, Repo::ACTIVE, true ) && ! in_array( $b['status'], Repo::ACTIVE, true );
 				if ( in_array( $status, Repo::ACTIVE, true ) && ( $moved || $reactivated ) ) {
-					$ok = self::pick_staff( $service, $staff, $start, $id, $admin );
+					$ok = self::pick_staff( $service, $staff, $start, $id, $admin, $duration );
 					if ( is_wp_error( $ok ) ) {
 						return $ok;
 					}
@@ -188,12 +195,12 @@ final class BookingService {
 					'service_id' => $service_id,
 					'staff_id'   => $staff,
 					'start_utc'  => Repo::utc( $start ),
-					'end_utc'    => Repo::utc( $start + $service['duration'] * 60 ),
+					'end_utc'    => Repo::utc( $start + $duration * 60 ),
 					'status'     => $status,
 					'updated_at' => Repo::utc( time() ),
 				);
-				if ( $service_id !== (int) $b['service_id'] ) {
-					$data['price_cents'] = $service['price_cents'];
+				if ( $reprice ) {
+					$data['price_cents'] = $terms['price_cents'];
 				}
 				if ( isset( $ch['comment'] ) ) {
 					$data['comment'] = $ch['comment'];
@@ -203,8 +210,8 @@ final class BookingService {
 				}
 				$wpdb->update( Install::table( 'bookings' ), $data, array( 'id' => $id ) );
 				$diff = array();
-				foreach ( array( 'service_id', 'staff_id', 'start_utc', 'status' ) as $k ) {
-					if ( (string) $data[ $k ] !== (string) $b[ $k ] ) {
+				foreach ( array( 'service_id', 'staff_id', 'start_utc', 'end_utc', 'price_cents', 'status' ) as $k ) {
+					if ( isset( $data[ $k ] ) && (string) $data[ $k ] !== (string) $b[ $k ] ) {
 						$diff[ $k ] = array( $b[ $k ], $data[ $k ] );
 					}
 				}

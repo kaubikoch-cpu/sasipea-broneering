@@ -18,7 +18,8 @@ namespace SB;
  *   min_notice      int, minutites (null = ei kontrolli)
  *   max_days        int|null, mitu päeva ette (null = ei kontrolli)
  *   opening         list<[int,int]> lahtiolekuaeg minutites
- *   staff           array<int, [work => list<[int,int]> minutites, bookings => list<[ts,ts]>, blocks => list<[ts,ts]>]>
+ *   staff           array<int, [work => list<[int,int]> minutites, bookings => list<[ts,ts]>, blocks => list<[ts,ts]>,
+ *                   duration => int|null (praktikandi enda kestus, nt teenus + lisaaeg; puudumisel üldine duration)]>
  *   salon_blocks    list<[ts,ts]>
  *   salon_bookings  list<[ts,ts]> kõik aktiivsed broneeringud (juhendajate mahu kontrolliks)
  *   capacity        int, mitu klienti korraga (0 = piiranguta)
@@ -34,7 +35,11 @@ final class Availability {
 		$min_open = min( array_column( $p['opening'], 0 ) );
 		$max_open = max( array_column( $p['opening'], 1 ) );
 		$out      = array();
-		for ( $m = $min_open; $m + (int) $p['duration'] <= $max_open; $m += $step ) {
+		$shortest = (int) $p['duration'];
+		foreach ( $p['staff'] as $st ) {
+			$shortest = min( $shortest, (int) ( $st['duration'] ?? $p['duration'] ) );
+		}
+		for ( $m = $min_open; $m + $shortest <= $max_open; $m += $step ) {
 			$s    = self::ts( $p, $m );
 			$free = self::free_staff( $p, $s );
 			if ( $free ) {
@@ -58,25 +63,26 @@ final class Availability {
 		if ( ! self::day_allowed( $p ) ) {
 			return array();
 		}
-		$e      = $s + (int) $p['duration'] * 60;
 		$buffer = (int) ( $p['buffer'] ?? 0 ) * 60;
 
 		if ( isset( $p['min_notice'] ) && $s < (int) $p['now'] + (int) $p['min_notice'] * 60 ) {
 			return array();
 		}
 		$opening = array_map( fn( $r ) => array( self::ts( $p, $r[0] ), self::ts( $p, $r[1] ) ), $p['opening'] );
-		if ( ! self::inside_any( $s, $e, $opening ) ) {
-			return array();
-		}
-		if ( self::overlaps_any( $s, $e, $p['salon_blocks'] ?? array() ) ) {
-			return array();
-		}
-		$cap = (int) ( $p['capacity'] ?? 0 );
-		if ( $cap > 0 && self::max_overlap( $s, $e, $p['salon_bookings'] ?? array() ) >= $cap ) {
-			return array();
-		}
-		$free = array();
+		$cap     = (int) ( $p['capacity'] ?? 0 );
+		$free    = array();
 		foreach ( $p['staff'] as $sid => $st ) {
+			// Lõpp sõltub praktikandist: aeglasemal praktikandil on sama teenus pikem.
+			$e = $s + (int) ( $st['duration'] ?? $p['duration'] ) * 60;
+			if ( ! self::inside_any( $s, $e, $opening ) ) {
+				continue;
+			}
+			if ( self::overlaps_any( $s, $e, $p['salon_blocks'] ?? array() ) ) {
+				continue;
+			}
+			if ( $cap > 0 && self::max_overlap( $s, $e, $p['salon_bookings'] ?? array() ) >= $cap ) {
+				continue;
+			}
 			$work = array_map( fn( $r ) => array( self::ts( $p, $r[0] ), self::ts( $p, $r[1] ) ), $st['work'] );
 			if ( ! self::inside_any( $s, $e, $work ) ) {
 				continue;

@@ -118,7 +118,10 @@
 		var grid = h('div', { class: 'sb-p-grid', style: 'grid-template-columns: 56px repeat(' + d.staff.length + ', minmax(150px, 1fr))' });
 		// päis
 		grid.appendChild(h('div', { class: 'sb-p-corner' }));
-		d.staff.forEach(function (s) { grid.appendChild(h('div', { class: 'sb-p-head' }, s.name)); });
+		d.staff.forEach(function (s) {
+			var sub = [s.level_name, s.discount_pct ? '−' + s.discount_pct + '%' : '', s.extra_min ? '+' + s.extra_min + ' min' : ''].filter(Boolean).join(' · ');
+			grid.appendChild(h('div', { class: 'sb-p-head' }, s.name, sub ? h('span', { class: 'sb-p-head-sub' }, sub) : null));
+		});
 		// kellaajad
 		var times = h('div', { class: 'sb-p-times', style: 'height:' + height + 'px' });
 		for (var m = lo; m < hi; m += 60) times.appendChild(h('div', { class: 'sb-p-hour', style: 'top:' + ((m - lo) / SLOT * ROW) + 'px' }, hm(m)));
@@ -354,8 +357,8 @@
 			var content = h('div', { class: 'sb-p-details' },
 				h('dl', null,
 					h('dt', null, 'Aeg'), h('dd', null, b.date.split('-').reverse().join('.') + ' ' + b.time),
-					h('dt', null, 'Teenus'), h('dd', null, b.service, ' · ', b.price, b.material ? ' + materjal' : ''),
-					h('dt', null, 'Klient'), h('dd', null, b.client, C.canManage && C.clientUrl && b.client_id ? [' ', h('a', { href: C.clientUrl + b.client_id }, 'Kliendikaart')] : null, b.model_id ? h('span', { class: 'sb-p-tag' }, 'modell') : null),
+					h('dt', null, 'Teenus'), h('dd', null, b.service, b.price ? ' · ' + b.price + (b.material ? ' + materjal' : '') : ''),
+					h('dt', null, 'Klient'), h('dd', null, b.client || '—', C.canManage && C.clientUrl && b.client_id ? [' ', h('a', { href: C.clientUrl + b.client_id }, 'Kliendikaart')] : null, b.model_id ? h('span', { class: 'sb-p-tag' }, 'modell') : null),
 					b.phone ? [h('dt', null, 'Telefon'), h('dd', null, h('a', { href: 'tel:' + b.phone }, b.phone))] : null,
 					b.email ? [h('dt', null, 'E-post'), h('dd', null, h('a', { href: 'mailto:' + b.email }, b.email))] : null,
 					b.comment ? [h('dt', null, 'Kommentaar'), h('dd', null, b.comment)] : null,

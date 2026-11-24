@@ -65,6 +65,9 @@ final class Install {
   active tinyint(1) NOT NULL DEFAULT 1,
   sort_order int(11) NOT NULL DEFAULT 0,
   ics_token char(32) NULL,
+  level varchar(40) NOT NULL DEFAULT '',
+  discount_pct tinyint(3) unsigned NULL,
+  extra_min smallint(5) unsigned NULL,
   PRIMARY KEY  (id),
   KEY user_id (user_id)
 ) ENGINE=InnoDB $c;";

@@ -117,7 +117,9 @@
 	function renderSummary(step) {
 		summaryEl.textContent = '';
 		var rows = [];
-		if (state.service && step > 1) rows.push(['Teenus', state.service.name + ' · ' + state.service.duration_label + ' · ' + state.service.price_label + (state.service.material_extra ? ' + materjal' : ''), 1]);
+		// Kestus ja hind sõltuvad valitud praktikandist (tase: soodustus ja lisaaeg).
+		var terms = (state.staff && step > 2 && state.staff.duration_label) ? state.staff : state.service;
+		if (state.service && step > 1) rows.push(['Teenus', state.service.name + ' · ' + terms.duration_label + ' · ' + terms.price_label + (state.service.material_extra ? ' + materjal' : ''), 1]);
 		if (state.staff && step > 2) rows.push(['Praktikant', state.staff.name, 2]);
 		if (state.slot && step > 3) rows.push(['Aeg', dateLabel(state.date) + ' kell ' + state.slot.time, 3]);
 		if (!rows.length) return;
@@ -171,19 +173,28 @@
 		main.appendChild(stepHeader(2, 'Vali praktikant'));
 		var list = h('ul', { class: 'sb-options sb-staff' });
 		main.appendChild(list);
+		var anyStaff = { id: 0, name: 'Ükskõik kes' };
+		var anyMeta = h('span', { class: 'sb-option-meta' }, 'Näitame kõige rohkem vabu aegu');
 		list.appendChild(h('li', null, h('button', {
 			type: 'button', class: 'sb-option',
-			onclick: function () { state.staff = { id: 0, name: 'Ükskõik kes' }; stepTime(); }
-		}, h('span', { class: 'sb-option-title' }, 'Ükskõik kes'), h('span', { class: 'sb-option-meta' }, 'Näitame kõige rohkem vabu aegu'))));
-		api('staff?service=' + state.service.id).then(function (staff) {
+			onclick: function () { state.staff = anyStaff; stepTime(); }
+		}, h('span', { class: 'sb-option-title' }, 'Ükskõik kes'), anyMeta)));
+		api('staff?service=' + state.service.id).then(function (res) {
+			var staff = res.staff || [];
 			state.staffList = staff;
+			if (res.any) {
+				anyStaff.duration_label = res.any.duration_label;
+				anyStaff.price_label = res.any.price_label;
+				anyMeta.textContent = 'Näitame kõige rohkem vabu aegu · ' + res.any.duration_label + ' · ' + res.any.price_label;
+			}
 			staff.forEach(function (p) {
+				var meta = (p.level ? p.level + ' · ' : '') + p.duration_label + ' · ' + p.price_label + (p.discount_pct ? ' (−' + p.discount_pct + '%)' : '') + (state.service.material_extra ? ' + materjal' : '');
 				list.appendChild(h('li', null, h('button', {
 					type: 'button', class: 'sb-option sb-option-staff',
 					onclick: function () { state.staff = p; stepTime(); }
 				},
 				p.photo_url ? h('img', { src: p.photo_url, alt: '', width: 48, height: 48, loading: 'lazy' }) : h('span', { class: 'sb-avatar', 'aria-hidden': 'true' }, p.name.replace(/^Näidis:\s*/, '').charAt(0)),
-				h('span', { class: 'sb-option-title' }, p.name))));
+				h('span', { class: 'sb-option-text' }, h('span', { class: 'sb-option-title' }, p.name), h('span', { class: 'sb-option-meta' }, meta)))));
 			});
 		}).catch(function (e) { main.appendChild(errorBox(e.message)); });
 		focusHeading(main);
@@ -411,7 +422,7 @@
 			h('h2', null, title),
 			h('dl', { class: 'sb-confirm-list' },
 				h('div', null, h('dt', null, 'Teenus'), h('dd', null, b.service)),
-				h('div', null, h('dt', null, 'Aeg'), h('dd', null, b.date_label + ' kell ' + b.time)),
+				h('div', null, h('dt', null, 'Aeg'), h('dd', null, b.date_label + ' kell ' + b.time + (b.end_time ? '–' + b.end_time : ''))),
 				h('div', null, h('dt', null, 'Praktikant'), h('dd', null, b.staff)),
 				h('div', null, h('dt', null, 'Hind'), h('dd', null, b.price + (b.material_extra ? ' + materjal' : ''))),
 				h('div', null, h('dt', null, 'Aadress'), h('dd', null, 'Sasipea Akadeemia, ' + b.address)),
