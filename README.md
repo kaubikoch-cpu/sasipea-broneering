@@ -1,6 +1,6 @@
 # Sasipea Broneering
 
-Sasipea Akadeemia online-broneerimine ja päevaplaan WordPressi pluginana. Versioon 0.5.0 (1. etapp + kuu töögraafik, tasemed, tasude arvestus, veebipoe ladu, käibemaksu aruanne ja oma töölaud /salong/).
+Sasipea Akadeemia online-broneerimine ja päevaplaan WordPressi pluginana. Versioon 0.6.1 (1. etapp + kuu töögraafik, tasemed, tasude arvestus, veebipoe ladu, käibemaksu aruanne, oma töölaud /salong/ ja sidumine modellide andmebaasiga).
 
 **NB! Paigalda esmalt staging-keskkonda, mitte päris lehele.**
 
@@ -42,6 +42,17 @@ Töölaud on oma kujundusega vaade väljaspool WordPressi adminni. Aadress on va
 - Rollidega "Praktikant", "Salongi juhendaja" ja "Salongi omanik" kasutajad WP adminni ei pääse: nad suunatakse töölauale ja admini riba neile ei näidata. Administraator näeb endiselt mõlemat.
 - "Minu konto" all saab igaüks oma parooli muuta.
 - Kasutajakontod loob administraator WordPressis (Kasutajad → Lisa uus) ja valib rolli. Praktikandi konto seotakse praktikandiga lehel Praktikandid.
+
+## Modellide andmebaas (plugin sasipea-modellid)
+
+Kui samal lehel on aktiivne plugin `sasipea-modellid`, seob broneering end sellega ise (seadistada pole midagi):
+
+- Uue broneeringu aknas on plokk "Vali modell andmebaasist". Näidatakse valitud teenusele sobivaid modelle (teenuse nimi võrreldakse modellide teenusekategooriatega, nt "Juukselõikus" ja "Lõikus"), ees need, kellega pole kõige kauem ühendust võetud. Linnuke "näita kõiki" eemaldab teenuse filtri. Arhiveeritud modelle ei näidata.
+- Modellile tehtud broneering uuendab tema viimase kontakti kuupäeva (see lükkab edasi ka automaatse kustutamise tähtaega).
+- Klient, kelle e-post või telefon klapib modelliga, seotakse modelliga ise. Broneeringu kaardil on märge "modell" lingiga modelli kaardile.
+- Avaliku vormi linnuke "Lisa mind modellide andmebaasi" loob uue modelli olekuga "Uus" ja allikaga "broneering", kui teda andmebaasis veel ei ole. Kategooriad ja pildid lisab juhendaja hiljem.
+- Modelle näevad ainult juhendaja ja omanik (õigus `sb_manage_bookings`), praktikant mitte. Andmed loetakse otse sama lehe andmebaasist ega liigu lehelt välja.
+- Modellide plugina juhendaja roll (`sam_juhendaja`) saab broneeringute juhendaja õigused ja võib kasutada töölauda /salong/.
 
 ## Päris cron jagatud majutusel
 

@@ -296,6 +296,44 @@
 		return h('p', { class: 'sb-p-row' }, h('label', { for: id }, label), input);
 	}
 
+	/** Modelli valik modellide andmebaasist: teenusele sobivad, kõige kauem kutsumata ees. */
+	function modelPicker(form) {
+		var q = h('input', { type: 'search', id: 'sb-f-model', placeholder: 'Otsi modelli nime järgi', autocomplete: 'off' });
+		var all = h('input', { type: 'checkbox', id: 'sb-f-model-all' });
+		var info = h('span', { class: 'sb-p-models-info' });
+		var list = h('ul', { class: 'sb-p-models' });
+		var seq = 0, timer;
+		function load() {
+			var my = ++seq;
+			var sid = form.elements.service_id ? form.elements.service_id.value : '';
+			api('admin/models?service_id=' + encodeURIComponent(sid) + '&q=' + encodeURIComponent(q.value.trim()) + (all.checked ? '&all=1' : '')).then(function (r) {
+				if (my !== seq) return;
+				list.textContent = '';
+				info.textContent = all.checked || !r.filter.length ? 'Kõik modellid' : 'Sobivad: ' + r.filter.join(', ');
+				if (!r.models.length) { list.appendChild(h('li', { class: 'sb-p-models-empty' }, 'Sobivaid modelle ei leitud. Proovi linnukest "näita kõiki".')); return; }
+				r.models.forEach(function (m) {
+					var meta = [m.services, m.hair, m.availability ? 'sobib: ' + m.availability : '', m.last_contact ? 'viimati ühendust ' + m.last_contact : 'pole veel ühendust võetud'].filter(Boolean).join(' · ');
+					list.appendChild(h('li', null, h('button', { type: 'button', onclick: function () {
+						var parts = m.name.trim().split(/\s+/);
+						form.elements.first_name.value = parts.shift() || '';
+						form.elements.last_name.value = parts.join(' ');
+						form.elements.phone.value = m.phone; form.elements.email.value = m.email;
+						Array.prototype.forEach.call(list.querySelectorAll('button'), function (x) { x.classList.remove('is-picked'); });
+						this.classList.add('is-picked');
+					} }, h('strong', null, m.name), m.phone ? ' · ' + m.phone : '', m.status === 'Uus' ? h('span', { class: 'sb-p-tag' }, 'uus') : null, h('small', null, meta))));
+				});
+			}).catch(function () { if (my === seq) info.textContent = 'Modellide laadimine ebaõnnestus.'; });
+		}
+		q.addEventListener('input', function () { clearTimeout(timer); timer = setTimeout(load, 250); });
+		all.addEventListener('change', load);
+		form.addEventListener('change', function (ev) { if (ev.target && ev.target.name === 'service_id') load(); });
+		setTimeout(load, 0);
+		return h('details', { class: 'sb-p-modelbox', open: true },
+			h('summary', null, 'Vali modell andmebaasist'),
+			h('p', { class: 'sb-p-models-bar' }, q, h('label', { for: 'sb-f-model-all' }, all, ' näita kõiki'), info),
+			list);
+	}
+
 	/** b = olemasolev broneering või null; pre = eeltäidetud väljad. */
 	function bookingDialog(b, pre) {
 		var isNew = !b;
@@ -324,6 +362,7 @@
 					});
 				}, 250);
 			});
+			if (C.models) form.appendChild(modelPicker(form));
 			form.appendChild(row('Klient', search, 'sb-f-search'));
 			form.appendChild(results);
 			form.appendChild(h('div', { class: 'sb-p-2col' },
@@ -358,7 +397,7 @@
 				h('dl', null,
 					h('dt', null, 'Aeg'), h('dd', null, b.date.split('-').reverse().join('.') + ' ' + b.time),
 					h('dt', null, 'Teenus'), h('dd', null, b.service, b.price ? ' · ' + b.price + (b.material ? ' + materjal' : '') : ''),
-					h('dt', null, 'Klient'), h('dd', null, b.client || '—', C.canManage && C.clientUrl && b.client_id ? [' ', h('a', { href: C.clientUrl + b.client_id }, 'Kliendikaart')] : null, b.model_id ? h('span', { class: 'sb-p-tag' }, 'modell') : null),
+					h('dt', null, 'Klient'), h('dd', null, b.client || '—', C.canManage && C.clientUrl && b.client_id ? [' ', h('a', { href: C.clientUrl + b.client_id }, 'Kliendikaart')] : null, b.model_id ? (b.model_url ? h('a', { class: 'sb-p-tag', href: b.model_url, target: '_blank', rel: 'noopener' }, 'modell') : h('span', { class: 'sb-p-tag' }, 'modell')) : null),
 					b.phone ? [h('dt', null, 'Telefon'), h('dd', null, h('a', { href: 'tel:' + b.phone }, b.phone))] : null,
 					b.email ? [h('dt', null, 'E-post'), h('dd', null, h('a', { href: 'mailto:' + b.email }, b.email))] : null,
 					b.comment ? [h('dt', null, 'Kommentaar'), h('dd', null, b.comment)] : null,

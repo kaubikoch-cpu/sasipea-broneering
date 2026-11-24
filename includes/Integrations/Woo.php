@@ -41,7 +41,7 @@ final class Woo {
 	/**
 	 * @return array|\WP_Error dekodeeritud JSON
 	 */
-	private static function request( string $method, string $path, array $query = array(), ?array $body = null ) {
+	private static function request( string $method, string $path, array $query = array(), ?array $body = null, ?array &$meta = null ) {
 		$s = Settings::get();
 		if ( ! self::enabled() || ! self::valid_url( (string) $s['woo_url'] ) ) {
 			return new \WP_Error( 'sb_woo_off', __( 'Veebipoe ühendus pole seadistatud.', 'sasipea-broneering' ), array( 'status' => 400 ) );
@@ -71,6 +71,10 @@ final class Woo {
 			/* translators: %s: error message from the shop */
 			return new \WP_Error( 'sb_woo_error', sprintf( __( 'Veebipood vastas veaga: %s', 'sasipea-broneering' ), $msg ), array( 'status' => 502 ) );
 		}
+		$meta = array(
+			'total' => (int) wp_remote_retrieve_header( $res, 'x-wp-total' ),
+			'pages' => (int) wp_remote_retrieve_header( $res, 'x-wp-totalpages' ),
+		);
 		return $data;
 	}
 
@@ -131,11 +135,29 @@ final class Woo {
 			[ , $pid, $vid ] = explode( ':', $it['key'] );
 			$items[] = array( 'p' => (int) $pid, 'v' => (int) $vid, 'n' => $it['name'], 's' => $it['sku'], 'g' => $it['gtin'] );
 		};
-		for ( $page = 1; $page <= 50; $page++ ) {
-			$rows = self::request( 'GET', 'products', array( 'per_page' => 100, 'page' => $page, 'status' => 'publish' ) );
+		if ( function_exists( 'set_time_limit' ) ) {
+			@set_time_limit( 300 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors -- suur pood võtab aega.
+		}
+		// Lehti loetakse seni, kuni pood annab tühja lehe või ütleb, et lehed on otsas. Lehe suurusele
+		// ei saa loota: mõni pood või lisaplugin annab vähem ridu, kui küsiti.
+		$total = 0;
+		$seen  = array();
+		for ( $page = 1; $page <= 200; $page++ ) {
+			$meta = null;
+			$rows = self::request( 'GET', 'products', array( 'per_page' => 100, 'page' => $page, 'status' => 'publish', 'orderby' => 'id', 'order' => 'asc' ), null, $meta );
 			if ( is_wp_error( $rows ) ) {
 				return $rows;
 			}
+			if ( ! $rows ) {
+				break;
+			}
+			$first = (int) ( $rows[0]['id'] ?? 0 );
+			if ( isset( $seen[ $first ] ) ) {
+				// Pood eirab lehe numbrit ja annab sama lehe uuesti: ei jää lõputult kordama.
+				return new \WP_Error( 'sb_woo_paging', __( 'Veebipood ei luba tootenimekirja lehekaupa lugeda (sama leht kordub).', 'sasipea-broneering' ), array( 'status' => 502 ) );
+			}
+			$seen[ $first ] = true;
+			$total          = max( $total, (int) ( $meta['total'] ?? 0 ) );
 			foreach ( $rows as $p ) {
 				if ( 'variable' === ( $p['type'] ?? '' ) ) {
 					$vars = self::request( 'GET', 'products/' . (int) $p['id'] . '/variations', array( 'per_page' => 100 ) );
@@ -149,11 +171,11 @@ final class Woo {
 					$entry( $p );
 				}
 			}
-			if ( count( $rows ) < 100 ) {
+			if ( ! empty( $meta['pages'] ) && $page >= $meta['pages'] ) {
 				break;
 			}
 		}
-		update_option( self::INDEX, array( 'time' => time(), 'items' => $items ), false );
+		update_option( self::INDEX, array( 'time' => time(), 'items' => $items, 'shop_total' => $total, 'pages' => count( $seen ) ), false );
 		return count( $items );
 	}
 
