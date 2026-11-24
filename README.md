@@ -1,6 +1,6 @@
 # Sasipea Broneering
 
-Sasipea Akadeemia online-broneerimine ja päevaplaan WordPressi pluginana. Versioon 0.3.0 (1. etapp + kuu töögraafik, praktikantide tasemed ja tasude arvestus).
+Sasipea Akadeemia online-broneerimine ja päevaplaan WordPressi pluginana. Versioon 0.4.0 (1. etapp + kuu töögraafik, tasemed, tasude arvestus, veebipoe ladu ja käibemaksu aruanne).
 
 **NB! Paigalda esmalt staging-keskkonda, mitte päris lehele.**
 
@@ -23,6 +23,8 @@ Nõuded: PHP 8.1+, WordPress 6.2+, MySQL 5.7+ või MariaDB 10.3+ (InnoDB).
 - **Praktikantide tasemed** (Seaded → Praktikantide tasemed): igal tasemel on soodustus teenuse hinnast (%) ja lisaaeg teenuse kestusele (min). Vaikimisi Noorempraktikant (−10%, +30 min) ja Vanempraktikant. Praktikandile saab määrata taseme ja vajadusel isikliku erisuse. Avalik vorm näitab iga praktikandi juures tema hinda ja kestust ning vaba aja arvutus kasutab pikemat kestust.
 - **Materjal ja tooted**: päevaplaanis saab broneeringu juurde märkida kulunud materjali (grammides, hind Seadetes) ja müüdud tooted (Broneeringud → Tooted). Toote saab müüa ka ilma broneeringuta Tasude lehel.
 - **Tasud** (Broneeringud → Tasud, ainult admin): iga praktikandi lehel määratakse tasu eraldi teenustelt, materjali müügilt ja toodete müügilt, kas protsendina käibest või kindla summana. Kuu aruanne näitab praktikandi kaupa käivet ja tasu, alusridu ning lubab CSV-eksporti. Teenus läheb arvesse, kui broneeringu staatus on "Kohal". See on tasu arvestus, mitte palgaleht: makse ei arvutata. Kui Seadetes on lubatud, näeb praktikant menüüs "Minu tasu" enda kuu kokkuvõtet.
+- **Veebipoe ladu** (Seaded → Veebipoe ladu): ühendus WooCommerce'i poega selle REST API kaudu. Päevaplaanis saab toodet otsida poest nime, tootekoodi või skännitud triipkoodi järgi; näha on hind ja laoseis. Müük salvestatakse poodi lõpetatud tellimusena ("Makstud salongis"), nii et WooCommerce arvab koguse ise laost maha. Müügirea eemaldamisel tellimus tühistatakse ja ladu taastub.
+- **Käibemaks** (Seaded → Käibemaks, aruanne Broneeringud → Käibemaks): määrade ajalugu kujul "kehtib alates + määr". Kuu aruanne näitab teenuste, materjali ja toodete käivet käibemaksuga, käibemaksuta ja käibemaksu eraldi, koos CSV-ga. Kuni määra pole lisatud, käibemaksu ei arvestata. Veebipoe laost müüdud tooted on veebipoe ettevõtte tellimused ja käive, seega neid salongi käibemaksu aruandes ei ole (need on eraldi real teadmiseks).
 - **Haldus**: praktikandid (tase, nädalapõhi, päevade erandid, teenused, seotud WP kasutaja), teenused ja kategooriad, kliendid (otsing, külastuste ajalugu, märkmed), seaded.
 - **Rollid**: admin teeb kõike. Roll, mille nimes on "juhendaja", haldab kõiki broneeringuid ja töögraafikut. Roll "Praktikant" logib sisse ja näeb oma veergu; Seadete jaotises "Praktikandi vaade" määratakse, kas ta näeb kliendi telefoni, hinda, e-posti ja kommentaari ning teiste praktikantide veerge. Muuta ei saa ta midagi.
 - **Isikuandmed**: iga nõusolek salvestatakse aja ja tekstiversiooniga; 2 aastat pärast viimast kontakti anonüümitakse klient automaatselt; WordPressi isikuandmete eksport ja kustutamine on toetatud.
@@ -46,6 +48,14 @@ Kirjad saadetakse `wp_mail` kaudu aadressilt info@oppesalong.ee. Et need rämpsp
 
 Iga salvestamine (avalik vorm, admin, lohistamine) võtab andmebaasis salongi ühise luku (`GET_LOCK`), alustab transaktsiooni ja arvutab aja vabaduse uuesti. Ühine lukk on vajalik, sest juhendaja maht (korraga juhendatavaid kliente) kehtib üle kõigi praktikantide.
 
+## Veebipoe ühenduse seadistamine
+
+1. Poe adminis (sasipea.ee): WooCommerce → Seaded → Täpsemalt → REST API → Lisa võti. Kirjeldus nt "Akadeemia broneering", õigus "Lugemine/kirjutamine".
+2. Kopeeri Consumer key ja Consumer secret plugina seadetesse (Broneeringud → Seaded → Veebipoe ladu) koos poe aadressiga. Ühendus töötab ainult üle HTTPS-i.
+3. Seadete lehel peab ilmuma "Ühendus poega töötab".
+
+NB! Proovi esmalt ühe odava tootega: müü, kontrolli poes tellimust ja laoseisu, eemalda müük ja kontrolli, et tellimus tühistus ja ladu taastus. Triipkoodiga otsing kasutab poe GTIN/EAN välja ja varuna SKU välja (osal toodetel on triipkood seal). Otsing käib tootenimekirja koopiast, mis uueneb kord ööpäevas ja nupuga "Uuenda tootenimekirja"; esimest korda tuleb nuppu ise vajutada. WooCommerce võib iga salongimüügi kohta saata poe administraatorile "uus tellimus" kirja.
+
 ## Testid
 
 ```
@@ -53,7 +63,7 @@ php tests/run.php          # ilma lisatarkvarata
 composer install && composer test   # PHPUnitiga
 ```
 
-Testid katavad vaba aja arvutuse (tööaeg, pausid, puhver, kattumised, juhendaja maht, etteteatamine, suveaja vahetus, praktikandi lisaaeg) ning taseme soodustuse, lisaaja ja tasude arvutuse.
+Testid katavad vaba aja arvutuse (tööaeg, pausid, puhver, kattumised, juhendaja maht, etteteatamine, suveaja vahetus, praktikandi lisaaeg) ning taseme soodustuse, lisaaja, tasude ja käibemaksu arvutuse.
 
 ## Käsitsi testimise nimekiri
 
@@ -80,6 +90,9 @@ Admin:
 - [ ] Materjali (grammid) ja toote lisamine broneeringu juurde; summa on õige ja rea saab eemaldada.
 - [ ] Tasude lehel on kuu kokkuvõte õige nii protsendi kui kindla summaga; CSV avaneb Excelis täpitähtedega.
 - [ ] Praktikant näeb "Minu tasu" ainult siis, kui see on Seadetes lubatud, ja ainult enda rida.
+- [ ] Poe toote otsing nime ja triipkoodiga; müük tekitab poes tellimuse ja vähendab laoseisu; eemaldamine tühistab tellimuse.
+- [ ] Otsas olevat toodet müüa ei saa; laoseisust suurem kogus annab veateate.
+- [ ] Käibemaksu aruanne: summad klapivad Tasude lehe käibega; enne määra algust on käibemaks 0.
 - [ ] Salongi teavituskirjad jõuavad aadressile info@oppesalong.ee.
 
 ## Mis on veel tegemata

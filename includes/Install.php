@@ -192,6 +192,8 @@ final class Install {
   qty decimal(10,2) NOT NULL DEFAULT 1,
   unit_cents int(11) NOT NULL DEFAULT 0,
   total_cents int(11) NOT NULL DEFAULT 0,
+  sku varchar(100) NULL,
+  woo_order_id bigint(20) unsigned NULL,
   sold_at datetime NOT NULL,
   created_by bigint(20) unsigned NULL,
   PRIMARY KEY  (id),

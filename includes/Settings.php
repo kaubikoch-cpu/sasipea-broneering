@@ -35,6 +35,12 @@ final class Settings {
 				array( 'id' => 'pulber', 'name' => 'Blondeerimispulber', 'cents_per_g' => 20 ),
 				array( 'id' => 'varv', 'name' => 'Värv', 'cents_per_g' => 30 ),
 			),
+			// Veebipoe (WooCommerce) ühendus toodete otsinguks ja lao mahaarvamiseks.
+			'woo_url'             => '',
+			'woo_key'             => '',
+			'woo_secret'          => '',
+			// Käibemaksu määrade ajalugu: [['from' => 'Y-m-d', 'rate' => 24], ...]. Tühi = pole käibemaksukohustuslane.
+			'vat_history'         => array(),
 			// Kui sees, saab online broneerida ainult nendesse kuudesse, mille töögraafik on koostatud.
 			'require_month'       => false,
 			// Mida sisseloginud praktikant päevaplaanis näeb. Muuta ei saa ta midagi.

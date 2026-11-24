@@ -420,9 +420,48 @@
 		box.appendChild(h('h3', null, 'Materjal ja tooted'));
 		box.appendChild(list);
 		box.appendChild(h('div', { class: 'sb-p-sales-add' }, sel, qty, add));
+		if (items.shop) box.appendChild(shopSearch(b, draw, err));
 		box.appendChild(err);
 		draw(b.sales || []);
 		return box;
+	}
+
+	/* Toote otsing veebipoest: nimi, tootekood või skännitud triipkood. Müük arvatakse poe laost maha. */
+	function shopSearch(b, draw, err) {
+		var results = h('ul', { class: 'sb-p-shop-results', 'aria-live': 'polite' });
+		var input = h('input', { id: 'sb-shop-q', type: 'search', placeholder: 'nimi, triipkood või tootekood', autocomplete: 'off' });
+		function sell(item, n) {
+			err.textContent = '';
+			results.textContent = '';
+			results.appendChild(h('li', { class: 'sb-p-hint' }, 'Salvestan müüki…'));
+			api('admin/sales', 'POST', { booking_id: b.id, item: item.key, qty: n })
+				.then(function (r) { results.textContent = ''; input.value = ''; input.focus(); draw(r.sales); toast('Müüdud: ' + item.name); })
+				.catch(function (e) { results.textContent = ''; err.textContent = e.message; });
+		}
+		function search() {
+			var q = input.value.trim();
+			err.textContent = '';
+			results.textContent = '';
+			if (q.length < 2) return;
+			results.appendChild(h('li', { class: 'sb-p-hint' }, 'Otsin poest…'));
+			api('admin/shop-search?q=' + encodeURIComponent(q)).then(function (list) {
+				results.textContent = '';
+				if (!list.length) { results.appendChild(h('li', { class: 'sb-p-hint' }, 'Poest ei leitud midagi.')); return; }
+				list.forEach(function (it) {
+					var n = h('input', { type: 'number', min: 1, value: 1, 'aria-label': 'Kogus: ' + it.name, style: 'width:60px' });
+					results.appendChild(h('li', null,
+						h('span', { class: 'sb-p-shop-name' }, it.name, h('span', { class: 'sb-p-hint' }, ' ' + [it.gtin || it.sku, it.price_label, it.stock_label].filter(Boolean).join(' · '))),
+						n,
+						h('button', { type: 'button', class: 'button', disabled: !it.in_stock, onclick: function () { sell(it, Math.max(1, parseInt(n.value, 10) || 1)); } }, it.in_stock ? 'Müü' : 'Otsas')));
+				});
+			}).catch(function (e) { results.textContent = ''; err.textContent = e.message; });
+		}
+		// Skänner saadab koodi järel Enteri; see ei tohi dialoogi sulgeda ega vormi saata.
+		input.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); search(); } });
+		return h('div', { class: 'sb-p-shop' },
+			h('label', { for: 'sb-shop-q' }, 'Toode veebipoe laost'),
+			h('div', { class: 'sb-p-sales-add' }, input, h('button', { type: 'button', class: 'button', onclick: search }, 'Otsi')),
+			results);
 	}
 
 	function blockDialog(pre) {

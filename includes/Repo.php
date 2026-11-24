@@ -402,6 +402,27 @@ final class Repo {
 					$row = array( 'product_id' => null, 'label' => $m['name'], 'unit_cents' => (int) $m['cents_per_g'] );
 				}
 			}
+		} elseif ( 'woo' === $kind ) {
+			// Veebipoe toode: "woo:<toote id>:<variatsiooni id>". Hind ja nimi tulevad poest, mitte brauserist.
+			[ $pid, $vid ] = array_map( 'intval', explode( ':', $ref ) + array( 0, 0 ) );
+			$qty           = (float) max( 1, round( $qty ) );
+			$note          = $booking_id
+				/* translators: %d: booking id */
+				? sprintf( __( 'Müüdud salongis (broneering nr %d)', 'sasipea-broneering' ), $booking_id )
+				: __( 'Müüdud salongis', 'sasipea-broneering' );
+			$sold          = $pid ? Integrations\Woo::sell( $pid, $vid, (int) $qty, $note ) : $bad;
+			if ( is_wp_error( $sold ) ) {
+				return $sold;
+			}
+			$kind = 'product';
+			$row  = array(
+				'product_id'   => null,
+				'label'        => $sold['name'],
+				'unit_cents'   => (int) round( $sold['total_cents'] / $qty ),
+				'sku'          => $sold['sku'],
+				'woo_order_id' => $sold['order_id'],
+				'total_cents'  => $sold['total_cents'],
+			);
 		} elseif ( 'product' === $kind ) {
 			foreach ( self::products() as $p ) {
 				if ( $p['id'] === (int) $ref ) {
@@ -428,9 +449,23 @@ final class Repo {
 		return (int) $wpdb->insert_id;
 	}
 
-	public static function delete_sale( int $id ): void {
+	/**
+	 * Eemaldab müügirea. Veebipoe tellimusega rida eemaldatakse alles siis, kui tellimuse
+	 * tühistamine poes õnnestus, et ladu ja meie arvestus lahku ei läheks.
+	 *
+	 * @return true|\WP_Error
+	 */
+	public static function delete_sale( int $id ) {
 		global $wpdb;
+		$order = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT woo_order_id FROM ' . self::t( 'sales' ) . ' WHERE id = %d', $id ) );
+		if ( $order ) {
+			$res = Integrations\Woo::cancel( $order );
+			if ( is_wp_error( $res ) ) {
+				return $res;
+			}
+		}
 		$wpdb->delete( self::t( 'sales' ), array( 'id' => $id ) );
+		return true;
 	}
 
 	public static function sale_out( array $r ): array {
@@ -441,6 +476,8 @@ final class Repo {
 			'staff_id'    => (int) $r['staff_id'],
 			'kind'        => $r['kind'],
 			'label'       => $r['label'],
+			'sku'         => (string) ( $r['sku'] ?? '' ),
+			'woo_order_id' => ! empty( $r['woo_order_id'] ) ? (int) $r['woo_order_id'] : null,
 			'qty'         => $qty,
 			'qty_label'   => rtrim( rtrim( number_format( $qty, 2, ',', '' ), '0' ), ',' ) . ( 'material' === $r['kind'] ? ' g' : ' tk' ),
 			'total_cents' => (int) $r['total_cents'],
