@@ -586,9 +586,9 @@ final class Admin {
 			return;
 		}
 		if ( ! $ready && ! empty( Settings::get()['require_month'] ) ) {
-			echo '<div class="notice notice-warning sb-m-state"><p><strong>' . esc_html__( 'See kuu on veel salvestamata ja kliendid selle kuu aegu broneerida ei saa.', 'sasipea-broneering' ) . '</strong> ' . esc_html__( 'Allolevad linnukesed on ainult nädalapõhja järgi eeltäidetud ettepanek. Vaata üle ja vajuta lehe lõpus nuppu "Lisa kuu graafik".', 'sasipea-broneering' ) . '</p></div>';
+			echo '<div class="notice notice-warning sb-m-state"><p><strong>' . esc_html__( 'See kuu on veel salvestamata ja kliendid selle kuu aegu broneerida ei saa.', 'sasipea-broneering' ) . '</strong> ' . esc_html__( 'Allolevad linnukesed on ainult nädalapõhja järgi eeltäidetud ettepanek. Vaata üle ja vajuta lehe lõpus nuppu "Tee kuu klientidele avalikuks".', 'sasipea-broneering' ) . '</p></div>';
 		} elseif ( $ready ) {
-			echo '<div class="notice notice-success sb-m-state"><p><strong>' . esc_html__( 'Selle kuu töögraafik on salvestatud ja kliendid saavad aegu broneerida.', 'sasipea-broneering' ) . '</strong></p></div>';
+			echo '<div class="notice notice-success sb-m-state"><p><strong>' . esc_html__( 'See kuu on klientidele avalik: kliendid saavad selle kuu aegu broneerida.', 'sasipea-broneering' ) . '</strong></p></div>';
 		}
 		if ( ! $ready ) {
 			echo '<p class="description">' . esc_html( empty( Settings::get()['require_month'] )
@@ -648,7 +648,7 @@ final class Admin {
 			echo '</tr>';
 		}
 		echo '</tbody></table></div>';
-		submit_button( $ready ? __( 'Salvesta graafik', 'sasipea-broneering' ) : __( 'Lisa kuu graafik', 'sasipea-broneering' ) );
+		submit_button( $ready ? __( 'Salvesta muudatused', 'sasipea-broneering' ) : __( 'Tee kuu klientidele avalikuks', 'sasipea-broneering' ) );
 		echo '</form>';
 		echo "<script>
 		(function(){
