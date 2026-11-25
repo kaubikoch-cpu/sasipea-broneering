@@ -21,6 +21,7 @@ require dirname( __DIR__ ) . '/includes/Roles.php';
 require dirname( __DIR__ ) . '/includes/Mailer.php';
 require dirname( __DIR__ ) . '/includes/Users.php';
 require dirname( __DIR__ ) . '/includes/Dashboard.php';
+require dirname( __DIR__ ) . '/includes/Colors.php';
 $autoload = dirname( __DIR__ ) . '/vendor/autoload.php';
 if ( is_readable( $autoload ) ) {
 	require $autoload;

@@ -118,6 +118,7 @@ final class Dashboard {
 			$add( 'kassa', __( 'Kassa', 'sasipea-broneering' ), 'cash', '', array( Kassa::class, 'page' ) );
 			$add( 'toograafik', __( 'Töögraafik', 'sasipea-broneering' ), 'grid', '', array( Admin::class, 'page_month' ) );
 			$add( 'kliendid', __( 'Kliendid', 'sasipea-broneering' ), 'users', '', array( Admin::class, 'page_clients' ) );
+			$add( 'varviladu', __( 'Värviladu', 'sasipea-broneering' ), 'drop', '', array( Colors::class, 'page' ) );
 		}
 		// Modellide andmebaas ja juuksuriõpilaste avaldused (sama õigus mis vanas modellide pluginas).
 		if ( ModellidModule::embedded() && current_user_can( SAM_CAP ) ) {
@@ -593,6 +594,7 @@ final class Dashboard {
 			'cash'     => '<rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6.5 9.5v5M17.5 9.5v5"/>',
 			'camera'   => '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
 			'inbox'    => '<path d="M3 13l3-8h12l3 8v6H3z"/><path d="M3 13h5l1 3h6l1-3h5"/>',
+			'drop'     => '<path d="M12 3c3.5 4.2 6 7.4 6 10.5a6 6 0 01-12 0C6 10.4 8.5 7.2 12 3z"/><path d="M9.5 14.5a2.6 2.6 0 002.5 2.5"/>',
 			'logout'   => '<path d="M9 4H5v16h4M15 8l4 4-4 4M19 12H9"/>',
 		);
 		return '<svg class="sbd-ico" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' . ( $paths[ $name ] ?? '' ) . '</svg>';

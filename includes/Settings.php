@@ -35,6 +35,10 @@ final class Settings {
 				array( 'id' => 'pulber', 'name' => 'Blondeerimispulber', 'cents_per_g' => 20 ),
 				array( 'id' => 'varv', 'name' => 'Värv', 'cents_per_g' => 30 ),
 			),
+			// Värviladu: millise materjali grammihinnaga kulunud värv kliendi arvele läheb ('' = ei lähe)
+			// ja kas tuubi lattu võtmisel kantakse see vaikimisi ka veebipoe laost maha.
+			'color_material'      => 'varv',
+			'color_from_shop'     => true,
 			// Veebipoe (WooCommerce) ühendus toodete otsinguks ja lao mahaarvamiseks.
 			'woo_url'             => '',
 			'woo_key'             => '',
