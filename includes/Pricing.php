@@ -2,13 +2,13 @@
 namespace SB;
 
 /**
- * Praktikandi taseme mõju teenusele: soodustus hinnast ja lisaaeg kestusele.
+ * Juuksuriõpilase taseme mõju teenusele: soodustus hinnast ja lisaaeg kestusele.
  * Puhas PHP ilma WordPressi sõltuvusteta, et seda saaks eraldi testida.
  */
 final class Pricing {
 
 	/**
-	 * Praktikandi tingimused: tase annab vaikeväärtused, praktikandi enda väljad
+	 * Juuksuriõpilase tingimused: tase annab vaikeväärtused, juuksuriõpilase enda väljad
 	 * (kui need on täidetud) asendavad taseme omad.
 	 *
 	 * @param array $staff  level, discount_override (int|null), extra_override (int|null)
@@ -48,7 +48,7 @@ final class Pricing {
 		return (int) round( $cents * ( 100 - $pct ) / 100 );
 	}
 
-	/** Kestus minutites koos praktikandi lisaajaga. */
+	/** Kestus minutites koos juuksuriõpilase lisaajaga. */
 	public static function duration( int $minutes, int $extra_min ): int {
 		return $minutes + max( 0, $extra_min );
 	}

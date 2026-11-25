@@ -25,7 +25,7 @@ final class Settings {
 			'max_days_ahead'      => 60,
 			'max_concurrent'      => 3,    // korraga juhendatavaid kliente
 			'cancel_hours'        => 24,   // kuni mitu h ette saab klient tühistada/muuta
-			// Praktikandi tasemed: soodustus teenuse hinnast (%) ja lisaaeg teenuse kestusele (min).
+			// Juuksuriõpilase tasemed: soodustus teenuse hinnast (%) ja lisaaeg teenuse kestusele (min).
 			'levels'              => array(
 				array( 'id' => 'noorem', 'name' => 'Noorempraktikant', 'discount_pct' => 10, 'extra_min' => 30 ),
 				array( 'id' => 'vanem', 'name' => 'Vanempraktikant', 'discount_pct' => 0, 'extra_min' => 0 ),
@@ -39,16 +39,20 @@ final class Settings {
 			'woo_url'             => '',
 			'woo_key'             => '',
 			'woo_secret'          => '',
+			// Sisselogimine Google'i kontoga (OAuth klient Google Cloudist). Tühi = välja lülitatud.
+			'google_client_id'     => '',
+			'google_client_secret' => '',
+			'google_admins'        => false,
 			// Käibemaksu määrade ajalugu: [['from' => 'Y-m-d', 'rate' => 24], ...]. Tühi = pole käibemaksukohustuslane.
 			'vat_history'         => array(),
 			// Kui sees, saab online broneerida ainult nendesse kuudesse, mille töögraafik on koostatud.
-			'require_month'       => false,
-			// Mida sisseloginud praktikant päevaplaanis näeb. Muuta ei saa ta midagi.
+			'require_month'       => true,
+			// Mida sisseloginud juuksuriõpilane päevaplaanis näeb. Muuta ei saa ta midagi.
 			'trainee_view'        => array(
 				'phone'   => true,  // kliendi telefon
 				'price'   => true,  // teenuse hind
 				'details' => false, // kliendi e-post ja kommentaar
-				'others'  => false, // teiste praktikantide veerud (ilma klientide andmeteta)
+				'others'  => false, // teiste juuksuriõpilaste veerud (ilma klientide andmeteta)
 				'pay'     => false, // enda kuu tasu kokkuvõte
 			),
 			// Töölaua (oma sisselogimisega vaade väljaspool WP adminni) aadressi lõpp: /salong/.
@@ -61,13 +65,13 @@ final class Settings {
 			'salon_address'       => 'Pikk 39, Tartu',
 			'salon_phone'         => '5858 8007',
 			'salon_web'           => 'oppesalong.ee',
-			'consent_version'     => '2026-11',
+			'consent_version'     => '2026-11-2',
 			'consent_texts'       => array(
 				'privacy' => 'Olen tutvunud privaatsuspoliitikaga ja nõustun, et mu andmeid kasutatakse broneeringu haldamiseks.',
-				'models'  => 'Lisa mind modellide andmebaasi.',
+				'models'  => 'Lisa mind ka tulevikus modellide andmebaasi.',
 				'social'  => 'Luban oma soengu pilte kasutada sotsiaalmeedias.',
 			),
-			'confirmation_note'   => 'Tööd teevad praktikandid juhendaja käe all, seetõttu võib teenus võtta veidi kauem aega. Värvimisel ja triibutamisel lisandub hinnale materjal (blondeerimispulber 0,20 €/g, värv 0,30 €/g).',
+			'confirmation_note'   => 'Tööd teevad juuksuriõpilased juhendaja käe all, seetõttu võib teenus võtta veidi kauem aega. Värvimisel ja triibutamisel lisandub hinnale materjal (blondeerimispulber 0,20 €/g, värv 0,30 €/g).',
 			'templates'           => Mailer::default_templates(),
 		);
 	}

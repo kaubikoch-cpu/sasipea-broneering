@@ -5,9 +5,9 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Õigused:
- *  - sb_manage_settings: teenused, praktikandid, tasud, seaded (admin, salongi omanik)
+ *  - sb_manage_settings: teenused, juuksuriõpilased, tasud, seaded (admin, salongi omanik)
  *  - sb_manage_bookings: kõik broneeringud ja päevaplaan (admin, omanik, juhendaja)
- *  - sb_view_own: ainult enda graafik ja broneeringud (praktikant)
+ *  - sb_view_own: ainult enda graafik ja broneeringud (juuksuriõpilane)
  */
 final class Roles {
 
@@ -50,7 +50,7 @@ final class Roles {
 		if ( ! get_role( self::PRAKTIKANT ) ) {
 			add_role(
 				self::PRAKTIKANT,
-				__( 'Praktikant', 'sasipea-broneering' ),
+				__( 'Juuksuriõpilane', 'sasipea-broneering' ),
 				array(
 					'read'        => true,
 					'sb_view_own' => true,
@@ -70,7 +70,7 @@ final class Roles {
 		return (array) apply_filters( 'sb_juhendaja_roles', $out );
 	}
 
-	/** Praktikandi rida, mis on seotud praeguse WP kasutajaga. */
+	/** Juuksuriõpilase rida, mis on seotud praeguse WP kasutajaga. */
 	public static function current_staff_id(): ?int {
 		global $wpdb;
 		$uid = get_current_user_id();

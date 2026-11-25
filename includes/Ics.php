@@ -40,7 +40,7 @@ final class Ics {
 			'DTEND:' . $fmt( $b['end_utc'] ),
 			'SUMMARY:' . self::esc( $b['service_name'] . ' – Sasipea Akadeemia' ),
 			'LOCATION:' . self::esc( 'Sasipea Akadeemia, ' . $set['salon_address'] ),
-			'DESCRIPTION:' . self::esc( sprintf( "Praktikant: %s\nTel: %s\n%s", $b['staff_name'], $set['salon_phone'], $set['salon_web'] ) ),
+			'DESCRIPTION:' . self::esc( sprintf( "Juuksuriõpilane: %s\nTel: %s\n%s", $b['staff_name'], $set['salon_phone'], $set['salon_web'] ) ),
 			'STATUS:' . ( $cancelled ? 'CANCELLED' : 'CONFIRMED' ),
 			'SEQUENCE:' . (int) strtotime( $b['updated_at'] . ' UTC' ),
 			'END:VEVENT',

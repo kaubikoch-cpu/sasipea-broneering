@@ -13,13 +13,13 @@ namespace SB;
  *   tz              \DateTimeZone
  *   duration        int, teenuse kestus minutites
  *   step            int, ajasamm minutites
- *   buffer          int, puhver minutites enne ja pärast teisi sama praktikandi broneeringuid
+ *   buffer          int, puhver minutites enne ja pärast teisi sama juuksuriõpilase broneeringuid
  *   now             int, praegune ajatempel
  *   min_notice      int, minutites (null = ei kontrolli)
  *   max_days        int|null, mitu päeva ette (null = ei kontrolli)
  *   opening         list<[int,int]> lahtiolekuaeg minutites
  *   staff           array<int, [work => list<[int,int]> minutites, bookings => list<[ts,ts]>, blocks => list<[ts,ts]>,
- *                   duration => int|null (praktikandi enda kestus, nt teenus + lisaaeg; puudumisel üldine duration)]>
+ *                   duration => int|null (juuksuriõpilase enda kestus, nt teenus + lisaaeg; puudumisel üldine duration)]>
  *   salon_blocks    list<[ts,ts]>
  *   salon_bookings  list<[ts,ts]> kõik aktiivsed broneeringud (juhendajate mahu kontrolliks)
  *   capacity        int, mitu klienti korraga (0 = piiranguta)
@@ -54,7 +54,7 @@ final class Availability {
 	}
 
 	/**
-	 * Praktikandid, kellele sobib algus $s (ajatempel). Kasutatakse ka salvestamisel ja
+	 * Juuksuriõpilased, kellele sobib algus $s (ajatempel). Kasutatakse ka salvestamisel ja
 	 * admini lohistamisel, kus algus ei pea olema ajasammul.
 	 *
 	 * @return list<int>
@@ -72,7 +72,7 @@ final class Availability {
 		$cap     = (int) ( $p['capacity'] ?? 0 );
 		$free    = array();
 		foreach ( $p['staff'] as $sid => $st ) {
-			// Lõpp sõltub praktikandist: aeglasemal praktikandil on sama teenus pikem.
+			// Lõpp sõltub juuksuriõpilasest: aeglasemal juuksuriõpilasel on sama teenus pikem.
 			$e = $s + (int) ( $st['duration'] ?? $p['duration'] ) * 60;
 			if ( ! self::inside_any( $s, $e, $opening ) ) {
 				continue;

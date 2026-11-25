@@ -4,13 +4,14 @@ namespace SB;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Admini lehed: päevaplaan, praktikandid, teenused, kliendid, seaded.
+ * Admini lehed: päevaplaan, juuksuriõpilased, teenused, kliendid, seaded.
  */
 final class Admin {
 
 	/** Admini lehe slug => töölaua vaate nimi. */
 	public const VIEWS = array(
 		'sb-planner'  => 'paevaplaan',
+		'sb-kassa'    => 'kassa',
 		'sb-month'    => 'toograafik',
 		'sb-clients'  => 'kliendid',
 		'sb-staff'    => 'praktikandid',
@@ -19,6 +20,7 @@ final class Admin {
 		'sb-pay'      => 'tasud',
 		'sb-vat'      => 'kaibemaks',
 		'sb-settings' => 'seaded',
+		'sb-users'    => 'kasutajad',
 	);
 
 	/** Kas lehti näidatakse töölaual (true) või WP adminis (false). */
@@ -30,6 +32,7 @@ final class Admin {
 			self::$front = true;
 		}
 		add_action( 'admin_menu', array( self::class, 'menu' ) );
+		Kassa::init();
 		foreach ( array( 'save_service', 'save_category', 'delete_service', 'save_staff', 'add_exception', 'delete_exception', 'save_settings', 'save_client', 'save_month', 'save_product', 'add_sale', 'delete_sale', 'pay_csv', 'vat_csv', 'shop_sync' ) as $a ) {
 			add_action( 'admin_post_sb_' . $a, array( self::class, 'handle_' . $a ) );
 		}
@@ -38,9 +41,10 @@ final class Admin {
 	public static function menu(): void {
 		add_menu_page( __( 'Broneeringud', 'sasipea-broneering' ), __( 'Broneeringud', 'sasipea-broneering' ), 'sb_view_own', 'sb-planner', array( self::class, 'page_planner' ), 'dashicons-calendar-alt', 3 );
 		add_submenu_page( 'sb-planner', __( 'Päevaplaan', 'sasipea-broneering' ), __( 'Päevaplaan', 'sasipea-broneering' ), 'sb_view_own', 'sb-planner', array( self::class, 'page_planner' ) );
+		add_submenu_page( 'sb-planner', __( 'Kassa', 'sasipea-broneering' ), __( 'Kassa', 'sasipea-broneering' ), 'sb_manage_bookings', 'sb-kassa', array( Kassa::class, 'page' ) );
 		add_submenu_page( 'sb-planner', __( 'Töögraafik', 'sasipea-broneering' ), __( 'Töögraafik', 'sasipea-broneering' ), 'sb_manage_bookings', 'sb-month', array( self::class, 'page_month' ) );
 		add_submenu_page( 'sb-planner', __( 'Kliendid', 'sasipea-broneering' ), __( 'Kliendid', 'sasipea-broneering' ), 'sb_manage_bookings', 'sb-clients', array( self::class, 'page_clients' ) );
-		add_submenu_page( 'sb-planner', __( 'Praktikandid', 'sasipea-broneering' ), __( 'Praktikandid', 'sasipea-broneering' ), 'sb_manage_settings', 'sb-staff', array( self::class, 'page_staff' ) );
+		add_submenu_page( 'sb-planner', __( 'Juuksuriõpilased', 'sasipea-broneering' ), __( 'Juuksuriõpilased', 'sasipea-broneering' ), 'sb_manage_settings', 'sb-staff', array( self::class, 'page_staff' ) );
 		add_submenu_page( 'sb-planner', __( 'Teenused', 'sasipea-broneering' ), __( 'Teenused', 'sasipea-broneering' ), 'sb_manage_settings', 'sb-services', array( self::class, 'page_services' ) );
 		add_submenu_page( 'sb-planner', __( 'Tooted', 'sasipea-broneering' ), __( 'Tooted', 'sasipea-broneering' ), 'sb_manage_settings', 'sb-products', array( self::class, 'page_products' ) );
 		if ( current_user_can( 'sb_manage_settings' ) ) {
@@ -50,6 +54,7 @@ final class Admin {
 		}
 		add_submenu_page( 'sb-planner', __( 'Käibemaks', 'sasipea-broneering' ), __( 'Käibemaks', 'sasipea-broneering' ), 'sb_manage_settings', 'sb-vat', array( self::class, 'page_vat' ) );
 		add_submenu_page( 'sb-planner', __( 'Seaded', 'sasipea-broneering' ), __( 'Seaded', 'sasipea-broneering' ), 'sb_manage_settings', 'sb-settings', array( self::class, 'page_settings' ) );
+		add_submenu_page( 'sb-planner', __( 'Kasutajad', 'sasipea-broneering' ), __( 'Kasutajad', 'sasipea-broneering' ), 'sb_manage_settings', 'sb-users', array( Users::class, 'page' ) );
 	}
 
 	public static function enqueue_planner( bool $in_admin = true ): void {
@@ -64,19 +69,20 @@ final class Admin {
 				'canManage' => current_user_can( 'sb_manage_bookings' ),
 				'models'    => current_user_can( 'sb_manage_bookings' ) && Integrations\Modellid::active(),
 				'today'     => ( new \DateTimeImmutable( 'now', Settings::tz() ) )->format( 'Y-m-d' ),
+				'kassaUrl'  => current_user_can( 'sb_manage_bookings' ) && $in_admin ? self::url( 'sb-kassa&booking=' ) : '',
 				'clientUrl' => $in_admin ? self::url( 'sb-clients&client=' ) : '',
 			)
 		);
 	}
 
-	private static function guard( string $cap, string $action ): void {
+	public static function guard( string $cap, string $action ): void {
 		if ( ! current_user_can( $cap ) ) {
 			wp_die( esc_html__( 'Sul pole selleks õigust.', 'sasipea-broneering' ), 403 );
 		}
 		check_admin_referer( $action );
 	}
 
-	private static function back( string $page, array $args = array() ): void {
+	public static function back( string $page, array $args = array() ): void {
 		$args = array_merge( array( 'sb_saved' => 1 ), $args );
 		if ( isset( $args['sb_error'] ) ) {
 			$args['sb_error'] = rawurlencode( (string) $args['sb_error'] );
@@ -97,16 +103,22 @@ final class Admin {
 		return Dashboard::url( self::VIEWS[ $slug ] ?? '' ) . ( '' !== $rest ? '&' . $rest : '' );
 	}
 
-	private static function notice(): void {
+	public static function notice(): void {
 		if ( isset( $_GET['sb_saved'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
 			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Salvestatud.', 'sasipea-broneering' ) . '</p></div>';
+		}
+		if ( isset( $_GET['sb_deleted'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Arve kustutatud.', 'sasipea-broneering' ) . '</p></div>';
+		}
+		if ( isset( $_GET['sb_sent'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Kviitung saadetud.', 'sasipea-broneering' ) . '</p></div>';
 		}
 		if ( isset( $_GET['sb_error'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
 			echo '<div class="notice notice-error"><p>' . esc_html( sanitize_text_field( wp_unslash( $_GET['sb_error'] ) ) ) . '</p></div>'; // phpcs:ignore
 		}
 	}
 
-	private static function post( string $k, string $default = '' ): string {
+	public static function post( string $k, string $default = '' ): string {
 		return isset( $_POST[ $k ] ) ? trim( sanitize_text_field( wp_unslash( $_POST[ $k ] ) ) ) : $default; // phpcs:ignore WordPress.Security.NonceVerification -- kontrollitud guard()'is.
 	}
 
@@ -240,7 +252,7 @@ final class Admin {
 		} else {
 			$wpdb->insert( Install::table( 'services' ), $data );
 			$id = (int) $wpdb->insert_id;
-			// Uus teenus: vaikimisi teevad seda kõik aktiivsed praktikandid.
+			// Uus teenus: vaikimisi teevad seda kõik aktiivsed juuksuriõpilased.
 			foreach ( Repo::staff_list( true ) as $st ) {
 				$wpdb->replace( Install::table( 'staff_services' ), array( 'staff_id' => $st['id'], 'service_id' => $id ) );
 			}
@@ -278,13 +290,13 @@ final class Admin {
 		self::back( 'sb-services' );
 	}
 
-	/* ================= Praktikandid ================= */
+	/* ================= Juuksuriõpilased ================= */
 
 	public static function page_staff(): void {
 		$staff = Repo::staff_list( false );
 		$id    = isset( $_GET['edit'] ) ? (int) $_GET['edit'] : 0; // phpcs:ignore WordPress.Security.NonceVerification
 		$edit  = $id ? Repo::staff( $id ) : null;
-		echo '<div class="wrap"><h1>' . esc_html__( 'Praktikandid', 'sasipea-broneering' ) . '</h1>';
+		echo '<div class="wrap"><h1>' . esc_html__( 'Juuksuriõpilased', 'sasipea-broneering' ) . '</h1>';
 		self::notice();
 		echo '<table class="widefat striped" style="max-width:900px"><thead><tr><th>' . esc_html__( 'Nimi', 'sasipea-broneering' ) . '</th><th>' . esc_html__( 'Tase', 'sasipea-broneering' ) . '</th><th>' . esc_html__( 'Olek', 'sasipea-broneering' ) . '</th><th>' . esc_html__( 'Nädalapõhi', 'sasipea-broneering' ) . '</th><th></th></tr></thead><tbody>';
 		$days = array( 1 => 'E', 'T', 'K', 'N', 'R', 'L', 'P' );
@@ -308,7 +320,7 @@ final class Admin {
 			);
 		}
 		echo '</tbody></table>';
-		echo '<p><a class="button" href="' . esc_url( self::url( 'sb-staff&edit=new' ) ) . '">' . esc_html__( 'Lisa praktikant', 'sasipea-broneering' ) . '</a></p>';
+		echo '<p><a class="button" href="' . esc_url( self::url( 'sb-staff&edit=new' ) ) . '">' . esc_html__( 'Lisa juuksuriõpilane', 'sasipea-broneering' ) . '</a></p>';
 
 		$is_new = isset( $_GET['edit'] ) && 'new' === $_GET['edit']; // phpcs:ignore WordPress.Security.NonceVerification
 		if ( ! $edit && ! $is_new ) {
@@ -330,7 +342,7 @@ final class Admin {
 			}
 		}
 
-		echo '<h2>' . ( $edit ? esc_html( $s['name'] ) : esc_html__( 'Uus praktikant', 'sasipea-broneering' ) ) . '</h2>';
+		echo '<h2>' . ( $edit ? esc_html( $s['name'] ) : esc_html__( 'Uus juuksuriõpilane', 'sasipea-broneering' ) ) . '</h2>';
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( 'sb_save_staff' );
 		echo '<input type="hidden" name="action" value="sb_save_staff"><input type="hidden" name="id" value="' . (int) $s['id'] . '"><table class="form-table">';
@@ -340,7 +352,7 @@ final class Admin {
 		foreach ( get_users( array( 'orderby' => 'display_name', 'fields' => array( 'ID', 'display_name' ) ) ) as $u ) {
 			printf( '<option value="%d"%s>%s</option>', (int) $u->ID, selected( (int) $u->ID, (int) $s['user_id'], false ), esc_html( $u->display_name ) );
 		}
-		echo '</select><p class="description">' . esc_html__( 'Seotud kasutaja näeb päevaplaanis oma graafikut. Talle antakse roll "Praktikant", kui tal pole juhendaja ega admini õigusi.', 'sasipea-broneering' ) . '</p></td></tr>';
+		echo '</select><p class="description">' . esc_html__( 'Seotud kasutaja näeb päevaplaanis oma graafikut. Talle antakse roll "Juuksuriõpilane", kui tal pole juhendaja ega admini õigusi.', 'sasipea-broneering' ) . '</p></td></tr>';
 		printf( '<tr><th>%s</th><td><label><input type="checkbox" name="active" value="1"%s> %s</label></td></tr>', esc_html__( 'Olek', 'sasipea-broneering' ), checked( $s['active'], true, false ), esc_html__( 'Aktiivne (saab broneerida)', 'sasipea-broneering' ) );
 		printf( '<tr><th><label for="sb-so">%s</label></th><td><input id="sb-so" name="sort_order" type="number" value="%d"></td></tr>', esc_html__( 'Järjekord', 'sasipea-broneering' ), (int) $s['sort_order'] );
 
@@ -349,7 +361,7 @@ final class Admin {
 			/* translators: 1: level name, 2: discount percent, 3: extra minutes */
 			printf( '<option value="%s"%s>%s</option>', esc_attr( $l['id'] ), selected( $l['id'], $s['level'], false ), esc_html( sprintf( __( '%1$s (soodustus %2$d%%, lisaaeg %3$d min)', 'sasipea-broneering' ), $l['name'], (int) $l['discount_pct'], (int) $l['extra_min'] ) ) );
 		}
-		echo '</select><p class="description">' . esc_html__( 'Tase määrab, kui palju on teenus selle praktikandi juures soodsam ja kui palju kauem see kestab. Tasemeid saab muuta Seadete lehel.', 'sasipea-broneering' ) . '</p></td></tr>';
+		echo '</select><p class="description">' . esc_html__( 'Tase määrab, kui palju on teenus selle juuksuriõpilase juures soodsam ja kui palju kauem see kestab. Tasemeid saab muuta Seadete lehel.', 'sasipea-broneering' ) . '</p></td></tr>';
 		printf(
 			'<tr><th>%s</th><td><label>%s <input name="discount_pct" type="number" min="0" max="100" style="width:80px" value="%s" placeholder="—"> %%</label> &nbsp; <label>%s <input name="extra_min" type="number" min="0" max="240" step="5" style="width:80px" value="%s" placeholder="—"> min</label><p class="description">%s</p></td></tr>',
 			esc_html__( 'Erisused', 'sasipea-broneering' ),
@@ -357,7 +369,7 @@ final class Admin {
 			esc_attr( null === $s['discount_override'] ? '' : (string) $s['discount_override'] ),
 			esc_html__( 'Lisaaeg', 'sasipea-broneering' ),
 			esc_attr( null === $s['extra_override'] ? '' : (string) $s['extra_override'] ),
-			esc_html__( 'Täida ainult siis, kui see praktikant erineb oma tasemest. Tühi = taseme järgi.', 'sasipea-broneering' )
+			esc_html__( 'Täida ainult siis, kui see juuksuriõpilane erineb oma tasemest. Tühi = taseme järgi.', 'sasipea-broneering' )
 		);
 
 		echo '<tr><th>' . esc_html__( 'Tasu', 'sasipea-broneering' ) . '</th><td>';
@@ -552,6 +564,7 @@ final class Admin {
 			.sb-month table{border-collapse:collapse;background:#fff}
 			.sb-month th,.sb-month td{border:1px solid #dcdcde;padding:6px 8px;text-align:left;vertical-align:middle;white-space:nowrap}
 			.sb-month thead th{background:#f6f7f7;position:sticky;top:32px;z-index:2}
+			.sb-month a.sb-m-day{font-weight:600;text-decoration:underline;text-underline-offset:2px}
 			.sb-month tr.is-closed td,.sb-month tr.is-closed th{background:#f0f0f1;color:#646970;padding-top:2px;padding-bottom:2px;font-size:12px}
 			.sb-month tr.is-week-start th,.sb-month tr.is-week-start td{border-top:2px solid #8c8f94}
 			.sb-month td.is-on{background:#edf7ed}
@@ -569,13 +582,18 @@ final class Admin {
 		echo '</div>';
 
 		if ( ! $staff ) {
-			echo '<p>' . esc_html__( 'Lisa kõigepealt praktikandid.', 'sasipea-broneering' ) . '</p></div>';
+			echo '<p>' . esc_html__( 'Lisa kõigepealt juuksuriõpilased.', 'sasipea-broneering' ) . '</p></div>';
 			return;
+		}
+		if ( ! $ready && ! empty( Settings::get()['require_month'] ) ) {
+			echo '<div class="notice notice-warning sb-m-state"><p><strong>' . esc_html__( 'See kuu on veel salvestamata ja kliendid selle kuu aegu broneerida ei saa.', 'sasipea-broneering' ) . '</strong> ' . esc_html__( 'Allolevad linnukesed on ainult nädalapõhja järgi eeltäidetud ettepanek. Vaata üle ja vajuta lehe lõpus nuppu "Tee kuu klientidele avalikuks".', 'sasipea-broneering' ) . '</p></div>';
+		} elseif ( $ready ) {
+			echo '<div class="notice notice-success sb-m-state"><p><strong>' . esc_html__( 'See kuu on klientidele avalik: kliendid saavad selle kuu aegu broneerida.', 'sasipea-broneering' ) . '</strong></p></div>';
 		}
 		if ( ! $ready ) {
 			echo '<p class="description">' . esc_html( empty( Settings::get()['require_month'] )
-				? __( 'Allpool on eeltäidetud iga praktikandi nädalapõhi. Märgi, kes mis päeval töötab, muuda vajadusel kellaaegu ja salvesta. Kuni salvestamiseni kehtib selles kuus nädalapõhi.', 'sasipea-broneering' )
-				: __( 'Allpool on eeltäidetud iga praktikandi nädalapõhi. Märgi, kes mis päeval töötab, muuda vajadusel kellaaegu ja salvesta. Kuni salvestamiseni selles kuus aegu ei pakuta.', 'sasipea-broneering' ) ) . '</p>';
+				? __( 'Allpool on eeltäidetud iga juuksuriõpilase nädalapõhi. Märgi, kes mis päeval töötab, muuda vajadusel kellaaegu ja salvesta. Kuni salvestamiseni kehtib selles kuus nädalapõhi.', 'sasipea-broneering' )
+				: __( 'Allpool on eeltäidetud iga juuksuriõpilase nädalapõhi. Märgi, kes mis päeval töötab, muuda vajadusel kellaaegu ja salvesta. Kuni salvestamiseni selles kuus aegu ei pakuta.', 'sasipea-broneering' ) ) . '</p>';
 		} else {
 			echo '<p class="description">' . esc_html__( 'Linnuke = töötab. Kellaaeg näiteks 12:00-19:00, pausiga 10:00-13:00, 13:30-16:00. Olemasolevaid broneeringuid graafiku muutmine ei tühista.', 'sasipea-broneering' ) . '</p>';
 		}
@@ -599,12 +617,14 @@ final class Admin {
 			$wd      = (int) $d->format( 'N' );
 			$opening = Settings::opening_for( $date );
 			$label   = $short[ $wd ] . ' ' . $d->format( 'j.m' );
+			/* translators: %s: date */
+			$day_link = '<a class="sb-m-day" href="' . esc_url( self::url( 'sb-planner&day=' . $date ) ) . '" title="' . esc_attr( sprintf( __( 'Ava %s päevaplaan', 'sasipea-broneering' ), $d->format( 'j.m.Y' ) ) ) . '">' . esc_html( $label ) . '</a>';
 			$week    = 1 === $wd ? ' is-week-start' : '';
 			if ( ! $opening ) {
-				echo '<tr class="is-closed' . esc_attr( $week ) . '"><th scope="row">' . esc_html( $label ) . '</th><td colspan="' . count( $staff ) . '">' . esc_html__( 'suletud', 'sasipea-broneering' ) . '</td></tr>';
+				echo '<tr class="is-closed' . esc_attr( $week ) . '"><th scope="row">' . $day_link . '</th><td colspan="' . count( $staff ) . '">' . esc_html__( 'suletud', 'sasipea-broneering' ) . '</td></tr>';
 				continue;
 			}
-			echo '<tr class="' . esc_attr( trim( $week ) ) . '"><th scope="row">' . esc_html( $label ) . '<span class="sb-m-sub">' . esc_html( str_replace( '-', '–', self::ranges_str( $opening ) ) ) . '</span></th>';
+			echo '<tr class="' . esc_attr( trim( $week ) ) . '"><th scope="row">' . $day_link . '<span class="sb-m-sub">' . esc_html( str_replace( '-', '–', self::ranges_str( $opening ) ) ) . '</span></th>';
 			foreach ( $staff as $s ) {
 				$ranges = Repo::planned_ranges( $s['id'], $date );
 				$n      = (int) ( $counts[ $s['id'] ][ $date ] ?? 0 );
@@ -628,7 +648,7 @@ final class Admin {
 			echo '</tr>';
 		}
 		echo '</tbody></table></div>';
-		submit_button( $ready ? __( 'Salvesta graafik', 'sasipea-broneering' ) : __( 'Lisa kuu graafik', 'sasipea-broneering' ) );
+		submit_button( $ready ? __( 'Salvesta muudatused', 'sasipea-broneering' ) : __( 'Tee kuu klientidele avalikuks', 'sasipea-broneering' ) );
 		echo '</form>';
 		echo "<script>
 		(function(){
@@ -735,7 +755,7 @@ final class Admin {
 
 	/* ================= Tasud ================= */
 
-	/** Kuu tasude read: iga nähtava praktikandi kokkuvõte ja alusandmed. */
+	/** Kuu tasude read: iga nähtava juuksuriõpilase kokkuvõte ja alusandmed. */
 	private static function pay_rows( string $ym ): array {
 		$data  = Repo::payroll_data( $ym );
 		$all   = current_user_can( 'sb_manage_settings' );
@@ -787,7 +807,7 @@ final class Admin {
 		echo '</div>';
 		echo '<p class="description">' . esc_html__( 'Teenused lähevad arvesse siis, kui broneeringu staatus on "Kohal". Materjal ja tooted märgitakse päevaplaanis broneeringu juurde. See on tasu arvestus, mitte palgaleht: makse siin ei arvutata.', 'sasipea-broneering' ) . '</p>';
 
-		echo '<table class="widefat striped" style="max-width:1100px"><thead><tr><th>' . esc_html__( 'Praktikant', 'sasipea-broneering' ) . '</th><th class="num">' . esc_html__( 'Teenuseid', 'sasipea-broneering' ) . '</th><th class="num">' . esc_html__( 'Teenuste käive', 'sasipea-broneering' ) . '</th><th class="num">' . esc_html__( 'Tasu teenustelt', 'sasipea-broneering' ) . '</th><th class="num">' . esc_html__( 'Materjali müük', 'sasipea-broneering' ) . '</th><th class="num">' . esc_html__( 'Tasu materjalilt', 'sasipea-broneering' ) . '</th><th class="num">' . esc_html__( 'Toodete müük', 'sasipea-broneering' ) . '</th><th class="num">' . esc_html__( 'Tasu toodetelt', 'sasipea-broneering' ) . '</th><th class="num">' . esc_html__( 'Tasu kokku', 'sasipea-broneering' ) . '</th></tr></thead><tbody>';
+		echo '<table class="widefat striped" style="max-width:1100px"><thead><tr><th>' . esc_html__( 'Juuksuriõpilane', 'sasipea-broneering' ) . '</th><th class="num">' . esc_html__( 'Teenuseid', 'sasipea-broneering' ) . '</th><th class="num">' . esc_html__( 'Teenuste käive', 'sasipea-broneering' ) . '</th><th class="num">' . esc_html__( 'Tasu teenustelt', 'sasipea-broneering' ) . '</th><th class="num">' . esc_html__( 'Materjali müük', 'sasipea-broneering' ) . '</th><th class="num">' . esc_html__( 'Tasu materjalilt', 'sasipea-broneering' ) . '</th><th class="num">' . esc_html__( 'Toodete müük', 'sasipea-broneering' ) . '</th><th class="num">' . esc_html__( 'Tasu toodetelt', 'sasipea-broneering' ) . '</th><th class="num">' . esc_html__( 'Tasu kokku', 'sasipea-broneering' ) . '</th></tr></thead><tbody>';
 		$tot = array_fill_keys( array( 'n', 'st', 'sp', 'mt', 'mp', 'pt', 'pp', 'all' ), 0 );
 		foreach ( $rows as $r ) {
 			$x   = $r['summary'];
@@ -822,7 +842,7 @@ final class Admin {
 		}
 		echo '</table>';
 
-		// Alusandmed praktikandi kaupa.
+		// Alusandmed juuksuriõpilase kaupa.
 		foreach ( $rows as $r ) {
 			if ( ! $r['data']['services'] && ! $r['data']['sales'] ) {
 				continue;
@@ -870,7 +890,7 @@ final class Admin {
 		echo '</div>';
 	}
 
-	/** Ühe praktikandi read kuupäeva järgi: teenused ja müügid koos tasuga. */
+	/** Ühe juuksuriõpilase read kuupäeva järgi: teenused ja müügid koos tasuga. */
 	private static function pay_lines( array $r ): array {
 		$pay   = $r['staff']['pay'];
 		$kinds = array( 'material' => __( 'materjal', 'sasipea-broneering' ), 'product' => __( 'toode', 'sasipea-broneering' ) );
@@ -956,7 +976,7 @@ final class Admin {
 		header( 'Content-Disposition: attachment; filename="tasud-' . $ym . '.csv"' );
 		$out = fopen( 'php://output', 'w' );
 		fwrite( $out, "\xEF\xBB\xBF" ); // BOM, et Excel loeks täpitähti õigesti.
-		fputcsv( $out, array( 'Praktikant', 'Kuupäev', 'Liik', 'Kirjeldus', 'Kogus', 'Summa (€)', 'Tasu (€)' ), ';' );
+		fputcsv( $out, array( 'Juuksuriõpilane', 'Kuupäev', 'Liik', 'Kirjeldus', 'Kogus', 'Summa (€)', 'Tasu (€)' ), ';' );
 		foreach ( self::pay_rows( $ym ) as $r ) {
 			foreach ( self::pay_lines( $r ) as $l ) {
 				fputcsv( $out, array( $safe( $r['staff']['name'] ), $l['date'], $l['kind_label'], $safe( $l['label'] ), $l['qty'], $eur( $l['total'] ), $eur( $l['pay'] ) ), ';' );
@@ -1125,7 +1145,7 @@ final class Admin {
 		echo '<h2>' . esc_html__( 'Broneerimise reeglid', 'sasipea-broneering' ) . '</h2><table class="form-table">';
 		$num = array(
 			'slot_step'        => array( __( 'Ajasamm (min)', 'sasipea-broneering' ), __( 'Mitme minuti tagant algusaegu pakutakse, nt 15 või 30.', 'sasipea-broneering' ) ),
-			'buffer'           => array( __( 'Puhver teenuste vahel (min)', 'sasipea-broneering' ), __( 'Sama praktikandi kahe kliendi vahele jääv aeg.', 'sasipea-broneering' ) ),
+			'buffer'           => array( __( 'Puhver teenuste vahel (min)', 'sasipea-broneering' ), __( 'Sama juuksuriõpilase kahe kliendi vahele jääv aeg.', 'sasipea-broneering' ) ),
 			'min_notice_hours' => array( __( 'Miinimumetteteatamine (h)', 'sasipea-broneering' ), __( 'Kui palju varem peab online-broneering olema tehtud.', 'sasipea-broneering' ) ),
 			'max_days_ahead'   => array( __( 'Kui kaugele ette saab broneerida (päeva)', 'sasipea-broneering' ), '' ),
 			'max_concurrent'   => array( __( 'Korraga juhendatavaid kliente', 'sasipea-broneering' ), __( 'Mitu klienti võib salongis samal ajal olla (juhendaja maht). 0 = piiranguta.', 'sasipea-broneering' ) ),
@@ -1139,22 +1159,22 @@ final class Admin {
 		printf(
 			'<p><label><input type="checkbox" name="require_month" value="1"%s> %s</label></p>',
 			checked( ! empty( $s['require_month'] ), true, false ),
-			esc_html__( 'Aegu pakutakse ainult nendes kuudes, mille töögraafik on koostatud (Broneeringud → Töögraafik). Muidu kehtib koostamata kuus iga praktikandi nädalapõhi.', 'sasipea-broneering' )
+			esc_html__( 'Aegu pakutakse ainult nendes kuudes, mille töögraafik on koostatud (Broneeringud → Töögraafik). Muidu kehtib koostamata kuus iga juuksuriõpilase nädalapõhi.', 'sasipea-broneering' )
 		);
 
-		echo '<h2>' . esc_html__( 'Praktikandi vaade', 'sasipea-broneering' ) . '</h2><p class="description">' . esc_html__( 'Sisseloginud praktikant näeb päevaplaanis oma veergu ja oma broneeringuid ega saa midagi muuta. Siin määrad, mida ta veel näeb.', 'sasipea-broneering' ) . '</p>';
+		echo '<h2>' . esc_html__( 'Juuksuriõpilase vaade', 'sasipea-broneering' ) . '</h2><p class="description">' . esc_html__( 'Sisseloginud juuksuriõpilane näeb päevaplaanis oma veergu ja oma broneeringuid ega saa midagi muuta. Siin määrad, mida ta veel näeb.', 'sasipea-broneering' ) . '</p>';
 		$tv = array(
 			'phone'   => __( 'Kliendi telefoninumber', 'sasipea-broneering' ),
 			'price'   => __( 'Teenuse hind', 'sasipea-broneering' ),
 			'details' => __( 'Kliendi e-post ja kommentaar', 'sasipea-broneering' ),
-			'others'  => __( 'Teiste praktikantide veerud (ajad ja teenused, ilma klientide andmeteta)', 'sasipea-broneering' ),
+			'others'  => __( 'Teiste juuksuriõpilaste veerud (ajad ja teenused, ilma klientide andmeteta)', 'sasipea-broneering' ),
 			'pay'     => __( 'Enda kuu tasu kokkuvõte (menüüs "Minu tasu")', 'sasipea-broneering' ),
 		);
 		foreach ( $tv as $k => $l ) {
 			printf( '<p><label><input type="checkbox" name="trainee_view[%s]" value="1"%s> %s</label></p>', esc_attr( $k ), checked( ! empty( $s['trainee_view'][ $k ] ), true, false ), esc_html( $l ) );
 		}
 
-		echo '<h2>' . esc_html__( 'Praktikantide tasemed', 'sasipea-broneering' ) . '</h2><p class="description">' . esc_html__( 'Tase annab kliendile soodustuse teenuse hinnast ja pikendab teenuse aega selle praktikandi juures. Taseme eemaldamiseks tühjenda nimi.', 'sasipea-broneering' ) . '</p>';
+		echo '<h2>' . esc_html__( 'Juuksuriõpilaste tasemed', 'sasipea-broneering' ) . '</h2><p class="description">' . esc_html__( 'Tase annab kliendile soodustuse teenuse hinnast ja pikendab teenuse aega selle juuksuriõpilase juures. Taseme eemaldamiseks tühjenda nimi.', 'sasipea-broneering' ) . '</p>';
 		echo '<table class="widefat" style="max-width:640px"><thead><tr><th>' . esc_html__( 'Taseme nimi', 'sasipea-broneering' ) . '</th><th>' . esc_html__( 'Soodustus (%)', 'sasipea-broneering' ) . '</th><th>' . esc_html__( 'Lisaaeg (min)', 'sasipea-broneering' ) . '</th></tr></thead><tbody>';
 		$levels   = (array) $s['levels'];
 		$levels[] = array( 'id' => '', 'name' => '', 'discount_pct' => 0, 'extra_min' => 0 );
@@ -1190,6 +1210,13 @@ final class Admin {
 				esc_attr__( 'Hind eurodes grammi kohta', 'sasipea-broneering' )
 			);
 		}
+		echo '</tbody></table>';
+
+		echo '<h2>' . esc_html__( 'Sisselogimine Google\'i kontoga', 'sasipea-broneering' ) . '</h2><p class="description">' . esc_html__( 'Kui see on seadistatud, on töölaua sisselogimise lehel nupp "Logi sisse Google\'iga". Sisse saab ainult see, kelle Google\'i konto e-post on sama mis siin töölaual loodud konto e-post; uusi kontosid Google\'i kaudu ei teki. OAuth kliendi teed Google Cloud Console\'is: APIs & Services → Credentials → Create credentials → OAuth client ID → Web application.', 'sasipea-broneering' ) . '</p><table class="form-table">';
+		printf( '<tr><th>%s</th><td><code style="user-select:all">%s</code><p class="description">%s</p></td></tr>', esc_html__( 'Tagasisuunamise aadress', 'sasipea-broneering' ), esc_html( Dashboard::google_redirect() ), esc_html__( 'Kopeeri see Google Cloudis väljale "Authorized redirect URIs" täpselt sellisel kujul.', 'sasipea-broneering' ) );
+		printf( '<tr><th><label for="sb-g-id">%s</label></th><td><input id="sb-g-id" name="google_client_id" class="large-text" autocomplete="off" value="%s" placeholder="…apps.googleusercontent.com"></td></tr>', esc_html__( 'Kliendi ID (Client ID)', 'sasipea-broneering' ), esc_attr( (string) $s['google_client_id'] ) );
+		printf( '<tr><th><label for="sb-g-secret">%s</label></th><td><input id="sb-g-secret" name="google_client_secret" type="password" class="regular-text" autocomplete="new-password" value="" placeholder="%s"><p class="description">%s</p></td></tr>', esc_html__( 'Kliendi saladus (Client secret)', 'sasipea-broneering' ), esc_attr( '' !== (string) $s['google_client_secret'] ? __( 'salvestatud, muutmiseks sisesta uus', 'sasipea-broneering' ) : 'GOCSPX-…' ), esc_html__( 'Saladust pärast salvestamist enam ei näidata. Väljalülitamiseks tühjenda kliendi ID.', 'sasipea-broneering' ) );
+		printf( '<tr><th>%s</th><td><label><input type="checkbox" name="google_admins" value="1"%s> %s</label><p class="description">%s</p></td></tr>', esc_html__( 'Administraatorid', 'sasipea-broneering' ), checked( ! empty( $s['google_admins'] ), true, false ), esc_html__( 'Luba Google\'iga sisse logida ka WordPressi administraatoril', 'sasipea-broneering' ), esc_html__( 'Vaikimisi väljas: administraatori kontol on ligipääs kogu veebilehele, seega on turvalisem logida sellega sisse parooliga.', 'sasipea-broneering' ) );
 		echo '</tbody></table>';
 
 		echo '<h2>' . esc_html__( 'Veebipoe ladu (WooCommerce)', 'sasipea-broneering' ) . '</h2><p class="description">' . esc_html__( 'Kui ühendus on seadistatud, saab päevaplaanis toodet otsida poest nime, tootekoodi või triipkoodi järgi. Iga salongimüük salvestatakse poodi lõpetatud tellimusena ja kogus arvatakse poe laost maha. API-võtme teed poe adminis: WooCommerce → Seaded → Täpsemalt → REST API → Lisa võti, õigus "Lugemine/kirjutamine".', 'sasipea-broneering' ) . '</p><table class="form-table">';
@@ -1323,6 +1350,14 @@ final class Admin {
 		} elseif ( '' !== $new_secret ) {
 			$vals['woo_secret'] = $new_secret;
 		}
+		$vals['google_client_id'] = sanitize_text_field( trim( (string) ( $p['google_client_id'] ?? '' ) ) );
+		$new_gsecret              = sanitize_text_field( trim( (string) ( $p['google_client_secret'] ?? '' ) ) );
+		if ( '' === $vals['google_client_id'] ) {
+			$vals['google_client_secret'] = '';
+		} elseif ( '' !== $new_gsecret ) {
+			$vals['google_client_secret'] = $new_gsecret;
+		}
+		$vals['google_admins'] = ! empty( $p['google_admins'] );
 		$vat = array();
 		foreach ( (array) ( $p['vat_history'] ?? array() ) as $v ) {
 			if ( '' !== trim( (string) ( $v['rate'] ?? '' ) ) ) {

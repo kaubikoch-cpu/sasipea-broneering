@@ -17,8 +17,41 @@ final class Install {
 	}
 
 	public static function maybe_upgrade(): void {
-		if ( get_option( 'sb_db_version' ) !== SB_DB_VERSION ) {
+		$old = get_option( 'sb_db_version' );
+		if ( $old !== SB_DB_VERSION ) {
 			self::activate();
+			// 0.9.3: aegu pakutakse ainult kuudes, mille töögraafik on koostatud. Seadetes saab selle välja lülitada.
+			if ( false !== $old && (int) $old < 9 ) {
+				$s = get_option( 'sb_settings' );
+				if ( is_array( $s ) ) {
+					$s['require_month'] = true;
+					update_option( 'sb_settings', $s );
+				}
+			}
+			// 0.11.0: tekstides on "praktikant" asemel "juuksuriõpilane" (ka salvestatud kirjamallides).
+			if ( false !== $old && (int) $old < 12 ) {
+				$s = get_option( 'sb_settings' );
+				if ( is_array( $s ) ) {
+					foreach ( (array) ( $s['templates'] ?? array() ) as $k => $v ) {
+						$s['templates'][ $k ] = str_replace( 'Praktikant: {praktikant}', 'Juuksuriõpilane: {praktikant}', (string) $v );
+					}
+					if ( isset( $s['confirmation_note'] ) ) {
+						$s['confirmation_note'] = str_replace( 'Tööd teevad praktikandid', 'Tööd teevad juuksuriõpilased', (string) $s['confirmation_note'] );
+					}
+					update_option( 'sb_settings', $s );
+				}
+			}
+			// 0.11.2: modellide nõusoleku uus sõnastus. Muudetakse ainult siis, kui tekst on veel vaikimisi.
+			if ( false !== $old && (int) $old < 13 ) {
+				$s = get_option( 'sb_settings' );
+				if ( is_array( $s ) && 'Lisa mind modellide andmebaasi.' === trim( (string) ( $s['consent_texts']['models'] ?? '' ) ) ) {
+					$s['consent_texts']['models'] = 'Lisa mind ka tulevikus modellide andmebaasi.';
+					if ( '2026-11' === (string) ( $s['consent_version'] ?? '' ) ) {
+						$s['consent_version'] = '2026-11-2';
+					}
+					update_option( 'sb_settings', $s );
+				}
+			}
 		}
 	}
 
@@ -132,6 +165,8 @@ final class Install {
   client_id bigint(20) unsigned NOT NULL,
   staff_id bigint(20) unsigned NOT NULL,
   service_id bigint(20) unsigned NOT NULL,
+  service_ids varchar(100) NULL,
+  service_label varchar(255) NULL,
   start_utc datetime NOT NULL,
   end_utc datetime NOT NULL,
   price_cents int(11) NOT NULL DEFAULT 0,
@@ -194,11 +229,39 @@ final class Install {
   total_cents int(11) NOT NULL DEFAULT 0,
   sku varchar(100) NULL,
   woo_order_id bigint(20) unsigned NULL,
+  payment_id bigint(20) unsigned NULL,
   sold_at datetime NOT NULL,
   created_by bigint(20) unsigned NULL,
   PRIMARY KEY  (id),
   KEY booking (booking_id),
+  KEY payment (payment_id),
   KEY staff_time (staff_id,sold_at)
+) ENGINE=InnoDB $c;";
+
+		// Kassa arved ja maksed. status: open (koostamisel) või paid. method: cash, card, transfer või mixed (jagatud makse; osad on veergudes *_cents).
+		$sql[] = "CREATE TABLE {$t('payments')} (
+  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  booking_id bigint(20) unsigned NULL,
+  staff_id bigint(20) unsigned NOT NULL,
+  client_name varchar(190) NOT NULL DEFAULT '',
+  service_label varchar(190) NOT NULL DEFAULT '',
+  service_cents int(11) NOT NULL DEFAULT 0,
+  total_cents int(11) NOT NULL DEFAULT 0,
+  method varchar(10) NULL,
+  cash_cents int(11) NOT NULL DEFAULT 0,
+  card_cents int(11) NOT NULL DEFAULT 0,
+  transfer_cents int(11) NOT NULL DEFAULT 0,
+  cash_given_cents int(11) NULL,
+  status varchar(10) NOT NULL DEFAULT 'open',
+  created_at datetime NOT NULL,
+  paid_at datetime NULL,
+  created_by bigint(20) unsigned NULL,
+  paid_by bigint(20) unsigned NULL,
+  email varchar(190) NULL,
+  emailed_at datetime NULL,
+  PRIMARY KEY  (id),
+  KEY booking (booking_id),
+  KEY status_paid (status,paid_at)
 ) ENGINE=InnoDB $c;";
 
 		foreach ( $sql as $q ) {
@@ -268,9 +331,9 @@ final class Install {
 			}
 		}
 
-		// OLETUS: päris praktikantide nimesid ei tea. Loon kaks näidist, et broneerimine kohe töötaks.
+		// OLETUS: päris juuksuriõpilaste nimesid ei tea. Loon kaks näidist, et broneerimine kohe töötaks.
 		$hours = Settings::get()['opening_hours'];
-		foreach ( array( 'Näidis: Praktikant 1', 'Näidis: Praktikant 2' ) as $i => $name ) {
+		foreach ( array( 'Näidis: Juuksuriõpilane 1', 'Näidis: Juuksuriõpilane 2' ) as $i => $name ) {
 			$wpdb->insert(
 				self::table( 'staff' ),
 				array(

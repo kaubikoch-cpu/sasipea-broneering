@@ -49,15 +49,15 @@ final class BookingService {
 	}
 
 	/**
-	 * Valib vaba praktikandi või kontrollib, et soovitud praktikant on vaba.
+	 * Valib vaba juuksuriõpilase või kontrollib, et soovitud juuksuriõpilane on vaba.
 	 *
 	 * @return int|\WP_Error
 	 */
 	public static function pick_staff( array $service, int $staff_id, int $start, int $exclude = 0, bool $admin = false, ?int $duration = null ) {
 		$date = self::local_date( $start );
 		if ( $staff_id ) {
-			if ( ! $admin && ! in_array( $service['id'], Repo::staff_service_ids( $staff_id ), true ) ) {
-				return new \WP_Error( 'sb_staff', __( 'See praktikant seda teenust ei tee.', 'sasipea-broneering' ), array( 'status' => 400 ) );
+			if ( ! $admin && array_diff( Repo::ids_of( $service ), Repo::staff_service_ids( $staff_id ) ) ) {
+				return new \WP_Error( 'sb_staff', __( 'See juuksuriõpilane seda teenust ei tee.', 'sasipea-broneering' ), array( 'status' => 400 ) );
 			}
 			$ids = array( $staff_id );
 		} else {
@@ -88,7 +88,8 @@ final class BookingService {
 	 * @return array{booking: array, token: string}|\WP_Error
 	 */
 	public static function create( array $in ) {
-		$service = Repo::service( (int) $in['service_id'] );
+		// service_id võib olla üks id või mitu ("3,7"): mitme teenuse kestus ja hind liidetakse.
+		$service = Repo::combo( $in['service_id'] );
 		if ( ! $service || ( $service['hidden'] && 'online' === $in['source'] ) ) {
 			return new \WP_Error( 'sb_service', __( 'Teenust ei leitud.', 'sasipea-broneering' ), array( 'status' => 400 ) );
 		}
@@ -102,7 +103,7 @@ final class BookingService {
 				if ( is_wp_error( $staff ) ) {
 					return $staff;
 				}
-				// Kestus ja hind sõltuvad praktikandi tasemest (lisaaeg, soodustus).
+				// Kestus ja hind sõltuvad juuksuriõpilase tasemest (lisaaeg, soodustus).
 				$terms     = Repo::service_terms( $service, Repo::staff( (int) $staff ) );
 				$client_id = Repo::upsert_client( $in['client'] );
 				$token     = bin2hex( random_bytes( 32 ) );
@@ -113,6 +114,8 @@ final class BookingService {
 						'client_id'   => $client_id,
 						'staff_id'    => $staff,
 						'service_id'  => $service['id'],
+						'service_ids' => count( $service['ids'] ) > 1 ? implode( ',', $service['ids'] ) : null,
+						'service_label' => count( $service['ids'] ) > 1 ? mb_substr( $service['name'], 0, 255 ) : null,
 						'start_utc'   => Repo::utc( $start ),
 						'end_utc'     => Repo::utc( $start + $terms['duration'] * 60 ),
 						'price_cents' => $terms['price_cents'],
@@ -158,7 +161,7 @@ final class BookingService {
 	}
 
 	/**
-	 * Muudab aega, praktikanti, teenust, staatust või kommentaari.
+	 * Muudab aega, juuksuriõpilast, teenust, staatust või kommentaari.
 	 *
 	 * @return array|\WP_Error uuendatud broneering
 	 */
@@ -171,7 +174,9 @@ final class BookingService {
 					return new \WP_Error( 'sb_404', __( 'Broneeringut ei leitud.', 'sasipea-broneering' ), array( 'status' => 404 ) );
 				}
 				$service_id = isset( $ch['service_id'] ) ? (int) $ch['service_id'] : (int) $b['service_id'];
-				$service    = Repo::service( $service_id );
+				// Teenust muutmata jääb mitme teenusega broneering kombinatsiooniks; uus teenus asendab selle ühega.
+				$changed    = $service_id !== (int) $b['service_id'];
+				$service    = $changed ? Repo::service( $service_id ) : Repo::booking_service( $b );
 				if ( ! $service ) {
 					return new \WP_Error( 'sb_service', __( 'Teenust ei leitud.', 'sasipea-broneering' ), array( 'status' => 400 ) );
 				}
@@ -183,8 +188,8 @@ final class BookingService {
 				}
 
 				$moved = $start !== Repo::ts( $b['start_utc'] ) || $staff !== (int) $b['staff_id'] || $service_id !== (int) $b['service_id'];
-				// Ainult aja muutmisel jääb kestus ja hind samaks, mis kliendile lubati. Teise praktikandi
-				// või teenuse korral arvutatakse need uuesti selle praktikandi taseme järgi.
+				// Ainult aja muutmisel jääb kestus ja hind samaks, mis kliendile lubati. Teise juuksuriõpilase
+				// või teenuse korral arvutatakse need uuesti selle juuksuriõpilase taseme järgi.
 				$reprice  = $staff !== (int) $b['staff_id'] || $service_id !== (int) $b['service_id'];
 				$terms    = Repo::service_terms( $service, Repo::staff( $staff ) );
 				$duration = $reprice ? $terms['duration'] : (int) round( ( Repo::ts( $b['end_utc'] ) - Repo::ts( $b['start_utc'] ) ) / 60 );
@@ -205,6 +210,10 @@ final class BookingService {
 				);
 				if ( $reprice ) {
 					$data['price_cents'] = $terms['price_cents'];
+				}
+				if ( $changed ) {
+					$data['service_ids']   = null;
+					$data['service_label'] = null;
 				}
 				if ( isset( $ch['comment'] ) ) {
 					$data['comment'] = $ch['comment'];

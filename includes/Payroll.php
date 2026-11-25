@@ -2,7 +2,7 @@
 namespace SB;
 
 /**
- * Praktikandi tasu arvutus teenustelt, materjali müügilt ja toodete müügilt.
+ * Juuksuriõpilase tasu arvutus teenustelt, materjali müügilt ja toodete müügilt.
  * Puhas PHP ilma WordPressi sõltuvusteta, et seda saaks eraldi testida.
  *
  * Tasumäär on iga liigi kohta kas protsent käibest ('pct') või kindel summa sentides ('fixed'):
@@ -36,7 +36,7 @@ final class Payroll {
 	}
 
 	/**
-	 * Kuu kokkuvõte ühe praktikandi kohta.
+	 * Kuu kokkuvõte ühe juuksuriõpilase kohta.
 	 *
 	 * @param array $rates    normalize() tulemus
 	 * @param int[] $services tehtud teenuste hinnad sentides

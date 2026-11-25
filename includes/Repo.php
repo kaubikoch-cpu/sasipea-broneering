@@ -78,7 +78,7 @@ final class Repo {
 		return $row ? self::service_out( $row ) : null;
 	}
 
-	/* ---------- Praktikandid ---------- */
+	/* ---------- Juuksuriõpilased ---------- */
 
 	public static function staff_list( bool $active_only = true ): array {
 		global $wpdb;
@@ -99,20 +99,100 @@ final class Repo {
 			'extra_override'    => isset( $r['extra_min'] ) ? (int) $r['extra_min'] : null,
 			'pay'               => Payroll::normalize( $r['pay'] ?? null ),
 		);
-		// Kehtivad tingimused: tase + praktikandi enda erisused.
+		// Kehtivad tingimused: tase + juuksuriõpilase enda erisused.
 		return $out + Pricing::terms( $out, (array) Settings::get()['levels'] );
 	}
 
+	public const MAX_COMBO = 5;
+
+	/** "3,7" või [3, 7] -> unikaalsed teenuste id-d sisestamise järjekorras (kuni MAX_COMBO). */
+	public static function parse_ids( $raw ): array {
+		$parts = is_array( $raw ) ? $raw : explode( ',', (string) $raw );
+		$ids   = array();
+		foreach ( $parts as $p ) {
+			$id = (int) $p;
+			if ( $id > 0 && ! in_array( $id, $ids, true ) ) {
+				$ids[] = $id;
+			}
+		}
+		return array_slice( $ids, 0, self::MAX_COMBO );
+	}
+
 	/**
-	 * Teenuse kestus ja hind konkreetse praktikandi juures.
+	 * Mitu teenust ühe broneeringuna: kestused ja hinnad liidetakse. Puhas funktsioon (testitav).
+	 * Tulemus on sama kujuga mis üks teenus; 'id' on esimese teenuse id ja 'ids' kõik id-d.
+	 *
+	 * @param list<array> $services service_out() kujul teenused
+	 */
+	public static function combine( array $services ): ?array {
+		if ( ! $services ) {
+			return null;
+		}
+		$out        = $services[0];
+		$out['ids'] = array_map( static fn( $s ) => (int) $s['id'], $services );
+		// Osad eraldi: juuksuriõpilase lisaaeg ja soodustus arvestatakse iga teenuse kohta.
+		$out['parts'] = array_map( static fn( $s ) => array( 'duration' => (int) $s['duration'], 'price_cents' => (int) $s['price_cents'] ), $services );
+		if ( count( $services ) > 1 ) {
+			$out['name']           = implode( ' + ', array_column( $services, 'name' ) );
+			$out['duration']       = array_sum( array_map( static fn( $s ) => (int) $s['duration'], $services ) );
+			$out['price_cents']    = array_sum( array_map( static fn( $s ) => (int) $s['price_cents'], $services ) );
+			$out['material_extra'] = (bool) array_filter( array_column( $services, 'material_extra' ) );
+			$out['hidden']         = (bool) array_filter( array_column( $services, 'hidden' ) );
+			$out['note']           = '';
+			$out['duration_label'] = Settings::duration( $out['duration'] );
+			$out['price_label']    = Settings::money( $out['price_cents'] );
+		}
+		return $out;
+	}
+
+	/** Teenus või teenuste kombinatsioon id-de järgi; null, kui mõnda teenust ei leitud. */
+	public static function combo( $raw ): ?array {
+		$services = array();
+		foreach ( self::parse_ids( $raw ) as $id ) {
+			$s = self::service( $id );
+			if ( ! $s ) {
+				return null;
+			}
+			$services[] = $s;
+		}
+		return self::combine( $services );
+	}
+
+	/** Broneeringu teenus koos lisateenustega (kui broneering tehti mitme teenusega). */
+	public static function booking_service( array $b ): ?array {
+		return ! empty( $b['service_ids'] ) ? ( self::combo( $b['service_ids'] ) ?? self::service( (int) $b['service_id'] ) ) : self::service( (int) $b['service_id'] );
+	}
+
+	/** Teenuse id-d: kombinatsiooni korral kõik, muidu üks. */
+	public static function ids_of( array $service ): array {
+		return isset( $service['ids'] ) ? array_map( 'intval', (array) $service['ids'] ) : array( (int) $service['id'] );
+	}
+
+	/** Juuksuriõpilased, kes teevad kõiki antud teenuseid. */
+	public static function staff_for_services( array $ids ): array {
+		$out = null;
+		foreach ( $ids as $id ) {
+			$rows = array();
+			foreach ( self::staff_for_service( (int) $id ) as $s ) {
+				$rows[ $s['id'] ] = $s;
+			}
+			$out = null === $out ? $rows : array_intersect_key( $out, $rows );
+		}
+		return array_values( $out ?? array() );
+	}
+
+	/**
+	 * Teenuse kestus ja hind konkreetse juuksuriõpilase juures (mitme teenuse korral osade summa).
 	 *
 	 * @return array{duration:int,price_cents:int}
 	 */
 	public static function service_terms( array $service, ?array $staff ): array {
-		return array(
-			'duration'    => Pricing::duration( (int) $service['duration'], (int) ( $staff['extra_min'] ?? 0 ) ),
-			'price_cents' => Pricing::price( (int) $service['price_cents'], (int) ( $staff['discount_pct'] ?? 0 ) ),
-		);
+		$out = array( 'duration' => 0, 'price_cents' => 0 );
+		foreach ( $service['parts'] ?? array( $service ) as $p ) {
+			$out['duration']    += Pricing::duration( (int) $p['duration'], (int) ( $staff['extra_min'] ?? 0 ) );
+			$out['price_cents'] += Pricing::price( (int) $p['price_cents'], (int) ( $staff['discount_pct'] ?? 0 ) );
+		}
+		return $out;
 	}
 
 	public static function staff( int $id ): ?array {
@@ -149,7 +229,7 @@ final class Repo {
 	}
 
 	/**
-	 * Salvestab kuu töögraafiku: iga praktikandi iga päeva kohta kas tunnid või vaba päev.
+	 * Salvestab kuu töögraafiku: iga juuksuriõpilase iga päeva kohta kas tunnid või vaba päev.
 	 *
 	 * @param array $plan array<int staff_id, array<string Y-m-d, list<[int,int]>>> (tühi list = ei tööta)
 	 */
@@ -176,7 +256,7 @@ final class Repo {
 		}
 	}
 
-	/** Aktiivsete broneeringute arv praktikandi ja kohaliku päeva kaupa: [staff_id][Y-m-d] => n. */
+	/** Aktiivsete broneeringute arv juuksuriõpilase ja kohaliku päeva kaupa: [staff_id][Y-m-d] => n. */
 	public static function booking_counts( string $ym ): array {
 		$first = new \DateTimeImmutable( $ym . '-01 00:00:00', Settings::tz() );
 		$out   = array();
@@ -187,7 +267,7 @@ final class Repo {
 		return $out;
 	}
 
-	/** Praktikandi tööaeg kuupäeval minutites. Päeva kirje (kuugraafik või erand) asendab nädala malli. */
+	/** Juuksuriõpilase tööaeg kuupäeval minutites. Päeva kirje (kuugraafik või erand) asendab nädala malli. */
 	public static function work_ranges( int $staff_id, string $date ): array {
 		global $wpdb;
 		if ( ! empty( Settings::get()['require_month'] ) && ! self::month_ready( substr( $date, 0, 7 ) ) ) {
@@ -238,7 +318,7 @@ final class Repo {
 		$status = $active_only ? "AND b.status IN ('" . implode( "','", self::ACTIVE ) . "')" : '';
 		return $wpdb->get_results(
 			$wpdb->prepare(
-				'SELECT b.*, c.first_name, c.last_name, c.phone, c.email, c.model_id, s.name AS service_name, s.material_extra, st.name AS staff_name
+				'SELECT b.*, c.first_name, c.last_name, c.phone, c.email, c.model_id, COALESCE(b.service_label, s.name) AS service_name, s.material_extra, st.name AS staff_name
 				 FROM ' . self::t( 'bookings' ) . ' b
 				 LEFT JOIN ' . self::t( 'clients' ) . ' c ON c.id = b.client_id
 				 LEFT JOIN ' . self::t( 'services' ) . ' s ON s.id = b.service_id
@@ -266,7 +346,7 @@ final class Repo {
 	 *
 	 * @param int[]|null $staff_ids null = kõik, kes teenust teevad.
 	 * @param bool       $admin     admin ei ole seotud etteteatamise ega ette broneerimise piiriga.
-	 * @param int|null   $duration  kindel kestus minutites (olemasoleva broneeringu nihutamisel); null = teenus + praktikandi lisaaeg.
+	 * @param int|null   $duration  kindel kestus minutites (olemasoleva broneeringu nihutamisel); null = teenus + juuksuriõpilase lisaaeg.
 	 */
 	public static function availability_input( array $service, ?array $staff_ids, string $date, int $exclude_booking = 0, bool $admin = false, ?int $duration = null ): array {
 		$set = Settings::get();
@@ -275,7 +355,7 @@ final class Repo {
 		$blocks        = self::blocks_between( $from, $to );
 
 		$rows = null === $staff_ids
-			? self::staff_for_service( $service['id'] )
+			? self::staff_for_services( self::ids_of( $service ) )
 			: array_filter( array_map( array( self::class, 'staff' ), array_map( 'intval', $staff_ids ) ) );
 		$staff = array();
 		foreach ( $rows as $row ) {
@@ -283,7 +363,7 @@ final class Repo {
 				'work'     => self::work_ranges( $row['id'], $date ),
 				'bookings' => array(),
 				'blocks'   => array(),
-				// Kestus sõltub praktikandist (teenus + tema lisaaeg). $duration hoiab olemasoleva broneeringu pikkust.
+				// Kestus sõltub juuksuriõpilasest (teenus + tema lisaaeg). $duration hoiab olemasoleva broneeringu pikkust.
 				'duration' => $duration ?? self::service_terms( $service, $row )['duration'],
 			);
 		}
@@ -328,7 +408,7 @@ final class Repo {
 		global $wpdb;
 		$r = $wpdb->get_row(
 			$wpdb->prepare(
-				'SELECT b.*, c.first_name, c.last_name, c.phone, c.email, c.model_id, s.name AS service_name, s.duration_min, s.material_extra, st.name AS staff_name
+				'SELECT b.*, c.first_name, c.last_name, c.phone, c.email, c.model_id, COALESCE(b.service_label, s.name) AS service_name, s.duration_min, s.material_extra, st.name AS staff_name
 				 FROM ' . self::t( 'bookings' ) . ' b
 				 LEFT JOIN ' . self::t( 'clients' ) . ' c ON c.id = b.client_id
 				 LEFT JOIN ' . self::t( 'services' ) . ' s ON s.id = b.service_id
@@ -492,7 +572,7 @@ final class Repo {
 	}
 
 	/**
-	 * Kuu tasude alusandmed praktikandi kaupa: tehtud teenused (staatus "Kohal") ja müügiread.
+	 * Kuu tasude alusandmed juuksuriõpilase kaupa: tehtud teenused (staatus "Kohal") ja müügiread.
 	 *
 	 * @return array<int, array{services: list<array>, sales: list<array>}>
 	 */
@@ -504,7 +584,7 @@ final class Repo {
 		$out   = array();
 		$rows  = $wpdb->get_results(
 			$wpdb->prepare(
-				'SELECT b.id, b.staff_id, b.start_utc, b.price_cents, s.name AS service_name, c.first_name, c.last_name
+				'SELECT b.id, b.staff_id, b.start_utc, b.price_cents, COALESCE(b.service_label, s.name) AS service_name, c.first_name, c.last_name
 				 FROM ' . self::t( 'bookings' ) . ' b
 				 LEFT JOIN ' . self::t( 'services' ) . ' s ON s.id = b.service_id
 				 LEFT JOIN ' . self::t( 'clients' ) . " c ON c.id = b.client_id
@@ -579,7 +659,7 @@ final class Repo {
 		global $wpdb;
 		return $wpdb->get_results(
 			$wpdb->prepare(
-				'SELECT b.*, s.name AS service_name, st.name AS staff_name FROM ' . self::t( 'bookings' ) . ' b
+				'SELECT b.*, COALESCE(b.service_label, s.name) AS service_name, st.name AS staff_name FROM ' . self::t( 'bookings' ) . ' b
 				 LEFT JOIN ' . self::t( 'services' ) . ' s ON s.id = b.service_id
 				 LEFT JOIN ' . self::t( 'staff' ) . ' st ON st.id = b.staff_id
 				 WHERE b.client_id = %d ORDER BY b.start_utc DESC',

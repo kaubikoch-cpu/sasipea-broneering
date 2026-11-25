@@ -32,7 +32,7 @@ final class PublicController {
 				'methods'             => 'GET',
 				'callback'            => array( self::class, 'staff' ),
 				'permission_callback' => $open,
-				'args'                => array( 'service' => array( 'required' => true, 'type' => 'integer' ) ),
+				'args'                => array( 'service' => array( 'required' => true, 'type' => 'string', 'pattern' => '^\d+(,\d+)*$' ) ),
 			)
 		);
 		register_rest_route(
@@ -43,7 +43,7 @@ final class PublicController {
 				'callback'            => array( self::class, 'days' ),
 				'permission_callback' => $open,
 				'args'                => array(
-					'service' => array( 'required' => true, 'type' => 'integer' ),
+					'service' => array( 'required' => true, 'type' => 'string', 'pattern' => '^\d+(,\d+)*$' ),
 					'staff'   => array( 'type' => 'integer', 'default' => 0 ),
 					'month'   => array( 'required' => true, 'type' => 'string', 'pattern' => '^\d{4}-\d{2}$' ),
 				),
@@ -57,7 +57,7 @@ final class PublicController {
 				'callback'            => array( self::class, 'slots' ),
 				'permission_callback' => $open,
 				'args'                => array(
-					'service' => array( 'required' => true, 'type' => 'integer' ),
+					'service' => array( 'required' => true, 'type' => 'string', 'pattern' => '^\d+(,\d+)*$' ),
 					'staff'   => array( 'type' => 'integer', 'default' => 0 ),
 					'date'    => array( 'required' => true, 'type' => 'string', 'pattern' => '^\d{4}-\d{2}-\d{2}$' ),
 					'exclude' => array( 'type' => 'string', 'default' => '' ),
@@ -99,18 +99,18 @@ final class PublicController {
 	}
 
 	/**
-	 * Praktikandid, kes teenust teevad, koos nende juures kehtiva kestuse ja hinnaga.
+	 * Juuksuriõpilased, kes teenust teevad, koos nende juures kehtiva kestuse ja hinnaga.
 	 * "any" on vahemik valiku "Ükskõik kes" jaoks.
 	 */
 	public static function staff( \WP_REST_Request $req ): array {
-		$service = Repo::service( (int) $req['service'] );
+		$service = Repo::combo( (string) $req['service'] );
 		if ( ! $service || $service['hidden'] ) {
 			return array( 'staff' => array(), 'any' => null );
 		}
 		$out = array();
 		$dur = array();
 		$pri = array();
-		foreach ( Repo::staff_for_service( $service['id'] ) as $s ) {
+		foreach ( Repo::staff_for_services( Repo::ids_of( $service ) ) as $s ) {
 			$t     = Repo::service_terms( $service, $s );
 			$dur[] = $t['duration'];
 			$pri[] = $t['price_cents'];
@@ -144,12 +144,12 @@ final class PublicController {
 		if ( is_wp_error( $rl ) ) {
 			return $rl;
 		}
-		$service = Repo::service( (int) $req['service'] );
+		$service = Repo::combo( (string) $req['service'] );
 		if ( ! $service || $service['hidden'] ) {
 			return new \WP_Error( 'sb_service', __( 'Teenust ei leitud.', 'sasipea-broneering' ), array( 'status' => 404 ) );
 		}
 		$staff = (int) $req['staff'];
-		if ( $staff && ! in_array( $service['id'], Repo::staff_service_ids( $staff ), true ) ) {
+		if ( $staff && array_diff( Repo::ids_of( $service ), Repo::staff_service_ids( $staff ) ) ) {
 			return array();
 		}
 		$first = new \DateTimeImmutable( $req['month'] . '-01', Settings::tz() );
@@ -167,7 +167,7 @@ final class PublicController {
 		if ( is_wp_error( $rl ) ) {
 			return $rl;
 		}
-		$service = Repo::service( (int) $req['service'] );
+		$service = Repo::combo( (string) $req['service'] );
 		if ( ! $service || $service['hidden'] ) {
 			return new \WP_Error( 'sb_service', __( 'Teenust ei leitud.', 'sasipea-broneering' ), array( 'status' => 404 ) );
 		}
@@ -228,7 +228,7 @@ final class PublicController {
 
 		$res = BookingService::create(
 			array(
-				'service_id' => (int) $req->get_param( 'service' ),
+				'service_id' => preg_match( '/^\d+(,\d+)*$/', (string) $req->get_param( 'service' ) ) ? (string) $req->get_param( 'service' ) : '',
 				'staff_id'   => (int) $req->get_param( 'staff' ),
 				'start'      => (int) $req->get_param( 'start' ),
 				'client'     => $client,
@@ -254,7 +254,8 @@ final class PublicController {
 		$can   = in_array( $b['status'], Repo::ACTIVE, true ) && Repo::ts( $b['start_utc'] ) - time() >= (int) $set['cancel_hours'] * HOUR_IN_SECONDS;
 		return array(
 			'service'        => $b['service_name'],
-			'service_id'     => (int) $b['service_id'],
+			// Mitme teenusega broneeringul kõik id-d komaga ("3,7"), et aja muutmisel otsitaks vaba aega kogu kestuse järgi.
+			'service_id'     => ! empty( $b['service_ids'] ) ? (string) $b['service_ids'] : (int) $b['service_id'],
 			'staff'          => $b['staff_name'],
 			'staff_id'       => (int) $b['staff_id'],
 			'date'           => $start->format( 'Y-m-d' ),

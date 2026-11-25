@@ -79,7 +79,7 @@ final class AdminController {
 		);
 	}
 
-	/** Praktikant näeb ainult enda veergu. */
+	/** Juuksuriõpilane näeb ainult enda veergu. */
 	private static function visible_staff(): array {
 		$all = Repo::staff_list( true );
 		if ( self::can_manage() ) {
@@ -92,12 +92,12 @@ final class AdminController {
 		return array_values( array_filter( $all, fn( $s ) => $s['id'] === $own ) );
 	}
 
-	/** Kas juhendaja on lubanud praktikandil seda näha (Seaded → Praktikandi vaade). */
+	/** Kas juhendaja on lubanud juuksuriõpilasel seda näha (Seaded → Juuksuriõpilase vaade). */
 	private static function trainee_may( string $what ): bool {
 		return ! empty( Settings::get()['trainee_view'][ $what ] );
 	}
 
-	/** Broneering praktikandi pilgu läbi: ainult see, mis on lubatud. Võõra broneeringu klienti ei näidata. */
+	/** Broneering juuksuriõpilase pilgu läbi: ainult see, mis on lubatud. Võõra broneeringu klienti ei näidata. */
 	private static function booking_for_trainee( array $b ): array {
 		$own = (int) $b['staff_id'] === Roles::current_staff_id();
 		$out = self::booking_out( $b, $own && self::trainee_may( 'details' ) );
@@ -338,7 +338,7 @@ final class AdminController {
 		return array( 'id' => (int) $wpdb->insert_id );
 	}
 
-	/** Materjal (grammid) või toode (tükid) broneeringu juurde. Müük läheb broneeringu praktikandi arvele. */
+	/** Materjal (grammid) või toode (tükid) broneeringu juurde. Müük läheb broneeringu juuksuriõpilase arvele. */
 	public static function sale_create( \WP_REST_Request $req ) {
 		$b = Repo::booking( (int) $req->get_param( 'booking_id' ) );
 		if ( ! $b ) {

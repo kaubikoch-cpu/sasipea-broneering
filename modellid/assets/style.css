@@ -1,0 +1,186 @@
+/* Modellide andmebaas (broneerimissüsteemi osa): avalik registreerimisvorm ja töölaua vaated */
+.sam {
+	/* Samad värvid mis broneerimislehel (booking.css) ja salongi töölaual (dashboard.css). */
+	--sam-gold: #8a2b52;
+	--sam-gold-dark: #6d1f40;
+	--sam-accent-ink: #ffffff;
+	--sam-ink: #1f1f1f;
+	--sam-muted: #555555;
+	--sam-line: #c9c9c9;
+	--sam-soft: #f6f1f3;
+	--sam-bg: #ffffff;
+	--sam-ok: #e9f3ec;
+	--sam-ok-ink: #145a2a;
+	--sam-err: #fbeaea;
+	--sam-err-ink: #a3161a;
+	--sam-radius: 10px;
+	color: var(--sam-ink);
+	font-size: 16px;
+	line-height: 1.5;
+	box-sizing: border-box;
+}
+.sam-form-wrap { max-width: 640px; margin: 0 auto; }
+.sam *, .sam *::before, .sam *::after { box-sizing: inherit; }
+.sam a { color: inherit; }
+.sam h2 { margin: 0 0 .5em; font-size: 1.6em; line-height: 1.2; }
+.sam h3 { margin: 0 0 .75em; font-size: 1.2em; }
+.sam-muted { color: var(--sam-muted); }
+.sam-small { font-size: .85em; }
+.sam-req { color: var(--sam-err-ink); }
+
+/* Teated */
+.sam-notice { padding: 12px 16px; border-radius: 10px; margin: 0 0 16px; }
+.sam-ok { background: var(--sam-ok); color: var(--sam-ok-ink); }
+.sam-err { background: var(--sam-err); color: var(--sam-err-ink); }
+.sam-empty { padding: 32px; text-align: center; background: var(--sam-soft); border-radius: var(--sam-radius); color: var(--sam-muted); }
+
+/* Nupud */
+.sam-btn, .sam .login-submit input[type=submit] {
+	display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+	min-height: 44px; padding: 10px 20px; border-radius: var(--sam-radius);
+	border: 1px solid var(--sam-line); background: #fff; color: var(--sam-ink);
+	font: inherit; font-weight: 600; text-decoration: none; cursor: pointer;
+	transition: background .15s, border-color .15s;
+}
+.sam-btn:hover { border-color: var(--sam-gold); }
+.sam-btn-primary, .sam .login-submit input[type=submit] { background: var(--sam-gold); border-color: var(--sam-gold); color: var(--sam-accent-ink); }
+.sam-btn-primary:hover, .sam .login-submit input[type=submit]:hover { background: var(--sam-gold-dark); border-color: var(--sam-gold-dark); color: var(--sam-accent-ink); }
+.sam-btn-ghost { background: transparent; }
+.sam-btn-danger { border-color: var(--sam-err-ink); color: var(--sam-err-ink); }
+.sam-btn-small { min-height: 34px; padding: 6px 14px; font-size: .9em; }
+.sam-link-danger { background: none; border: 0; padding: 0; color: var(--sam-err-ink); text-decoration: underline; cursor: pointer; font: inherit; font-size: .85em; }
+.sam-inline { display: inline; margin: 0; }
+
+/* Vormid */
+.sam-form { display: grid; gap: 18px; }
+.sam-field { display: grid; gap: 6px; min-width: 0; margin: 0; border: 0; padding: 0; }
+.sam-field > label, .sam-field > legend { font-weight: 600; font-size: .95em; padding: 0; }
+.sam input[type=text], .sam input[type=email], .sam input[type=tel], .sam input[type=search],
+.sam input[type=password], .sam input[type=number], .sam select, .sam textarea {
+	width: 100%; min-height: 48px; padding: 10px 14px; border: 1px solid #767676;
+	border-radius: var(--sam-radius); background: #fff; color: var(--sam-ink); font: inherit;
+}
+.sam textarea { min-height: 96px; resize: vertical; }
+.sam input:focus, .sam select:focus, .sam textarea:focus { outline: 2px solid var(--sam-gold); outline-offset: 1px; border-color: var(--sam-gold); }
+.sam-row { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.sam-help { color: var(--sam-muted); font-size: .85em; }
+
+.sam-chip-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.sam-chip { position: relative; cursor: pointer; }
+.sam-chip input { position: absolute; opacity: 0; pointer-events: none; }
+.sam-chip span {
+	display: inline-block; padding: 9px 16px; border: 1px solid var(--sam-line); border-radius: var(--sam-radius);
+	background: #fff; font-size: .95em; user-select: none; transition: all .15s;
+}
+.sam-chip input:checked + span { background: var(--sam-gold); border-color: var(--sam-gold); color: var(--sam-accent-ink); font-weight: 600; }
+.sam-chip input:focus-visible + span { outline: 2px solid var(--sam-gold); outline-offset: 2px; }
+.sam-chip-clear span { color: var(--sam-muted); }
+
+.sam-consent { display: flex; gap: 10px; align-items: flex-start; font-size: .9em; }
+.sam-consent input { margin-top: 4px; width: 18px; height: 18px; flex: none; }
+.sam-check { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+
+.sam-hp { position: absolute !important; left: -9999px !important; width: 1px; height: 1px; overflow: hidden; }
+.sam-turnstile { min-height: 65px; }
+
+.sam-preview { display: flex; flex-wrap: wrap; gap: 8px; }
+.sam-preview img { width: 84px; height: 84px; object-fit: cover; border-radius: 10px; border: 1px solid var(--sam-line); }
+
+/* Sisselogimine */
+.sam-login { max-width: 420px; margin: 0 auto; padding: 32px; background: var(--sam-soft); border-radius: 20px; }
+.sam-login form p { display: grid; gap: 6px; margin: 0 0 14px; }
+.sam-login .login-remember label { display: flex; gap: 8px; align-items: center; font-weight: 400; }
+.sam-login label { font-weight: 600; }
+
+/* Navigatsioon */
+.sam-nav { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 20px; padding-bottom: 14px; border-bottom: 1px solid var(--sam-line); }
+.sam-tab { padding: 8px 16px; border-radius: 999px; text-decoration: none; font-weight: 600; }
+.sam-tab.is-active { background: var(--sam-ink); color: #fff !important; }
+.sam-tab:not(.is-active):hover { background: var(--sam-soft); }
+.sam-nav-user { margin-left: auto; font-size: .9em; color: var(--sam-muted); }
+.sam-badge { display: inline-block; min-width: 20px; padding: 0 6px; border-radius: 999px; background: var(--sam-gold); color: var(--sam-accent-ink); font-size: .75em; font-weight: 700; text-align: center; line-height: 20px; }
+
+/* Filtrid */
+.sam-filters { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); align-items: center; margin-bottom: 8px; padding: 16px; background: var(--sam-soft); border-radius: var(--sam-radius); }
+.sam-filters input[type=search] { grid-column: 1 / -1; }
+.sam-count { margin: 8px 0 14px; font-size: .9em; }
+
+/* Kaardid */
+.sam-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.sam-card { display: flex; flex-direction: column; border: 1px solid var(--sam-line); border-radius: var(--sam-radius); overflow: hidden; text-decoration: none; background: #fff; transition: box-shadow .15s, transform .15s; }
+.sam-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,.08); transform: translateY(-1px); }
+.sam-card-img { position: relative; aspect-ratio: 1 / 1; background: var(--sam-soft); display: flex; align-items: center; justify-content: center; }
+.sam-card-img img { width: 100%; height: 100%; object-fit: cover; }
+.sam-card-count { position: absolute; right: 8px; bottom: 8px; padding: 2px 8px; border-radius: 999px; background: rgba(0,0,0,.6); color: #fff; font-size: .75em; }
+.sam-initials { font-size: 2.4em; font-weight: 700; color: var(--sam-gold-dark); }
+.sam-card-body { padding: 12px 14px 14px; display: grid; gap: 6px; }
+.sam-card-top { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
+.sam-card-phone { font-size: .9em; }
+.sam-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.sam-tag { padding: 2px 8px; border-radius: 999px; background: var(--sam-soft); font-size: .75em; }
+.sam-tag-sam_teenus { background: #f0dfe7; }
+.sam-tag-sam_sugu { background: #e9eef5; }
+.sam-status { flex: none; padding: 2px 8px; border-radius: 999px; font-size: .72em; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; vertical-align: middle; }
+.sam-status-uus { background: var(--sam-gold); color: var(--sam-accent-ink); }
+.sam-status-aktiivne { background: var(--sam-ok); color: var(--sam-ok-ink); }
+.sam-status-arhiiv { background: #eee; color: #666; }
+
+.sam-pager { display: flex; gap: 6px; justify-content: center; margin-top: 20px; }
+.sam-pager a { min-width: 38px; padding: 6px 10px; border: 1px solid var(--sam-line); border-radius: 8px; text-align: center; text-decoration: none; }
+.sam-pager a.is-active { background: var(--sam-gold); color: #fff; border-color: var(--sam-gold); }
+
+/* Modelli vaade */
+.sam-model-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; align-items: flex-start; margin-bottom: 16px; }
+.sam-contact { display: flex; flex-wrap: wrap; gap: 8px; }
+.sam-meta, .sam-answers { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin: 0 0 20px; padding: 16px; background: var(--sam-soft); border-radius: var(--sam-radius); }
+.sam-answers { grid-template-columns: 1fr; }
+.sam-meta dt, .sam-answers dt { font-size: .8em; color: var(--sam-muted); text-transform: uppercase; letter-spacing: .03em; }
+.sam-meta dd, .sam-answers dd { margin: 0; font-weight: 600; }
+.sam-answers dd { font-weight: 400; }
+.sam-section { padding: 20px 0; border-top: 1px solid var(--sam-line); }
+.sam-photos { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); margin-bottom: 14px; }
+.sam-photo { margin: 0; }
+.sam-photo img { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 10px; display: block; }
+.sam-photo figcaption { font-size: .8em; color: var(--sam-muted); margin-top: 4px; display: flex; justify-content: space-between; gap: 6px; }
+.sam-upload { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.sam-file-btn { position: relative; overflow: hidden; }
+.sam-file-btn input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.sam-danger-zone { display: flex; }
+.sam-danger-zone form { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+
+/* Tabel */
+.sam-table-wrap { overflow-x: auto; }
+.sam-table { width: 100%; border-collapse: collapse; font-size: .95em; }
+.sam-table th, .sam-table td { padding: 10px 12px; border-bottom: 1px solid var(--sam-line); text-align: left; vertical-align: middle; }
+.sam-table th { font-size: .8em; text-transform: uppercase; letter-spacing: .03em; color: var(--sam-muted); }
+.sam-table tr.is-unread td { font-weight: 600; }
+
+@media (max-width: 600px) {
+	.sam-nav-user { margin-left: 0; width: 100%; }
+	.sam-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+	.sam-card-body { padding: 10px; }
+	.sam-login { padding: 20px; }
+	.sam-table th:nth-child(4), .sam-table td:nth-child(4) { display: none; }
+}
+
+/* Teema linkide ja nuppude stiili ülekirjutus (Hello Elementor jms) */
+.sam a.sam-tab, .sam a.sam-btn, .sam a.sam-card, .sam .sam-pager a, .sam .sam-card * { text-decoration: none !important; }
+.sam a.sam-tab, .sam a.sam-btn:not(.sam-btn-primary), .sam a.sam-card, .sam .sam-pager a { color: var(--sam-ink) !important; }
+.sam a.sam-btn-primary, .sam button.sam-btn-primary { color: var(--sam-accent-ink) !important; }
+.sam a.sam-tab.is-active, .sam .sam-pager a.is-active { color: #fff !important; }
+.sam .sam-initials { color: var(--sam-gold-dark) !important; }
+.sam .sam-btn-ghost, .sam a.sam-btn-ghost { background: transparent !important; }
+.sam button.sam-btn:not(.sam-btn-primary):not(.sam-btn-danger), .sam a.sam-btn:not(.sam-btn-primary) { background: #fff; }
+.sam button.sam-btn, .sam .sam-btn { box-shadow: none; text-transform: none; letter-spacing: normal; }
+
+/* Salongi töölaual: pealkirjad ja kaardid nagu teistes töölaua vaadetes */
+.sbd-main .sam-dash { max-width: 1200px; }
+.sbd-main .sam-dash h2 { font-size: 22px; }
+.sbd-main .sam-dash .sam-filters, .sbd-main .sam-dash .sam-meta, .sbd-main .sam-dash .sam-answers { background: #fff; border: 1px solid #e6dfe2; }
+.sbd-main .sam-dash .sam-section { border-top-color: #e6dfe2; }
+.sam-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 16px; }
+.sam-toolbar h1 { margin: 0; }
+/* Avalik vorm: sama nupp mis broneerimislehel */
+.sam-form-wrap .sam-btn-primary { width: 100%; min-height: 48px; font-size: 1rem; }
+.sam-form-wrap .sam-consent { font-size: 1em; }
+.sam-form-wrap .sam-consent input { width: 22px; height: 22px; margin-top: 2px; accent-color: var(--sam-gold); }
