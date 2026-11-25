@@ -194,3 +194,11 @@ body.sbd-login { display: grid; place-items: center; min-height: 100vh; padding:
 /* Töögraafiku päis: töölaual pole WP admini riba, seega kleepuvat nihet ei ole vaja. */
 .sbd-main .sb-month thead th { position: static; }
 .sbd-main .sb-m-scroll { border: 1px solid var(--sbd-line); border-radius: var(--sbd-radius); background: var(--sbd-card); }
+
+/* Sisselogimine Google'iga */
+.sbd-login-or { display: flex; align-items: center; gap: 12px; margin: 16px 0 12px; color: var(--sbd-muted); font-size: 13px; }
+.sbd-login-or::before, .sbd-login-or::after { content: ""; flex: 1; height: 1px; background: #e2dade; }
+.sbd-login-card a.sbd-google { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 46px; font-size: 16px; font-weight: 600; text-decoration: none; }
+.sbd-login-card .notice-success { margin: 12px 0; padding: 10px 12px; border-left: 4px solid #0f5c30; background: #e3f4ea; border-radius: 6px; }
+.sbd-login-card .notice-success p { margin: 0; }
+.sbd-google .sbd-g { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #fff; border: 1px solid #d5ccd0; color: #4285f4; font-weight: 800; font-size: 15px; }

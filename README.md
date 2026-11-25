@@ -1,6 +1,6 @@
 # Sasipea Broneering
 
-Sasipea Akadeemia online-broneerimine ja päevaplaan WordPressi pluginana. Versioon 0.8.2 (1. etapp + kuu töögraafik, tasemed, tasude arvestus, veebipoe ladu, käibemaksu aruanne, oma töölaud /salong/ sidumine modellide andmebaasiga ja kassa).
+Sasipea Akadeemia online-broneerimine ja päevaplaan WordPressi pluginana. Versioon 0.9.0 (1. etapp + kuu töögraafik, tasemed, tasude arvestus, veebipoe ladu, käibemaksu aruanne, oma töölaud /salong/ sidumine modellide andmebaasiga ja kassa).
 
 **NB! Paigalda esmalt staging-keskkonda, mitte päris lehele.**
 
@@ -66,6 +66,14 @@ Kassa on juhendajale ja omanikule (õigus `sb_manage_bookings`), töölaual men�
 - "Kustuta arve" eemaldab arve koos ridadega. Poe laost müüdud toodete tellimused tühistatakse ja tooted lähevad lattu tagasi; broneering jääb alles ja ootab uuesti maksmist. Avatud arve saab kustutada juhendaja, makstud arve ainult omanik. Kui poe tellimuse tühistamine ei õnnestu, jääb arve alles.
 - Makse võib jagada sularaha, kaardi ja ülekande vahel: iga makseviisi reale käib summa, mille klient sellega annab, ja "Veel maksta" näitab jääki. Sularaha reale käib kliendi tegelikult antud summa: kui kokku tuleb rohkem kui arve, näitab kassa "Tagasi anda" ja sularahana läheb kirja ainult arve katmiseks kulunud osa. Nupp "Kogu jääk" paneb reale täpselt järelejäänud summa. Päeva käive ja kviitung näitavad jagatud makset makseviiside kaupa.
 - Kassa ei suhtle kaarditerminali ega pangaga: makseviis on märge selle kohta, kuidas klient maksis. Kviitung ei ole ametlik arve (ettevõtte registrikoodi ja käibemaksu ridu sellel ei ole).
+
+## Kasutajad ja sisselogimine
+
+- Töölaua vaates **Kasutajad** (ainult omanik) saab luua praktikandi, juhendaja ja omaniku kontosid, muuta nime, e-posti ja rolli, siduda konto praktikandiga ning konto peatada või taastada. Peatatud konto logitakse kohe välja ja sisse ta enam ei saa; andmed jäävad alles.
+- Parooli ei määra ega näe keegi peale kasutaja enda. Uus kasutaja saab e-kirja lingiga (kehtib 24 tundi), kust ta seab töölaual endale parooli. "Saada kutse uuesti" või "Saada parooli link" saadab uue lingi.
+- Hallata saab ainult selle plugina rollidega kontosid. WordPressi administraatoreid ja modellide andmebaasi juhendajaid näidatakse nimekirjas, aga muuta saab neid ainult WordPressis. Enda rolli muuta ega ennast peatada ei saa.
+- **Sisselogimine Google'i kontoga** (Seaded → Sisselogimine Google'i kontoga): Google Cloud Console'is tuleb luua OAuth klient (Web application) ja lisada seadetes näidatud tagasisuunamise aadress. Sisse saab ainult see, kelle Google'i kinnitatud e-post on sama mis olemasoleva töölaua konto e-post; uusi kontosid Google'i kaudu ei teki. Administraatori konto Google'iga sisse ei saa, kui seda eraldi ei lubata.
+- Töögraafikus avab kuupäeval klikkimine selle päeva päevaplaani.
 
 ## Päris cron jagatud majutusel
 

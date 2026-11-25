@@ -125,6 +125,7 @@ final class Dashboard {
 			$add( 'tooted', __( 'Tooted', 'sasipea-broneering' ), 'box', 'raha', array( Admin::class, 'page_products' ) );
 			$add( 'praktikandid', __( 'Praktikandid', 'sasipea-broneering' ), 'scissors', 'seadistus', array( Admin::class, 'page_staff' ) );
 			$add( 'teenused', __( 'Teenused', 'sasipea-broneering' ), 'list', 'seadistus', array( Admin::class, 'page_services' ) );
+			$add( 'kasutajad', __( 'Kasutajad', 'sasipea-broneering' ), 'users', 'seadistus', array( Users::class, 'page' ) );
 			$add( 'seaded', __( 'Seaded', 'sasipea-broneering' ), 'gear', 'seadistus', array( Admin::class, 'page_settings' ) );
 		} elseif ( ! empty( Settings::get()['trainee_view']['pay'] ) && Roles::current_staff_id() ) {
 			$add( 'tasud', __( 'Minu tasu', 'sasipea-broneering' ), 'coins', '', array( Admin::class, 'page_pay' ) );
@@ -144,11 +145,18 @@ final class Dashboard {
 		header( 'X-Frame-Options: SAMEORIGIN' );
 
 		$error = '';
+		$vaade = isset( $_GET['vaade'] ) ? sanitize_key( wp_unslash( $_GET['vaade'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+		if ( 'kutse' === $vaade ) {
+			self::invite_page();
+			exit;
+		}
 		if ( ! is_user_logged_in() ) {
-			if ( isset( $_POST['sb_login'] ) ) {
+			if ( 'google' === $vaade && self::google_enabled() ) {
+				$error = self::handle_google();
+			} elseif ( isset( $_POST['sb_login'] ) ) {
 				$error = self::handle_login();
 			}
-			self::render_login( $error );
+			self::render_login( $error, false, isset( $_GET['sb_set'] ) ? __( 'Parool on seatud. Logi nüüd sisse.', 'sasipea-broneering' ) : '' ); // phpcs:ignore WordPress.Security.NonceVerification
 			exit;
 		}
 		if ( ! self::can_view() ) {
@@ -187,6 +195,168 @@ final class Dashboard {
 		}
 		$body = (string) ob_get_clean();
 		self::render_shell( $views, $view, $body );
+		exit;
+	}
+
+	/* ================= Kutse: kasutaja seab endale parooli ================= */
+
+	/** Töölaua aadress inimesele näitamiseks (ilma vaate parameetrita). */
+	public static function home(): string {
+		return self::pretty() ? home_url( '/' . self::slug() . '/' ) : add_query_arg( 'sb_toolaud', 1, home_url( '/' ) );
+	}
+
+	private static function invite_page(): void {
+		$key   = isset( $_REQUEST['key'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['key'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+		$login = isset( $_REQUEST['u'] ) ? sanitize_user( wp_unslash( $_REQUEST['u'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+		$set   = Settings::get();
+		$error = '';
+		$limit = Security::rate_limit( 'invite', 20, 10 * MINUTE_IN_SECONDS );
+		$user  = is_wp_error( $limit ) || '' === $key || '' === $login ? null : check_password_reset_key( $key, $login );
+		$valid = $user instanceof \WP_User && ! Users::is_disabled( (int) $user->ID ) && null !== Users::managed_role( (array) $user->roles );
+		if ( $valid && isset( $_POST['sb_invite'] ) ) {
+			$new = isset( $_POST['new'] ) ? (string) wp_unslash( $_POST['new'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput, WordPress.Security.NonceVerification -- parooli ei puhastata; võti on ühekordne.
+			$rep = isset( $_POST['rep'] ) ? (string) wp_unslash( $_POST['rep'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput, WordPress.Security.NonceVerification
+			if ( strlen( $new ) < 10 ) {
+				$error = __( 'Parool peab olema vähemalt 10 märki pikk.', 'sasipea-broneering' );
+			} elseif ( $new !== $rep ) {
+				$error = __( 'Paroolid ei ühti.', 'sasipea-broneering' );
+			} else {
+				reset_password( $user, $new );
+				delete_user_meta( $user->ID, Users::INVITED );
+				wp_safe_redirect( self::url() . '&sb_set=1' );
+				exit;
+			}
+		}
+		self::head( __( 'Sea parool', 'sasipea-broneering' ) );
+		echo '<body class="sbd sbd-login"><main class="sbd-login-card"><p class="sbd-brand">' . esc_html( $set['from_name'] ) . '</p><h1>' . esc_html__( 'Sea endale parool', 'sasipea-broneering' ) . '</h1>';
+		if ( ! $valid ) {
+			echo '<div class="notice notice-error" role="alert"><p>' . esc_html( is_wp_error( $limit ) ? __( 'Liiga palju katseid. Proovi kümne minuti pärast uuesti.', 'sasipea-broneering' ) : __( 'See link ei kehti enam. Palu salongi omanikul saata uus kutse.', 'sasipea-broneering' ) ) . '</p></div><p class="sbd-login-foot"><a href="' . esc_url( self::url() ) . '">' . esc_html__( 'Sisselogimise lehele', 'sasipea-broneering' ) . '</a></p></main></body></html>';
+			return;
+		}
+		if ( '' !== $error ) {
+			echo '<div class="notice notice-error" role="alert"><p>' . esc_html( $error ) . '</p></div>';
+		}
+		/* translators: %s: e-mail address */
+		echo '<p class="sbd-login-lead">' . esc_html( sprintf( __( 'Konto: %s. Vali parool, mida sa mujal ei kasuta (vähemalt 10 märki).', 'sasipea-broneering' ), $user->user_email ) ) . '</p>';
+		echo '<form method="post" action="' . esc_url( self::url( 'kutse' ) ) . '"><input type="hidden" name="sb_invite" value="1"><input type="hidden" name="key" value="' . esc_attr( $key ) . '"><input type="hidden" name="u" value="' . esc_attr( $login ) . '">';
+		echo '<input type="text" name="username" value="' . esc_attr( $user->user_email ) . '" autocomplete="username" hidden>';
+		echo '<label for="sbd-new">' . esc_html__( 'Uus parool', 'sasipea-broneering' ) . '</label><input id="sbd-new" type="password" name="new" autocomplete="new-password" minlength="10" required autofocus>';
+		echo '<label for="sbd-rep">' . esc_html__( 'Uus parool uuesti', 'sasipea-broneering' ) . '</label><input id="sbd-rep" type="password" name="rep" autocomplete="new-password" minlength="10" required>';
+		echo '<p></p><button class="button button-primary" type="submit">' . esc_html__( 'Salvesta parool', 'sasipea-broneering' ) . '</button></form></main></body></html>';
+	}
+
+	/* ================= Sisselogimine Google'i kontoga ================= */
+
+	public static function google_enabled(): bool {
+		$s = Settings::get();
+		return '' !== (string) $s['google_client_id'] && '' !== (string) $s['google_client_secret'];
+	}
+
+	/** Aadress, kuhu Google pärast sisselogimist tagasi suunab. Peab Google Cloudis täpselt samal kujul kirjas olema. */
+	public static function google_redirect(): string {
+		return self::url( 'google' );
+	}
+
+	/** @return array{auth:string,token:string,userinfo:string} */
+	private static function google_endpoints(): array {
+		return (array) apply_filters(
+			'sb_google_endpoints',
+			array(
+				'auth'     => 'https://accounts.google.com/o/oauth2/v2/auth',
+				'token'    => 'https://oauth2.googleapis.com/token',
+				'userinfo' => 'https://openidconnect.googleapis.com/v1/userinfo',
+			)
+		);
+	}
+
+	/**
+	 * Kas selle kontoga tohib Google'i kaudu sisse logida. Puhas funktsioon (testitav).
+	 *
+	 * @param string[] $roles    kasutaja rollid
+	 * @param bool     $can_view kas kontol on töölaua õigus
+	 */
+	public static function google_allowed( array $roles, bool $can_view, bool $disabled, bool $admins_ok ): bool {
+		if ( $disabled || ! $can_view ) {
+			return false;
+		}
+		return $admins_ok || ! in_array( 'administrator', $roles, true );
+	}
+
+	/** Alustab Google'i sisselogimist või lõpetab selle. Tagastab veateate; õnnestumisel suunab töölauale. */
+	private static function handle_google(): string {
+		$s    = Settings::get();
+		$ep   = self::google_endpoints();
+		$fail = __( 'Google\'iga sisselogimine ebaõnnestus. Proovi uuesti või logi sisse parooliga.', 'sasipea-broneering' );
+		// phpcs:disable WordPress.Security.NonceVerification -- OAuth vastust kaitseb state väärtus.
+		if ( isset( $_GET['algus'] ) ) {
+			$state = wp_generate_password( 40, false );
+			setcookie( 'sb_gstate', $state, array( 'expires' => time() + 600, 'path' => '/', 'secure' => is_ssl(), 'httponly' => true, 'samesite' => 'Lax' ) );
+			$url = add_query_arg(
+				array(
+					'client_id'     => rawurlencode( (string) $s['google_client_id'] ),
+					'redirect_uri'  => rawurlencode( self::google_redirect() ),
+					'response_type' => 'code',
+					'scope'         => rawurlencode( 'openid email' ),
+					'state'         => $state,
+					'prompt'        => 'select_account',
+				),
+				$ep['auth']
+			);
+			wp_redirect( $url ); // phpcs:ignore WordPress.Security.SafeRedirect -- Google'i sisselogimise leht.
+			exit;
+		}
+		if ( ! isset( $_GET['code'], $_GET['state'] ) ) {
+			return isset( $_GET['error'] ) ? __( 'Google\'iga sisselogimine katkestati.', 'sasipea-broneering' ) : '';
+		}
+		$limit = Security::rate_limit( 'google', 20, 10 * MINUTE_IN_SECONDS );
+		$state = sanitize_text_field( wp_unslash( $_GET['state'] ) );
+		$mine  = isset( $_COOKIE['sb_gstate'] ) ? sanitize_text_field( wp_unslash( $_COOKIE['sb_gstate'] ) ) : '';
+		$code  = sanitize_text_field( wp_unslash( $_GET['code'] ) );
+		// phpcs:enable
+		setcookie( 'sb_gstate', '', array( 'expires' => time() - 3600, 'path' => '/', 'secure' => is_ssl(), 'httponly' => true, 'samesite' => 'Lax' ) );
+		if ( is_wp_error( $limit ) || '' === $mine || ! hash_equals( $mine, $state ) ) {
+			return $fail;
+		}
+		$res = wp_remote_post(
+			$ep['token'],
+			array(
+				'timeout' => 15,
+				'body'    => array(
+					'code'          => $code,
+					'client_id'     => (string) $s['google_client_id'],
+					'client_secret' => (string) $s['google_client_secret'],
+					'redirect_uri'  => self::google_redirect(),
+					'grant_type'    => 'authorization_code',
+				),
+			)
+		);
+		$tok = is_wp_error( $res ) ? null : json_decode( (string) wp_remote_retrieve_body( $res ), true );
+		if ( ! is_array( $tok ) || empty( $tok['access_token'] ) ) {
+			return $fail;
+		}
+		$res  = wp_remote_get( $ep['userinfo'], array( 'timeout' => 15, 'headers' => array( 'Authorization' => 'Bearer ' . $tok['access_token'] ) ) );
+		$info = is_wp_error( $res ) || 200 !== (int) wp_remote_retrieve_response_code( $res ) ? null : json_decode( (string) wp_remote_retrieve_body( $res ), true );
+		$mail = is_array( $info ) ? sanitize_email( (string) ( $info['email'] ?? '' ) ) : '';
+		// Google peab kinnitama, et e-post kuulub sellele inimesele.
+		if ( '' === $mail || true !== filter_var( $info['email_verified'] ?? false, FILTER_VALIDATE_BOOLEAN ) ) {
+			return $fail;
+		}
+		$user = get_user_by( 'email', $mail );
+		$none = __( 'Selle Google\'i konto e-postiga ei ole salongi töölaual kontot. Palu omanikul sulle konto luua.', 'sasipea-broneering' );
+		if ( ! $user ) {
+			return $none;
+		}
+		$can = user_can( $user, 'sb_view_own' ) || user_can( $user, 'sb_manage_bookings' ) || user_can( $user, 'sb_manage_settings' );
+		if ( ! self::google_allowed( (array) $user->roles, $can, Users::is_disabled( (int) $user->ID ), ! empty( $s['google_admins'] ) ) ) {
+			return in_array( 'administrator', (array) $user->roles, true ) && $can && ! Users::is_disabled( (int) $user->ID )
+				? __( 'Administraatori kontoga saab sisse logida ainult parooliga.', 'sasipea-broneering' )
+				: $none;
+		}
+		wp_set_current_user( $user->ID );
+		wp_set_auth_cookie( $user->ID, false, is_ssl() );
+		delete_user_meta( $user->ID, Users::INVITED );
+		do_action( 'wp_login', $user->user_login, $user ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals -- WordPressi enda sündmus.
+		wp_safe_redirect( self::url() );
 		exit;
 	}
 
@@ -412,12 +582,15 @@ final class Dashboard {
 		echo '</head>';
 	}
 
-	private static function render_login( string $error = '', bool $logged_in = false ): void {
+	private static function render_login( string $error = '', bool $logged_in = false, string $ok = '' ): void {
 		$set = Settings::get();
 		self::head( __( 'Sisselogimine', 'sasipea-broneering' ) );
 		echo '<body class="sbd sbd-login"><main class="sbd-login-card"><p class="sbd-brand">' . esc_html( $set['from_name'] ) . '</p><h1>' . esc_html__( 'Salongi töölaud', 'sasipea-broneering' ) . '</h1>';
 		if ( '' !== $error ) {
 			echo '<div class="notice notice-error" role="alert"><p>' . esc_html( $error ) . '</p></div>';
+		}
+		if ( '' !== $ok ) {
+			echo '<div class="notice notice-success" role="status"><p>' . esc_html( $ok ) . '</p></div>';
 		}
 		if ( $logged_in ) {
 			echo '<p><a class="button button-primary" href="' . esc_url( wp_logout_url( self::url() ) ) . '">' . esc_html__( 'Logi välja', 'sasipea-broneering' ) . '</a></p>';
@@ -431,6 +604,9 @@ final class Dashboard {
 			echo '<label for="sbd-pwd">' . esc_html__( 'Parool', 'sasipea-broneering' ) . '</label><input id="sbd-pwd" type="password" name="pwd" autocomplete="current-password" required>';
 			echo '<label class="sbd-check"><input type="checkbox" name="rememberme" value="1"> ' . esc_html__( 'Jäta mind selles seadmes meelde', 'sasipea-broneering' ) . '</label>';
 			echo '<button class="button button-primary" type="submit">' . esc_html__( 'Logi sisse', 'sasipea-broneering' ) . '</button></form>';
+			if ( self::google_enabled() ) {
+				echo '<p class="sbd-login-or"><span>' . esc_html__( 'või', 'sasipea-broneering' ) . '</span></p><a class="button sbd-google" href="' . esc_url( self::url( 'google' ) . '&algus=1' ) . '"><span class="sbd-g" aria-hidden="true">G</span> ' . esc_html__( 'Logi sisse Google\'iga', 'sasipea-broneering' ) . '</a>';
+			}
 			echo '<p class="sbd-login-foot"><a href="' . esc_url( wp_lostpassword_url( self::url() ) ) . '">' . esc_html__( 'Unustasid parooli?', 'sasipea-broneering' ) . '</a></p>';
 		}
 		echo '</main></body></html>';

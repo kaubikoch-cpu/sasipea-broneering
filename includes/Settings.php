@@ -39,6 +39,10 @@ final class Settings {
 			'woo_url'             => '',
 			'woo_key'             => '',
 			'woo_secret'          => '',
+			// Sisselogimine Google'i kontoga (OAuth klient Google Cloudist). Tühi = välja lülitatud.
+			'google_client_id'     => '',
+			'google_client_secret' => '',
+			'google_admins'        => false,
 			// Käibemaksu määrade ajalugu: [['from' => 'Y-m-d', 'rate' => 24], ...]. Tühi = pole käibemaksukohustuslane.
 			'vat_history'         => array(),
 			// Kui sees, saab online broneerida ainult nendesse kuudesse, mille töögraafik on koostatud.

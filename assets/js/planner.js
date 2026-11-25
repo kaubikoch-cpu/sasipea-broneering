@@ -9,6 +9,9 @@
 	var SLOT = 15;     // ruudustiku samm minutites
 	var ROW = 20;      // ühe 15 min rea kõrgus px
 	var state = { date: C.today, view: 'day', data: null };
+	// Töögraafikust tulles avatakse valitud päev (?day=2026-11-25).
+	var wanted = (/[?&]day=(\d{4}-\d{2}-\d{2})(?:&|$)/.exec(window.location.search) || [])[1];
+	if (wanted) state.date = wanted;
 
 	/* ---------- abifunktsioonid ---------- */
 

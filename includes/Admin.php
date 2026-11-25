@@ -20,6 +20,7 @@ final class Admin {
 		'sb-pay'      => 'tasud',
 		'sb-vat'      => 'kaibemaks',
 		'sb-settings' => 'seaded',
+		'sb-users'    => 'kasutajad',
 	);
 
 	/** Kas lehti näidatakse töölaual (true) või WP adminis (false). */
@@ -53,6 +54,7 @@ final class Admin {
 		}
 		add_submenu_page( 'sb-planner', __( 'Käibemaks', 'sasipea-broneering' ), __( 'Käibemaks', 'sasipea-broneering' ), 'sb_manage_settings', 'sb-vat', array( self::class, 'page_vat' ) );
 		add_submenu_page( 'sb-planner', __( 'Seaded', 'sasipea-broneering' ), __( 'Seaded', 'sasipea-broneering' ), 'sb_manage_settings', 'sb-settings', array( self::class, 'page_settings' ) );
+		add_submenu_page( 'sb-planner', __( 'Kasutajad', 'sasipea-broneering' ), __( 'Kasutajad', 'sasipea-broneering' ), 'sb_manage_settings', 'sb-users', array( Users::class, 'page' ) );
 	}
 
 	public static function enqueue_planner( bool $in_admin = true ): void {
@@ -562,6 +564,7 @@ final class Admin {
 			.sb-month table{border-collapse:collapse;background:#fff}
 			.sb-month th,.sb-month td{border:1px solid #dcdcde;padding:6px 8px;text-align:left;vertical-align:middle;white-space:nowrap}
 			.sb-month thead th{background:#f6f7f7;position:sticky;top:32px;z-index:2}
+			.sb-month a.sb-m-day{font-weight:600;text-decoration:underline;text-underline-offset:2px}
 			.sb-month tr.is-closed td,.sb-month tr.is-closed th{background:#f0f0f1;color:#646970;padding-top:2px;padding-bottom:2px;font-size:12px}
 			.sb-month tr.is-week-start th,.sb-month tr.is-week-start td{border-top:2px solid #8c8f94}
 			.sb-month td.is-on{background:#edf7ed}
@@ -609,12 +612,14 @@ final class Admin {
 			$wd      = (int) $d->format( 'N' );
 			$opening = Settings::opening_for( $date );
 			$label   = $short[ $wd ] . ' ' . $d->format( 'j.m' );
+			/* translators: %s: date */
+			$day_link = '<a class="sb-m-day" href="' . esc_url( self::url( 'sb-planner&day=' . $date ) ) . '" title="' . esc_attr( sprintf( __( 'Ava %s päevaplaan', 'sasipea-broneering' ), $d->format( 'j.m.Y' ) ) ) . '">' . esc_html( $label ) . '</a>';
 			$week    = 1 === $wd ? ' is-week-start' : '';
 			if ( ! $opening ) {
-				echo '<tr class="is-closed' . esc_attr( $week ) . '"><th scope="row">' . esc_html( $label ) . '</th><td colspan="' . count( $staff ) . '">' . esc_html__( 'suletud', 'sasipea-broneering' ) . '</td></tr>';
+				echo '<tr class="is-closed' . esc_attr( $week ) . '"><th scope="row">' . $day_link . '</th><td colspan="' . count( $staff ) . '">' . esc_html__( 'suletud', 'sasipea-broneering' ) . '</td></tr>';
 				continue;
 			}
-			echo '<tr class="' . esc_attr( trim( $week ) ) . '"><th scope="row">' . esc_html( $label ) . '<span class="sb-m-sub">' . esc_html( str_replace( '-', '–', self::ranges_str( $opening ) ) ) . '</span></th>';
+			echo '<tr class="' . esc_attr( trim( $week ) ) . '"><th scope="row">' . $day_link . '<span class="sb-m-sub">' . esc_html( str_replace( '-', '–', self::ranges_str( $opening ) ) ) . '</span></th>';
 			foreach ( $staff as $s ) {
 				$ranges = Repo::planned_ranges( $s['id'], $date );
 				$n      = (int) ( $counts[ $s['id'] ][ $date ] ?? 0 );
@@ -1202,6 +1207,13 @@ final class Admin {
 		}
 		echo '</tbody></table>';
 
+		echo '<h2>' . esc_html__( 'Sisselogimine Google\'i kontoga', 'sasipea-broneering' ) . '</h2><p class="description">' . esc_html__( 'Kui see on seadistatud, on töölaua sisselogimise lehel nupp "Logi sisse Google\'iga". Sisse saab ainult see, kelle Google\'i konto e-post on sama mis siin töölaual loodud konto e-post; uusi kontosid Google\'i kaudu ei teki. OAuth kliendi teed Google Cloud Console\'is: APIs & Services → Credentials → Create credentials → OAuth client ID → Web application.', 'sasipea-broneering' ) . '</p><table class="form-table">';
+		printf( '<tr><th>%s</th><td><code style="user-select:all">%s</code><p class="description">%s</p></td></tr>', esc_html__( 'Tagasisuunamise aadress', 'sasipea-broneering' ), esc_html( Dashboard::google_redirect() ), esc_html__( 'Kopeeri see Google Cloudis väljale "Authorized redirect URIs" täpselt sellisel kujul.', 'sasipea-broneering' ) );
+		printf( '<tr><th><label for="sb-g-id">%s</label></th><td><input id="sb-g-id" name="google_client_id" class="large-text" autocomplete="off" value="%s" placeholder="…apps.googleusercontent.com"></td></tr>', esc_html__( 'Kliendi ID (Client ID)', 'sasipea-broneering' ), esc_attr( (string) $s['google_client_id'] ) );
+		printf( '<tr><th><label for="sb-g-secret">%s</label></th><td><input id="sb-g-secret" name="google_client_secret" type="password" class="regular-text" autocomplete="new-password" value="" placeholder="%s"><p class="description">%s</p></td></tr>', esc_html__( 'Kliendi saladus (Client secret)', 'sasipea-broneering' ), esc_attr( '' !== (string) $s['google_client_secret'] ? __( 'salvestatud, muutmiseks sisesta uus', 'sasipea-broneering' ) : 'GOCSPX-…' ), esc_html__( 'Saladust pärast salvestamist enam ei näidata. Väljalülitamiseks tühjenda kliendi ID.', 'sasipea-broneering' ) );
+		printf( '<tr><th>%s</th><td><label><input type="checkbox" name="google_admins" value="1"%s> %s</label><p class="description">%s</p></td></tr>', esc_html__( 'Administraatorid', 'sasipea-broneering' ), checked( ! empty( $s['google_admins'] ), true, false ), esc_html__( 'Luba Google\'iga sisse logida ka WordPressi administraatoril', 'sasipea-broneering' ), esc_html__( 'Vaikimisi väljas: administraatori kontol on ligipääs kogu veebilehele, seega on turvalisem logida sellega sisse parooliga.', 'sasipea-broneering' ) );
+		echo '</tbody></table>';
+
 		echo '<h2>' . esc_html__( 'Veebipoe ladu (WooCommerce)', 'sasipea-broneering' ) . '</h2><p class="description">' . esc_html__( 'Kui ühendus on seadistatud, saab päevaplaanis toodet otsida poest nime, tootekoodi või triipkoodi järgi. Iga salongimüük salvestatakse poodi lõpetatud tellimusena ja kogus arvatakse poe laost maha. API-võtme teed poe adminis: WooCommerce → Seaded → Täpsemalt → REST API → Lisa võti, õigus "Lugemine/kirjutamine".', 'sasipea-broneering' ) . '</p><table class="form-table">';
 		printf( '<tr><th><label for="sb-woo-url">%s</label></th><td><input id="sb-woo-url" name="woo_url" type="url" class="regular-text" value="%s" placeholder="https://sasipea.ee"></td></tr>', esc_html__( 'Poe aadress', 'sasipea-broneering' ), esc_attr( $s['woo_url'] ) );
 		printf( '<tr><th><label for="sb-woo-key">%s</label></th><td><input id="sb-woo-key" name="woo_key" class="regular-text" autocomplete="off" value="%s" placeholder="ck_…"></td></tr>', esc_html__( 'Kliendi võti (Consumer key)', 'sasipea-broneering' ), esc_attr( $s['woo_key'] ) );
@@ -1333,6 +1345,14 @@ final class Admin {
 		} elseif ( '' !== $new_secret ) {
 			$vals['woo_secret'] = $new_secret;
 		}
+		$vals['google_client_id'] = sanitize_text_field( trim( (string) ( $p['google_client_id'] ?? '' ) ) );
+		$new_gsecret              = sanitize_text_field( trim( (string) ( $p['google_client_secret'] ?? '' ) ) );
+		if ( '' === $vals['google_client_id'] ) {
+			$vals['google_client_secret'] = '';
+		} elseif ( '' !== $new_gsecret ) {
+			$vals['google_client_secret'] = $new_gsecret;
+		}
+		$vals['google_admins'] = ! empty( $p['google_admins'] );
 		$vat = array();
 		foreach ( (array) ( $p['vat_history'] ?? array() ) as $v ) {
 			if ( '' !== trim( (string) ( $v['rate'] ?? '' ) ) ) {
