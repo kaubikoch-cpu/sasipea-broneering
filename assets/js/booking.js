@@ -13,6 +13,7 @@
 	var state = {
 		nonce: null,
 		catalog: [],
+		cat: null,
 		service: null,
 		staffList: [],
 		staff: null, // {id:0,name:'Ükskõik kes'} või praktikant
@@ -147,23 +148,55 @@
 
 	/* ---------- 1. teenus ---------- */
 
+	function serviceCount(n) { return n === 1 ? '1 teenus' : n + ' teenust'; }
+
+	// Samm 1 on kahes osas: kõigepealt teenuste grupp, siis selle grupi teenused. Nii ei ole
+	// kliendi ees korraga kogu hinnakiri. Kui gruppe on ainult üks, jääb grupi valik vahele.
 	function stepService() {
 		renderSummary(1);
 		main.textContent = '';
-		main.appendChild(stepHeader(1, 'Vali teenus'));
-		state.catalog.forEach(function (cat) {
-			var list = h('ul', { class: 'sb-options' });
-			cat.services.forEach(function (s) {
-				list.appendChild(h('li', null, h('button', {
-					type: 'button', class: 'sb-option',
-					onclick: function () { state.service = s; stepStaff(); }
+		var cats = state.catalog.filter(function (c) { return c.services && c.services.length; });
+		if (cats.length === 1) state.cat = cats[0];
+		if (state.cat && cats.indexOf(state.cat) === -1) state.cat = null;
+		if (!state.cat) {
+			main.appendChild(stepHeader(1, 'Mida soovid teha?'));
+			main.appendChild(h('p', { class: 'sb-muted sb-step-lead' }, 'Vali teenuste grupp. Järgmisena näed selle grupi teenuseid koos hinna ja kestusega.'));
+			var groups = h('ul', { class: 'sb-options sb-groups' });
+			cats.forEach(function (cat) {
+				var names = cat.services.slice(0, 3).map(function (x) { return x.name; }).join(', ') + (cat.services.length > 3 ? ' ja veel ' + (cat.services.length - 3) : '');
+				groups.appendChild(h('li', null, h('button', {
+					type: 'button', class: 'sb-option sb-group',
+					onclick: function () { state.cat = cat; stepService(); }
 				},
-				h('span', { class: 'sb-option-title' }, s.name),
-				h('span', { class: 'sb-option-meta' }, s.duration_label + ' · ' + s.price_label + (s.material_extra ? ' + materjal' : '')),
-				s.note ? h('span', { class: 'sb-option-note' }, s.note) : null)));
+				h('span', { class: 'sb-option-text' },
+					h('span', { class: 'sb-option-title' }, cat.name),
+					h('span', { class: 'sb-option-meta' }, serviceCount(cat.services.length)),
+					h('span', { class: 'sb-option-note' }, names)),
+				h('span', { class: 'sb-chevron', 'aria-hidden': 'true' }, '›'))));
 			});
-			main.appendChild(h('section', { class: 'sb-cat' }, h('h3', null, cat.name), list));
+			main.appendChild(groups);
+			focusHeading(main);
+			return;
+		}
+		var cat = state.cat;
+		main.appendChild(stepHeader(1, cat.name));
+		if (cats.length > 1) {
+			main.appendChild(h('p', { class: 'sb-step-lead' }, h('button', { type: 'button', class: 'sb-link sb-back', onclick: function () { state.cat = null; stepService(); } }, '‹ Kõik teenuste grupid')));
+		}
+		main.appendChild(h('p', { class: 'sb-muted sb-step-lead' }, 'Vali teenus.'));
+		var list = h('ul', { class: 'sb-options' });
+		cat.services.forEach(function (s) {
+			list.appendChild(h('li', null, h('button', {
+				type: 'button', class: 'sb-option sb-service',
+				onclick: function () { state.service = s; stepStaff(); }
+			},
+			h('span', { class: 'sb-option-text' },
+				h('span', { class: 'sb-option-title' }, s.name),
+				h('span', { class: 'sb-option-meta' }, s.duration_label + (s.material_extra ? ' · lisandub materjal' : '')),
+				s.note ? h('span', { class: 'sb-option-note' }, s.note) : null),
+			h('span', { class: 'sb-price' }, s.price_label))));
 		});
+		main.appendChild(list);
 		focusHeading(main);
 	}
 

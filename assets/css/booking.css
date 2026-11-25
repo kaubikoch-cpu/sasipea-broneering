@@ -125,3 +125,14 @@
 
 /* Praktikandi nimi koos taseme, kestuse ja hinnaga */
 .sb-option-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+/* Samm 1: teenuste grupid ja grupi teenused */
+.sb-step-lead { margin: 0 0 .75rem; }
+.sb-option.sb-group, .sb-option.sb-service { flex-direction: row; align-items: center; justify-content: space-between; gap: .75rem; }
+.sb-option.sb-group { padding: 1rem 1.1rem; border-width: 2px; }
+.sb-group .sb-option-title { font-size: 1.15rem; }
+.sb-group .sb-option-note { font-style: normal; }
+.sb-chevron { flex: none; font-size: 1.8rem; line-height: 1; color: var(--sb-accent); }
+.sb-price { flex: none; font-weight: 700; white-space: nowrap; color: var(--sb-accent); }
+.sb-back { padding: .35rem 0; min-height: 44px; }
+@media (min-width: 560px) { .sb-groups { grid-template-columns: 1fr 1fr; } }
