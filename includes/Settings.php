@@ -46,7 +46,7 @@ final class Settings {
 			// Käibemaksu määrade ajalugu: [['from' => 'Y-m-d', 'rate' => 24], ...]. Tühi = pole käibemaksukohustuslane.
 			'vat_history'         => array(),
 			// Kui sees, saab online broneerida ainult nendesse kuudesse, mille töögraafik on koostatud.
-			'require_month'       => false,
+			'require_month'       => true,
 			// Mida sisseloginud praktikant päevaplaanis näeb. Muuta ei saa ta midagi.
 			'trainee_view'        => array(
 				'phone'   => true,  // kliendi telefon

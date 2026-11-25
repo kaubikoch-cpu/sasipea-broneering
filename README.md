@@ -1,6 +1,6 @@
 # Sasipea Broneering
 
-Sasipea Akadeemia online-broneerimine ja päevaplaan WordPressi pluginana. Versioon 0.9.2 (1. etapp + kuu töögraafik, tasemed, tasude arvestus, veebipoe ladu, käibemaksu aruanne, oma töölaud /salong/ sidumine modellide andmebaasiga ja kassa).
+Sasipea Akadeemia online-broneerimine ja päevaplaan WordPressi pluginana. Versioon 0.9.3 (1. etapp + kuu töögraafik, tasemed, tasude arvestus, veebipoe ladu, käibemaksu aruanne, oma töölaud /salong/ sidumine modellide andmebaasiga ja kassa).
 
 **NB! Paigalda esmalt staging-keskkonda, mitte päris lehele.**
 
@@ -66,6 +66,11 @@ Kassa on juhendajale ja omanikule (õigus `sb_manage_bookings`), töölaual men�
 - "Kustuta arve" eemaldab arve koos ridadega. Poe laost müüdud toodete tellimused tühistatakse ja tooted lähevad lattu tagasi; broneering jääb alles ja ootab uuesti maksmist. Avatud arve saab kustutada juhendaja, makstud arve ainult omanik. Kui poe tellimuse tühistamine ei õnnestu, jääb arve alles.
 - Makse võib jagada sularaha, kaardi ja ülekande vahel: iga makseviisi reale käib summa, mille klient sellega annab, ja "Veel maksta" näitab jääki. Sularaha reale käib kliendi tegelikult antud summa: kui kokku tuleb rohkem kui arve, näitab kassa "Tagasi anda" ja sularahana läheb kirja ainult arve katmiseks kulunud osa. Nupp "Kogu jääk" paneb reale täpselt järelejäänud summa. Päeva käive ja kviitung näitavad jagatud makset makseviiside kaupa.
 - Kassa ei suhtle kaarditerminali ega pangaga: makseviis on märge selle kohta, kuidas klient maksis. Kviitung ei ole ametlik arve (ettevõtte registrikoodi ja käibemaksu ridu sellel ei ole).
+
+## Broneerimisvorm ja töögraafik
+
+- Esimesel sammul on teenuste grupid üksteise all; grupile vajutades avanevad selle teenused (laial ekraanil paremal kõrval, telefonis grupi all).
+- Kalendris saab liikuda ainult nende kuude vahel, mille töögraafik on koostatud (Seaded → "Aegu pakutakse ainult nendes kuudes..."; alates 0.9.3 vaikimisi sees). Viimase koostatud kuu all on teade, et hilisemate kuude graafik on koostamisel ja kaugema aja jaoks võib kirjutada e-postile. Kui ühtegi kuud pole koostatud, näeb klient vabandavat teadet kalendri asemel. Aadress on seadete "Kirjade saatja e-post".
 
 ## Kasutajad ja sisselogimine
 

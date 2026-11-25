@@ -17,8 +17,17 @@ final class Install {
 	}
 
 	public static function maybe_upgrade(): void {
-		if ( get_option( 'sb_db_version' ) !== SB_DB_VERSION ) {
+		$old = get_option( 'sb_db_version' );
+		if ( $old !== SB_DB_VERSION ) {
 			self::activate();
+			// 0.9.3: aegu pakutakse ainult kuudes, mille töögraafik on koostatud. Seadetes saab selle välja lülitada.
+			if ( false !== $old && (int) $old < 9 ) {
+				$s = get_option( 'sb_settings' );
+				if ( is_array( $s ) ) {
+					$s['require_month'] = true;
+					update_option( 'sb_settings', $s );
+				}
+			}
 		}
 	}
 

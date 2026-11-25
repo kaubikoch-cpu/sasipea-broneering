@@ -104,6 +104,33 @@
 		return h('div', { class: 'sb-error', role: 'alert' }, msg);
 	}
 
+	/* ---------- töögraafikuga kuud ---------- */
+
+	// cfg.months: kuud, mille töögraafik on koostatud (null = piirangut pole).
+	function openMonths() {
+		if (!cfg.months) return null;
+		var now = todayStr().slice(0, 7);
+		return cfg.months.filter(function (m) { return m >= now; }).sort();
+	}
+
+	function mailLink() {
+		return cfg.email ? h('a', { href: 'mailto:' + cfg.email }, cfg.email) : null;
+	}
+
+	function noScheduleNote() {
+		var p = h('p', null, 'Vabandame, töögraafik on praegu veel koostamisel ja vabu aegu ei saa hetkel pakkuda. Palun proovige mõne päeva pärast uuesti.');
+		var box = h('div', { class: 'sb-note', role: 'status' }, p);
+		if (cfg.email) box.appendChild(h('p', null, 'Kui soovite aja juba praegu kokku leppida, kirjutage meile palun aadressil ', mailLink(), ' ja leiame koos sobiva aja.'));
+		return box;
+	}
+
+	function laterNote() {
+		var box = h('div', { class: 'sb-note', role: 'note' }, h('p', null, 'Hilisemate kuude töögraafik on veel koostamisel.'));
+		if (cfg.email) box.appendChild(h('p', null, 'Kui soovite broneerida aega kaugemale ette, kirjutage meile palun aadressil ', mailLink(), ' ja leiame koos sobiva aja.'));
+		else box.appendChild(h('p', null, 'Palun vaadake mõne aja pärast uuesti.'));
+		return box;
+	}
+
 	/* ---------- raam ---------- */
 
 	var main, summaryEl;
@@ -160,6 +187,8 @@
 		if (cats.length === 1) state.cat = cats[0];
 		if (state.cat && cats.indexOf(state.cat) === -1) state.cat = null;
 		main.appendChild(stepHeader(1, 'Vali teenus'));
+		var om = openMonths();
+		if (om && !om.length) main.appendChild(noScheduleNote());
 		var single = cats.length === 1;
 		if (!single) main.appendChild(h('p', { class: 'sb-muted sb-step-lead' }, 'Vali kõigepealt grupp, siis näed selle grupi teenuseid.'));
 		var wrap = h('div', { class: 'sb-picker' + (single ? ' is-single' : ''), style: '--sb-n:' + cats.length });
@@ -253,7 +282,15 @@
 		renderSummary(3);
 		main.textContent = '';
 		main.appendChild(opts.header || stepHeader(3, 'Vali aeg'));
+		var om = openMonths();
+		if (om && !om.length) {
+			main.appendChild(noScheduleNote());
+			focusHeading(main);
+			return;
+		}
 		if (!state.month) state.month = todayStr().slice(0, 7);
+		// Kalender näitab ainult kuid, mille töögraafik on koostatud.
+		if (om && om.indexOf(state.month) === -1) state.month = om[0];
 		var cal = h('div', { class: 'sb-cal' });
 		var slotsEl = h('div', { class: 'sb-slots' });
 		main.appendChild(cal);
@@ -272,7 +309,7 @@
 			drawMonth(cal, slotsEl, opts);
 			// Kui kuus pole ühtki vaba aega ja oleme jooksvas kuus, liigu automaatselt järgmisse.
 			var any = Object.keys(days).some(function (k) { return days[k] > 0; });
-			if (!any && !opts.triedNext && state.month === todayStr().slice(0, 7)) {
+			if (!any && !opts.triedNext && state.month === todayStr().slice(0, 7) && canShift(1)) {
 				opts.triedNext = true;
 				shiftMonth(1); loadMonth(cal, slotsEl, opts);
 				return;
@@ -281,7 +318,17 @@
 		}).catch(function (e) { cal.textContent = ''; cal.appendChild(errorBox(e.message)); });
 	}
 
+	// Koostatud töögraafikuga kuude piires liigutakse ainult nende vahel (vahele jäänud kuu jäetakse vahele).
+	function canShift(delta) {
+		var om = openMonths();
+		if (!om) return delta > 0 || state.month > todayStr().slice(0, 7);
+		var i = om.indexOf(state.month) + delta;
+		return i >= 0 && i < om.length;
+	}
+
 	function shiftMonth(delta) {
+		var om = openMonths();
+		if (om) { state.month = om[om.indexOf(state.month) + delta] || state.month; return; }
 		var y = +state.month.slice(0, 4), m = +state.month.slice(5, 7) - 1 + delta;
 		y += Math.floor(m / 12); m = ((m % 12) + 12) % 12;
 		state.month = y + '-' + pad(m + 1);
@@ -292,9 +339,9 @@
 		var y = +state.month.slice(0, 4), m = +state.month.slice(5, 7) - 1;
 		var thisMonth = todayStr().slice(0, 7);
 		var nav = h('div', { class: 'sb-cal-nav' },
-			h('button', { type: 'button', class: 'sb-btn-icon', 'aria-label': 'Eelmine kuu', disabled: state.month <= thisMonth, onclick: function () { shiftMonth(-1); state.date = null; slotsEl.textContent = ''; loadMonth(cal, slotsEl, opts); } }, '‹'),
+			h('button', { type: 'button', class: 'sb-btn-icon', 'aria-label': 'Eelmine kuu', disabled: !canShift(-1), onclick: function () { shiftMonth(-1); state.date = null; slotsEl.textContent = ''; loadMonth(cal, slotsEl, opts); } }, '‹'),
 			h('h3', { 'aria-live': 'polite' }, MONTHS[m].charAt(0).toUpperCase() + MONTHS[m].slice(1) + ' ' + y),
-			h('button', { type: 'button', class: 'sb-btn-icon', 'aria-label': 'Järgmine kuu', onclick: function () { shiftMonth(1); state.date = null; slotsEl.textContent = ''; loadMonth(cal, slotsEl, opts); } }, '›'));
+			h('button', { type: 'button', class: 'sb-btn-icon', 'aria-label': 'Järgmine kuu', disabled: !canShift(1), onclick: function () { shiftMonth(1); state.date = null; slotsEl.textContent = ''; loadMonth(cal, slotsEl, opts); } }, '›'));
 		cal.appendChild(nav);
 
 		var table = h('table', { class: 'sb-cal-grid', role: 'grid' });
@@ -326,7 +373,8 @@
 		table.appendChild(tbody);
 		cal.appendChild(table);
 		var free = Object.keys(state.days).filter(function (k) { return state.days[k] > 0; }).length;
-		if (!free) cal.appendChild(h('p', { class: 'sb-muted' }, 'Selles kuus vabu aegu pole. Vaata järgmist kuud.'));
+		if (!free) cal.appendChild(h('p', { class: 'sb-muted' }, canShift(1) ? 'Selles kuus vabu aegu pole. Vaata järgmist kuud.' : 'Selles kuus vabu aegu pole.'));
+		if (openMonths() && !canShift(1)) cal.appendChild(laterNote());
 	}
 
 	function loadSlots(slotsEl, opts) {

@@ -159,3 +159,10 @@
 	.sb-picker:not(.is-single) .sb-group.is-open .sb-chevron { transform: none; }
 }
 @media (prefers-reduced-motion: reduce) { .sb-chevron { transition: none; } }
+
+/* Teade: töögraafik koostamisel */
+.sb-note { margin: 1rem 0; padding: .9rem 1rem; background: var(--sb-soft); border-left: 4px solid var(--sb-accent); border-radius: var(--sb-radius); }
+.sb-note p { margin: 0 0 .4rem; }
+.sb-note p:last-child { margin-bottom: 0; }
+.sb-note a { color: var(--sb-accent); font-weight: 600; }
+.sb-btn-icon:disabled { opacity: .35; cursor: not-allowed; }

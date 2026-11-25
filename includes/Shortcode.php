@@ -34,10 +34,21 @@ final class Shortcode {
 			'consents'    => $set['consent_texts'],
 			'phone'       => $set['salon_phone'],
 			'bookUrl'     => Settings::booking_url(),
+			'email'       => is_email( (string) $set['from_email'] ) ? (string) $set['from_email'] : '',
+			// Kuud, mille töögraafik on koostatud. null = piirangut pole (kehtib nädalapõhi).
+			'months'      => empty( $set['require_month'] ) ? null : self::open_months(),
 		);
 		return '<div class="sb-app" data-sb-config="' . esc_attr( wp_json_encode( $config ) ) . '">'
 			. '<noscript>' . esc_html__( 'Broneerimiseks luba brauseris JavaScript või helista meile.', 'sasipea-broneering' ) . '</noscript>'
 			. '<p class="sb-loading">' . esc_html__( 'Laen…', 'sasipea-broneering' ) . '</p></div>';
+	}
+
+	/** Koostatud töögraafikuga kuud alates jooksvast kuust, kasvavas järjekorras. */
+	public static function open_months(): array {
+		$now = wp_date( 'Y-m', null, Settings::tz() );
+		$out = array_values( array_filter( Repo::months(), static fn( $m ) => preg_match( '/^\d{4}-\d{2}$/', $m ) && $m >= $now ) );
+		sort( $out );
+		return $out;
 	}
 
 	public static function render_staff(): string {

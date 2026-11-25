@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Sasipea Broneering
  * Description:       Sasipea Akadeemia online-broneerimine ja päevaplaan (asendab Saloninfrat).
- * Version:           0.9.2
+ * Version:           0.9.3
  * Requires at least: 6.2
  * Requires PHP:      8.1
  * Author:            Sasipea Akadeemia
@@ -13,8 +13,8 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'SB_VERSION', '0.9.2' );
-define( 'SB_DB_VERSION', '8' );
+define( 'SB_VERSION', '0.9.3' );
+define( 'SB_DB_VERSION', '9' );
 define( 'SB_FILE', __FILE__ );
 define( 'SB_DIR', plugin_dir_path( __FILE__ ) );
 define( 'SB_URL', plugin_dir_url( __FILE__ ) );
