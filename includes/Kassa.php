@@ -360,7 +360,7 @@ final class Kassa {
 		if ( '' !== (string) $t['client_name'] ) {
 			$meta[] = __( 'Klient', 'sasipea-broneering' ) . ': ' . $t['client_name'];
 		}
-		$meta[] = ( $b ? __( 'Praktikant', 'sasipea-broneering' ) : __( 'Müüja', 'sasipea-broneering' ) ) . ': ' . ( $staff['name'] ?? '' );
+		$meta[] = ( $b ? ( $open ? __( 'Praktikant', 'sasipea-broneering' ) : __( 'Juuksuriõpilane', 'sasipea-broneering' ) ) : __( 'Müüja', 'sasipea-broneering' ) ) . ': ' . ( $staff['name'] ?? '' );
 		if ( $when ) {
 			$meta[] = __( 'Aeg', 'sasipea-broneering' ) . ': ' . $when->format( 'd.m.Y H:i' );
 		}

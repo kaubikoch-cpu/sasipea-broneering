@@ -22,11 +22,11 @@ final class Mailer {
 	public static function default_templates(): array {
 		return array(
 			'client_confirm_subject'  => 'Broneering kinnitatud: {teenus}, {kuupaev} kell {kell}',
-			'client_confirm_body'     => "Tere, {eesnimi}!\n\nSinu aeg Sasipea Akadeemias on broneeritud.\n\n<strong>{teenus}</strong>\n{kuupaev} kell {kell}\nPraktikant: {praktikant}\nHind: {hind}{materjal}\n\nTööd teevad juuksuriõpilased juhendaja käe all.\n\n{halda_link}\n\nKohtumiseni!",
+			'client_confirm_body'     => "Tere, {eesnimi}!\n\nSinu aeg Sasipea Akadeemias on broneeritud.\n\n<strong>{teenus}</strong>\n{kuupaev} kell {kell}\nJuuksuriõpilane: {praktikant}\nHind: {hind}{materjal}\n\nTööd teevad juuksuriõpilased juhendaja käe all.\n\n{halda_link}\n\nKohtumiseni!",
 			'client_reminder_subject' => 'Meeldetuletus: homme kell {kell} Sasipea Akadeemias',
-			'client_reminder_body'    => "Tere, {eesnimi}!\n\nTuletame meelde, et sinu aeg on {kuupaev} kell {kell}.\n\n<strong>{teenus}</strong>\nPraktikant: {praktikant}\n\nKui sa ei saa tulla, palun anna meile teada.\n\n{halda_link}",
+			'client_reminder_body'    => "Tere, {eesnimi}!\n\nTuletame meelde, et sinu aeg on {kuupaev} kell {kell}.\n\n<strong>{teenus}</strong>\nJuuksuriõpilane: {praktikant}\n\nKui sa ei saa tulla, palun anna meile teada.\n\n{halda_link}",
 			'client_moved_subject'    => 'Broneeringu aeg muudetud: {kuupaev} kell {kell}',
-			'client_moved_body'       => "Tere, {eesnimi}!\n\nSinu broneeringu uus aeg on {kuupaev} kell {kell}.\n\n<strong>{teenus}</strong>\nPraktikant: {praktikant}\n\n{halda_link}",
+			'client_moved_body'       => "Tere, {eesnimi}!\n\nSinu broneeringu uus aeg on {kuupaev} kell {kell}.\n\n<strong>{teenus}</strong>\nJuuksuriõpilane: {praktikant}\n\n{halda_link}",
 			'client_cancel_subject'   => 'Broneering tühistatud: {teenus}, {kuupaev}',
 			'client_cancel_body'      => "Tere, {eesnimi}!\n\nSinu broneering ({teenus}, {kuupaev} kell {kell}) on tühistatud.\n\nUue aja saad broneerida meie kodulehel.",
 			'admin_new_subject'       => 'Uus broneering: {nimi}, {kuupaev} {kell}',

@@ -71,7 +71,7 @@ final class Settings {
 				'models'  => 'Lisa mind modellide andmebaasi.',
 				'social'  => 'Luban oma soengu pilte kasutada sotsiaalmeedias.',
 			),
-			'confirmation_note'   => 'Tööd teevad praktikandid juhendaja käe all, seetõttu võib teenus võtta veidi kauem aega. Värvimisel ja triibutamisel lisandub hinnale materjal (blondeerimispulber 0,20 €/g, värv 0,30 €/g).',
+			'confirmation_note'   => 'Tööd teevad juuksuriõpilased juhendaja käe all, seetõttu võib teenus võtta veidi kauem aega. Värvimisel ja triibutamisel lisandub hinnale materjal (blondeerimispulber 0,20 €/g, värv 0,30 €/g).',
 			'templates'           => Mailer::default_templates(),
 		);
 	}

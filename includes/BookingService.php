@@ -57,7 +57,7 @@ final class BookingService {
 		$date = self::local_date( $start );
 		if ( $staff_id ) {
 			if ( ! $admin && array_diff( Repo::ids_of( $service ), Repo::staff_service_ids( $staff_id ) ) ) {
-				return new \WP_Error( 'sb_staff', __( 'See praktikant seda teenust ei tee.', 'sasipea-broneering' ), array( 'status' => 400 ) );
+				return new \WP_Error( 'sb_staff', __( 'See juuksuriõpilane seda teenust ei tee.', 'sasipea-broneering' ), array( 'status' => 400 ) );
 			}
 			$ids = array( $staff_id );
 		} else {

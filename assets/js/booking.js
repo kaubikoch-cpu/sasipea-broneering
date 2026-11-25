@@ -152,7 +152,7 @@
 		// Kestus ja hind sõltuvad valitud praktikandist (tase: soodustus ja lisaaeg).
 		var terms = (state.staff && step > 2 && state.staff.duration_label) ? state.staff : state.service;
 		if (state.service && step > 1) rows.push(['Teenus', state.service.name + ' · ' + terms.duration_label + ' · ' + terms.price_label + (state.service.material_extra ? ' + materjal' : ''), 1]);
-		if (state.staff && step > 2) rows.push(['Praktikant', state.staff.name, 2]);
+		if (state.staff && step > 2) rows.push(['Juuksuriõpilane', state.staff.name, 2]);
 		if (state.slot && step > 3) rows.push(['Aeg', dateLabel(state.date) + ' kell ' + state.slot.time, 3]);
 		if (!rows.length) return;
 		summaryEl.appendChild(h('dl', null, rows.map(function (r) {
@@ -334,7 +334,7 @@
 	function stepStaff() {
 		renderSummary(2);
 		main.textContent = '';
-		main.appendChild(stepHeader(2, 'Vali praktikant'));
+		main.appendChild(stepHeader(2, 'Vali juuksuriõpilane'));
 		var list = h('ul', { class: 'sb-options sb-staff' });
 		main.appendChild(list);
 		var anyStaff = { id: 0, name: 'Ükskõik kes' };
@@ -351,8 +351,8 @@
 				list.textContent = '';
 				main.appendChild(h('div', { class: 'sb-note' },
 					h('p', null, String(state.service.id).indexOf(',') !== -1
-						? 'Kahjuks ei ole hetkel praktikanti, kes teeks kõiki valitud teenuseid korraga. Palun broneeri need teenused eraldi või muuda valikut.'
-						: 'Kahjuks ei ole selle teenuse jaoks hetkel praktikanti.'),
+						? 'Kahjuks ei ole hetkel juuksuriõpilast, kes teeks kõiki valitud teenuseid korraga. Palun broneeri need teenused eraldi või muuda valikut.'
+						: 'Kahjuks ei ole selle teenuse jaoks hetkel juuksuriõpilast.'),
 					h('button', { type: 'button', class: 'sb-btn', onclick: function () { goto(1); } }, 'Muuda teenuseid')));
 				return;
 			}
@@ -616,7 +616,7 @@
 			h('dl', { class: 'sb-confirm-list' },
 				h('div', null, h('dt', null, 'Teenus'), h('dd', null, b.service)),
 				h('div', null, h('dt', null, 'Aeg'), h('dd', null, b.date_label + ' kell ' + b.time + (b.end_time ? '–' + b.end_time : ''))),
-				h('div', null, h('dt', null, 'Praktikant'), h('dd', null, b.staff)),
+				h('div', null, h('dt', null, 'Juuksuriõpilane'), h('dd', null, b.staff)),
 				h('div', null, h('dt', null, 'Hind'), h('dd', null, b.price + (b.material_extra ? ' + materjal' : ''))),
 				h('div', null, h('dt', null, 'Aadress'), h('dd', null, 'Sasipea Akadeemia, ' + b.address)),
 				cancelled ? h('div', null, h('dt', null, 'Staatus'), h('dd', null, b.status_label)) : null),
