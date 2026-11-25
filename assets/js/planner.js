@@ -554,7 +554,7 @@
 		form.appendChild(row('Kommentaar', h('textarea', { name: 'comment', id: 'sb-f-cm', rows: 2 }, b ? b.comment : ''), 'sb-f-cm'));
 		var notify = h('input', { type: 'checkbox', name: 'notify', id: 'sb-f-nt', checked: true });
 		if (isNew || b.email) {
-			form.appendChild(h('p', { class: 'sb-p-notify' }, h('label', { for: 'sb-f-nt' }, notify, ' ', isNew ? 'Saada kliendile kinnitus e-kirjaga' : 'Teavita klienti e-kirjaga, kui aeg muutub')));
+			form.appendChild(h('p', { class: 'sb-p-notify' }, h('label', { for: 'sb-f-nt' }, notify, ' ', isNew ? 'Saada kliendile kinnitus e-kirjaga' : 'Teavita klienti e-kirjaga, kui aeg muutub (kiri läheb 10 minuti pärast, vahepeal saad veel parandada)')));
 		}
 		var err = h('div', { class: 'sb-p-err', role: 'alert' });
 		form.appendChild(err);
