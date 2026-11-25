@@ -146,7 +146,7 @@
 	}
 
 	function renderSummary(step) {
-		root.classList.toggle('sb-wide', step === 1); // teenuse valik kasutab laia ekraani kahe veeru jaoks
+		root.classList.toggle('sb-wide', step === 1 || step === 3); // teenuse ja aja valik kasutavad laia ekraani kahe veeru jaoks
 		summaryEl.textContent = '';
 		var rows = [];
 		// Kestus ja hind sõltuvad valitud juuksuriõpilasest (tase: soodustus ja lisaaeg).
@@ -392,8 +392,10 @@
 		if (om && om.indexOf(state.month) === -1) state.month = om[0];
 		var cal = h('div', { class: 'sb-cal' });
 		var slotsEl = h('div', { class: 'sb-slots' });
-		main.appendChild(cal);
-		main.appendChild(slotsEl);
+		// Laial ekraanil kalender vasakul ja vabad ajad paremal; kitsal üksteise all.
+		opts.nextEl = h('div', { class: 'sb-next' });
+		opts.nextDone = false;
+		main.appendChild(h('div', { class: 'sb-when' }, cal, h('div', { class: 'sb-when-side' }, opts.nextEl, slotsEl)));
 		loadMonth(cal, slotsEl, opts);
 		focusHeading(main);
 	}
@@ -413,8 +415,27 @@
 				shiftMonth(1); loadMonth(cal, slotsEl, opts);
 				return;
 			}
+			if (any) showNext(days, slotsEl, opts);
 			if (state.date && days[state.date] > 0) loadSlots(slotsEl, opts);
+			else if (any) { slotsEl.textContent = ''; slotsEl.appendChild(h('p', { class: 'sb-muted sb-slots-hint' }, 'Vali kalendrist päev ja näed selle päeva vabu aegu.')); }
 		}).catch(function (e) { cal.textContent = ''; cal.appendChild(errorBox(e.message)); });
+	}
+
+	// "Järgmine vaba aeg": kõige varasem vaba aeg kiirvalikuna. Otsitakse üks kord, esimesest pakutavast kuust.
+	function showNext(days, slotsEl, opts) {
+		if (opts.nextDone || !opts.nextEl || (canShift(-1) && !opts.triedNext)) return;
+		opts.nextDone = true;
+		var first = Object.keys(days).filter(function (k) { return days[k] > 0; }).sort()[0];
+		var box = opts.nextEl;
+		api('availability/slots?service=' + state.service.id + staffParam() + '&date=' + first + (opts.exclude ? '&exclude=' + opts.exclude : '')).then(function (slots) {
+			if (!slots.length || !box.isConnected) return;
+			var s = slots[0];
+			box.appendChild(h('p', { class: 'sb-next-label' }, 'Järgmine vaba aeg:'));
+			box.appendChild(h('button', {
+				type: 'button', class: 'sb-next-btn',
+				onclick: function () { state.date = first; state.slot = s; (opts.onPick || stepContact)(s); }
+			}, h('span', null, dateLabel(first) + ' kell ' + s.time), h('span', { class: 'sb-next-go', 'aria-hidden': 'true' }, 'Vali ›')));
+		}).catch(function () {});
 	}
 
 	// Koostatud töögraafikuga kuude piires liigutakse ainult nende vahel (vahele jäänud kuu jäetakse vahele).
