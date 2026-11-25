@@ -290,9 +290,55 @@ final class Repo {
 			}
 			return $out;
 		}
+		// Salongi suletud päeval nädalapõhi ei kehti; tööle saab ainult eraldi märgitud tundidega.
+		if ( ! Settings::opening_for( $date ) ) {
+			return array();
+		}
 		$wd   = (int) ( new \DateTimeImmutable( $date, Settings::tz() ) )->format( 'N' );
 		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT start_min, end_min FROM ' . self::t( 'schedules' ) . ' WHERE staff_id = %d AND weekday = %d ORDER BY start_min', $staff_id, $wd ), ARRAY_A );
 		return array_map( fn( $r ) => array( (int) $r['start_min'], (int) $r['end_min'] ), $rows );
+	}
+
+	/** Töögraafikus sellele päevale eraldi märgitud tunnid (ilma nädalapõhjata). Vaba päev või märkimata = tühi. */
+	public static function explicit_ranges( int $staff_id, string $date ): array {
+		global $wpdb;
+		$out = array();
+		foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'schedule_exceptions' ) . ' WHERE staff_id = %d AND day = %s', $staff_id, $date ), ARRAY_A ) as $r ) {
+			if ( (int) $r['is_off'] ) {
+				return array();
+			}
+			$out[] = array( (int) $r['start_min'], (int) $r['end_min'] );
+		}
+		return $out;
+	}
+
+	/**
+	 * Päeva tegelik lahtiolekuaeg: seadete lahtiolekuaeg pluss tunnid, mis mõnele aktiivsele
+	 * juuksuriõpilasele on töögraafikus just sellele päevale märgitud. Nii saab salongi avada
+	 * ka muidu suletud päeval (nt esmaspäeval) või tavapärasest varem ja kauem.
+	 */
+	public static function opening_for( string $date ): array {
+		global $wpdb;
+		$ranges = Settings::opening_for( $date );
+		$rows   = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT e.staff_id, e.start_min, e.end_min, e.is_off FROM ' . self::t( 'schedule_exceptions' ) . ' e INNER JOIN ' . self::t( 'staff' ) . ' s ON s.id = e.staff_id WHERE e.day = %s AND s.active = 1', // phpcs:ignore WordPress.DB.PreparedSQL
+				$date
+			),
+			ARRAY_A
+		);
+		$off = array();
+		foreach ( $rows as $r ) {
+			if ( (int) $r['is_off'] ) {
+				$off[ (int) $r['staff_id'] ] = true;
+			}
+		}
+		foreach ( $rows as $r ) {
+			if ( ! isset( $off[ (int) $r['staff_id'] ] ) ) {
+				$ranges[] = array( (int) $r['start_min'], (int) $r['end_min'] );
+			}
+		}
+		return Availability::merge_ranges( $ranges );
 	}
 
 	public static function schedule( int $staff_id ): array {
@@ -394,7 +440,7 @@ final class Repo {
 			'now'            => time(),
 			'min_notice'     => $admin ? null : (int) $set['min_notice_hours'] * 60,
 			'max_days'       => $admin ? null : (int) $set['max_days_ahead'],
-			'opening'        => Settings::opening_for( $date ),
+			'opening'        => self::opening_for( $date ),
 			'staff'          => $staff,
 			'salon_blocks'   => $salon_blocks,
 			'salon_bookings' => $salon_bookings,

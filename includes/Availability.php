@@ -111,6 +111,28 @@ final class Availability {
 		return true;
 	}
 
+	/**
+	 * Liidab vahemikud üheks järjestatud loendiks; kattuvad ja külgnevad vahemikud sulavad kokku.
+	 * Nii saab lahtiolekuajale liita töögraafikus eraldi märgitud tunnid.
+	 *
+	 * @param list<array{0:int,1:int}> $ranges
+	 * @return list<array{0:int,1:int}>
+	 */
+	public static function merge_ranges( array $ranges ): array {
+		$ranges = array_values( array_filter( $ranges, fn( $r ) => (int) $r[1] > (int) $r[0] ) );
+		usort( $ranges, fn( $a, $b ) => $a[0] <=> $b[0] );
+		$out = array();
+		foreach ( $ranges as $r ) {
+			$n = count( $out );
+			if ( $n && (int) $r[0] <= $out[ $n - 1 ][1] ) {
+				$out[ $n - 1 ][1] = max( $out[ $n - 1 ][1], (int) $r[1] );
+			} else {
+				$out[] = array( (int) $r[0], (int) $r[1] );
+			}
+		}
+		return $out;
+	}
+
 	/** Kohalik minut antud päeval -> ajatempel. */
 	public static function ts( array $p, int $min ): int {
 		$d = new \DateTimeImmutable( $p['date'] . ' 00:00:00', $p['tz'] );

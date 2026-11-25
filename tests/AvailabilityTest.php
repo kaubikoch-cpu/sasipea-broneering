@@ -55,6 +55,30 @@ final class AvailabilityTest extends TestCase {
 		$this->assertSame( array(), Availability::slots( $this->base( array( 'opening' => array() ) ) ) );
 	}
 
+	public function test_merge_ranges_joins_overlapping_and_adjacent(): void {
+		$this->assertSame( array( array( 600, 1140 ) ), Availability::merge_ranges( array( array( 720, 1140 ), array( 600, 720 ) ) ) );
+		$this->assertSame( array( array( 600, 780 ), array( 810, 960 ) ), Availability::merge_ranges( array( array( 810, 960 ), array( 600, 780 ), array( 630, 700 ) ) ) );
+		$this->assertSame( array(), Availability::merge_ranges( array() ) );
+	}
+
+	/** Suletud päev (lahtiolekuaeg tühi), aga õpilasele on graafikus märgitud 10–14: need ajad on broneeritavad. */
+	public function test_scheduled_hours_open_a_closed_day(): void {
+		$work = array( array( 600, 840 ) );
+		$p    = $this->base( array( 'opening' => Availability::merge_ranges( array_merge( array(), $work ) ) ) );
+		$p['staff'][1]['work'] = $work;
+		$t = $this->times( $p );
+		$this->assertSame( '10:00', $t[0] );
+		$this->assertSame( '12:30', end( $t ) ); // 12:30 + 1h30 = 14:00
+	}
+
+	/** Avatud 12–19, õpilasele märgitud 10–19: ka lahtiolekuajast varasemad ajad on broneeritavad. */
+	public function test_scheduled_hours_extend_opening(): void {
+		$work = array( array( 600, 1140 ) );
+		$p    = $this->base( array( 'opening' => Availability::merge_ranges( array_merge( array( array( 720, 1140 ) ), $work ) ) ) );
+		$p['staff'][1]['work'] = $work;
+		$this->assertSame( '10:00', $this->times( $p )[0] );
+	}
+
 	public function test_staff_hours_narrower_than_opening(): void {
 		$p = $this->base();
 		$p['staff'][1]['work'] = array( array( 780, 960 ) ); // 13–16

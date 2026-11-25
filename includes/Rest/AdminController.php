@@ -194,7 +194,7 @@ final class AdminController {
 			$out['days'][] = array(
 				'date'     => $d,
 				'label'    => Format::date_long( new \DateTimeImmutable( $d, Settings::tz() ) ),
-				'opening'  => Settings::opening_for( $d ),
+				'opening'  => Repo::opening_for( $d ),
 				'work'     => $work,
 				'bookings' => $bookings,
 				'blocks'   => $blocks,

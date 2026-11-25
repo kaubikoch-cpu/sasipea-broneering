@@ -1,6 +1,6 @@
 # Sasipea Broneering
 
-Sasipea Akadeemia online-broneerimine ja päevaplaan WordPressi pluginana. Versioon 0.14.2 (1. etapp + kuu töögraafik, tasemed, tasude arvestus, veebipoe ladu, käibemaksu aruanne, oma töölaud /salong/ sidumine modellide andmebaasiga ja kassa).
+Sasipea Akadeemia online-broneerimine ja päevaplaan WordPressi pluginana. Versioon 0.14.3 (1. etapp + kuu töögraafik, tasemed, tasude arvestus, veebipoe ladu, käibemaksu aruanne, oma töölaud /salong/ sidumine modellide andmebaasiga ja kassa).
 
 **NB! Paigalda esmalt staging-keskkonda, mitte päris lehele.**
 
@@ -80,6 +80,7 @@ Kassa on juhendajale ja omanikule (õigus `sb_manage_bookings`), töölaual men�
 - **Sisselogimine Google'i kontoga** (Seaded → Sisselogimine Google'i kontoga): Google Cloud Console'is tuleb luua OAuth klient (Web application) ja lisada seadetes näidatud tagasisuunamise aadress. Sisse saab ainult see, kelle Google'i kinnitatud e-post on sama mis olemasoleva töölaua konto e-post; uusi kontosid Google'i kaudu ei teki. Administraatori konto Google'iga sisse ei saa, kui seda eraldi ei lubata.
 - Töögraafikus avab kuupäeval klikkimine selle päeva päevaplaani.
 - Alates 0.14.2 on töögraafiku tabelis kuupäevad veergudes ja juuksuriõpilased ridades, et palju õpilasi mahuks korraga ekraanile. Tabel kerib vasakult paremale, nimede veerg ja kuupäevade rida jäävad paigale, käesolev kuu avaneb tänase päeva juurest. Kellaaja lahter läheb klõpsamisel laiemaks; punane number lahtri nurgas on selle päeva broneeringute arv.
+- Alates 0.14.3 saab töögraafikus panna tunde ka päevale, mil salong on lahtiolekuaegade järgi suletud (hall veerg), ja tavalisel päeval lahtiolekuajast varasemaks või hilisemaks. Töögraafikus eraldi märgitud tunnid liidetakse selle päeva lahtiolekuajale, nii et need ajad on näha päevaplaanis ja kliendid saavad neid broneerida. Suletud päeval nädalapõhi ei kehti ja "kõik päevad" linnuke suletud päevi ei märgi.
 
 ## Päris cron jagatud majutusel
 
