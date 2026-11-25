@@ -1,6 +1,6 @@
 # Sasipea Broneering
 
-Sasipea Akadeemia online-broneerimine ja päevaplaan WordPressi pluginana. Versioon 0.16.0 (1. etapp + kuu töögraafik, tasemed, tasude arvestus, veebipoe ladu, käibemaksu aruanne, oma töölaud /salong/ sidumine modellide andmebaasiga ja kassa).
+Sasipea Akadeemia online-broneerimine ja päevaplaan WordPressi pluginana. Versioon 0.16.1 (1. etapp + kuu töögraafik, tasemed, tasude arvestus, veebipoe ladu, käibemaksu aruanne, oma töölaud /salong/ sidumine modellide andmebaasiga ja kassa).
 
 **NB! Paigalda esmalt staging-keskkonda, mitte päris lehele.**
 
@@ -87,6 +87,7 @@ Kassa on juhendajale ja omanikule (õigus `sb_manage_bookings`), töölaual men�
 - Alates 0.15.0 avab päevaplaanis juuksuriõpilase nimel klõps tema nädalavaate (tööaeg ja broneeringud päevade kaupa); nooltega saab liikuda nädalate kaupa, kuupäeval klõps viib päevaplaani.
 - Alates 0.15.1 on päevaplaan värvilisem: igal juuksuriõpilasel on oma värv ja nimetähtedega ring, broneeringu kaart on õpilase värvi. Staatus jääb selgelt eristuvaks: kohal on roheline, ei tulnud punane, tühistatud hall. Tänasel päeval näitab punane joon praegust kellaaega.
 - Alates 0.16.0 valib juuksuriõpilane oma värvi ise: päevaplaanis klõps oma nimetähtedega ringil (omanik ja admin saavad muuta kõigi värve, ka töötaja vormis). Broneeringu kaardi värv näitab staatust (Broneeritud sinine, Kohal roheline, Ei tulnud punane, Tühistatud hall), arvega broneering on matt hall; kaardi vasak triip on õpilase värvi. Ajatabelis on täistunnid rasvaselt ja 15, 30, 45 eraldi kirjas. Uue broneeringu aja saab valida hiirega tühjal kohal lohistades. Arve tegemisel liigub broneeringu lõpp arve kellaajale (varem tehtud arve lühendab, hiljem tehtud pikendab, ümardatud 5 minutile); kui arve tehakse rohkem kui tund pärast planeeritud lõppu, jääb aeg samaks. Andmebaasi versioon 14 lisab töötajale veeru `color`.
+- Alates 0.16.1 saadetakse vähem e-kirju. Salongi teavituskiri läheb ainult siis, kui klient ise broneerib, muudab või tühistab (töötaja enda tehtud muudatuste kohta salongile kirja ei tule). Töötaja tehtud muudatuse korral saab klient kirja ainult uue broneeringu, algusaja muutumise või tühistamise kohta, ainult tulevase aja puhul ja ainult siis, kui broneeringu aknas on linnuke "teavita klienti" sees. Staatus, arve, teine juuksuriõpilane, teenus ja kommentaar kirja ei saada.
 
 ## Päris cron jagatud majutusel
 

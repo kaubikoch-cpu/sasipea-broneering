@@ -162,3 +162,6 @@
 .sb-p-swatch { width: 28px; height: 28px; min-height: 0; padding: 0; border: 2px solid #fff; border-radius: 50%; cursor: pointer; box-shadow: 0 0 0 1px #cfc9d2; }
 .sb-p-swatch:hover, .sb-p-swatch:focus-visible { transform: scale(1.12); outline: none; box-shadow: 0 0 0 2px #241a26; }
 .sb-p-swatch.is-on { box-shadow: 0 0 0 3px #241a26; }
+
+.sb-p-notify label { display: inline-flex; align-items: center; gap: 8px; font-weight: 500; cursor: pointer; }
+.sb-p-notify input { width: 18px; height: 18px; margin: 0; }

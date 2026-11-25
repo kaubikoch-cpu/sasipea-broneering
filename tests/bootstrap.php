@@ -18,6 +18,7 @@ require dirname( __DIR__ ) . '/includes/Settings.php';
 require dirname( __DIR__ ) . '/includes/Kassa.php';
 require dirname( __DIR__ ) . '/includes/Repo.php';
 require dirname( __DIR__ ) . '/includes/Roles.php';
+require dirname( __DIR__ ) . '/includes/Mailer.php';
 require dirname( __DIR__ ) . '/includes/Users.php';
 require dirname( __DIR__ ) . '/includes/Dashboard.php';
 $autoload = dirname( __DIR__ ) . '/vendor/autoload.php';

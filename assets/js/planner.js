@@ -552,7 +552,10 @@
 				row('E-post', h('input', { name: 'email', id: 'sb-f-em', type: 'email' }), 'sb-f-em')));
 		}
 		form.appendChild(row('Kommentaar', h('textarea', { name: 'comment', id: 'sb-f-cm', rows: 2 }, b ? b.comment : ''), 'sb-f-cm'));
-		if (isNew) form.appendChild(h('p', { class: 'description' }, 'Kui kliendil on e-post, saadetakse talle kinnitus.'));
+		var notify = h('input', { type: 'checkbox', name: 'notify', id: 'sb-f-nt', checked: true });
+		if (isNew || b.email) {
+			form.appendChild(h('p', { class: 'sb-p-notify' }, h('label', { for: 'sb-f-nt' }, notify, ' ', isNew ? 'Saada kliendile kinnitus e-kirjaga' : 'Teavita klienti e-kirjaga, kui aeg muutub')));
+		}
 		var err = h('div', { class: 'sb-p-err', role: 'alert' });
 		form.appendChild(err);
 		form.appendChild(h('p', null, h('button', { type: 'submit', class: 'button button-primary' }, isNew ? 'Loo broneering' : 'Salvesta muudatused')));
@@ -561,7 +564,7 @@
 			ev.preventDefault();
 			err.textContent = '';
 			var f = form.elements;
-			var data = { service_id: +f.service_id.value, staff_id: +f.staff_id.value, date: f.date.value, time: f.time.value, comment: f.comment.value };
+			var data = { service_id: +f.service_id.value, staff_id: +f.staff_id.value, date: f.date.value, time: f.time.value, comment: f.comment.value, notify: notify.checked };
 			if (isNew) { data.first_name = f.first_name.value; data.last_name = f.last_name.value; data.phone = f.phone.value; data.email = f.email.value; }
 			var btn = form.querySelector('[type=submit]'); btn.disabled = true;
 			api(isNew ? 'admin/bookings' : 'admin/bookings/' + b.id, isNew ? 'POST' : 'PATCH', data)
@@ -584,18 +587,20 @@
 					h('dt', null, 'Allikas'), h('dd', null, b.source === 'online' ? 'online' : 'admin')));
 			var dlg;
 			if (C.canManage) {
+				var cancelNote = h('input', { type: 'checkbox', checked: true });
 				var statusRow = h('div', { class: 'sb-p-status', role: 'group', 'aria-label': 'Muuda staatust' });
 				[['booked', 'Broneeritud'], ['arrived', 'Kohal'], ['no_show', 'Ei tulnud'], ['cancelled_client', 'Tühistas klient'], ['cancelled_salon', 'Tühistas salong']].forEach(function (s) {
 					statusRow.appendChild(h('button', {
 						type: 'button', class: 'button' + (b.status === s[0] ? ' button-primary' : ''), 'aria-pressed': b.status === s[0] ? 'true' : 'false',
 						onclick: function () {
-							api('admin/bookings/' + b.id, 'PATCH', { status: s[0] }).then(function () { dlg.close(); toast('Staatus: ' + s[1]); load(); }).catch(function (e) { toast(e.message, true); });
+							api('admin/bookings/' + b.id, 'PATCH', { status: s[0], notify: cancelNote.checked }).then(function () { dlg.close(); toast('Staatus: ' + s[1]); load(); }).catch(function (e) { toast(e.message, true); });
 						}
 					}, s[1]));
 				});
 				if (C.kassaUrl && ['booked', 'arrived'].indexOf(b.status) !== -1) content.appendChild(h('p', null, h('a', { class: 'button button-primary sb-p-kassa', href: C.kassaUrl + b.id }, 'Kassasse')));
 				content.appendChild(h('h3', null, 'Staatus'));
 				content.appendChild(statusRow);
+				if (b.email && b.status.indexOf('cancelled') !== 0) content.appendChild(h('p', { class: 'sb-p-notify' }, h('label', null, cancelNote, ' Tühistamisel teavita klienti e-kirjaga')));
 				content.appendChild(h('p', null, h('button', { type: 'button', class: 'button', onclick: function () { dlg.close(); bookingDialog(b, {}); } }, 'Muuda aega, juuksuriõpilast või teenust')));
 				content.appendChild(salesBox(b));
 				if (b.history && b.history.length > 1) {

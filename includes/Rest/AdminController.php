@@ -305,12 +305,19 @@ final class AdminController {
 				'comment'    => sanitize_textarea_field( (string) $req->get_param( 'comment' ) ),
 				'consents'   => array(),
 				'source'     => 'admin',
+				'notify'     => self::wants_notify( $req ),
 			)
 		);
 		if ( is_wp_error( $res ) ) {
 			return $res;
 		}
 		return self::booking_out( $res['booking'] );
+	}
+
+	/** Töötaja saab kliendi e-kirja ära jätta (linnuke broneeringu aknas); vaikimisi saadetakse. */
+	private static function wants_notify( \WP_REST_Request $req ): bool {
+		$v = $req->get_param( 'notify' );
+		return null === $v || filter_var( $v, FILTER_VALIDATE_BOOLEAN );
 	}
 
 	public static function update( \WP_REST_Request $req ) {
@@ -330,6 +337,7 @@ final class AdminController {
 		if ( null !== $req->get_param( 'comment' ) ) {
 			$ch['comment'] = sanitize_textarea_field( (string) $req->get_param( 'comment' ) );
 		}
+		$ch['notify'] = self::wants_notify( $req );
 		$res = BookingService::update( (int) $req['id'], $ch, true );
 		if ( is_wp_error( $res ) ) {
 			return $res;
