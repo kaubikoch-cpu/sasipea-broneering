@@ -138,6 +138,40 @@ final class Kassa {
 	}
 
 	/** Broneeringu arve; kui seda pole, luuakse avatud arve. */
+	/**
+	 * Broneeringud, mille arve on makstud (päevaplaanis näidatakse neid matimalt).
+	 *
+	 * @param list<int> $booking_ids
+	 * @return list<int>
+	 */
+	public static function paid_booking_ids( array $booking_ids ): array {
+		global $wpdb;
+		$ids = array_values( array_unique( array_filter( array_map( 'intval', $booking_ids ) ) ) );
+		if ( ! $ids ) {
+			return array();
+		}
+		$in = implode( ',', $ids );
+		return array_map( 'intval', $wpdb->get_col( 'SELECT DISTINCT booking_id FROM ' . self::t( 'payments' ) . " WHERE status = 'paid' AND booking_id IN ($in)" ) ); // phpcs:ignore WordPress.DB.PreparedSQL -- ainult täisarvud.
+	}
+
+	/**
+	 * Broneeringu uus lõpp pärast arve maksmist: teenus loetakse lõppenuks arve tegemise ajal.
+	 * Varem makstud arve lühendab aega, hiljem makstud pikendab. Puhas funktsioon (testitav).
+	 * Aeg ei muutu, kui arve tehti enne teenuse algust või rohkem kui 1 tund pärast planeeritud lõppu
+	 * (siis lihtsalt ei jõutud arvet varem teha).
+	 *
+	 * @param int $start broneeringu algus (ajatempel)
+	 * @param int $end   broneeringu planeeritud lõpp (ajatempel)
+	 * @param int $paid  arve maksmise aeg (ajatempel)
+	 */
+	public static function end_after_payment( int $start, int $end, int $paid ): int {
+		if ( $paid <= $start || $paid > $end + 3600 ) {
+			return $end;
+		}
+		$rounded = (int) ( ceil( $paid / 300 ) * 300 ); // ümardus üles 5 minuti peale
+		return max( $start + 15 * 60, $rounded );
+	}
+
 	public static function ticket_for_booking( int $booking_id ): ?array {
 		global $wpdb;
 		$b = Repo::booking( $booking_id );
@@ -652,6 +686,15 @@ JS;
 				BookingService::update( (int) $t['booking_id'], array( 'status' => 'arrived' ) );
 			}
 			Repo::log( (int) $t['booking_id'], 'paid', array( 'payment' => (int) $t['id'], 'method' => $method, 'total' => self::total( $service, $sales ) ) );
+			// Päevaplaanis lõpeb broneering arve tegemise ajal: varem tehtud arve lühendab, hiljem tehtud pikendab.
+			if ( $b ) {
+				$old_end = Repo::ts( $b['end_utc'] );
+				$new_end = self::end_after_payment( Repo::ts( $b['start_utc'] ), $old_end, time() );
+				if ( $new_end !== $old_end ) {
+					$wpdb->update( self::t( 'bookings' ), array( 'end_utc' => Repo::utc( $new_end ) ), array( 'id' => (int) $t['booking_id'] ) );
+					Repo::log( (int) $t['booking_id'], 'end_adjusted', array( 'from' => $b['end_utc'], 'to' => Repo::utc( $new_end ) ) );
+				}
+			}
 		}
 		$args  = array( 'arve' => (int) $t['id'] );
 		$email = sanitize_email( Admin::post( 'email' ) );

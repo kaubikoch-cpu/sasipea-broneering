@@ -18,6 +18,32 @@ final class Repo {
 		'cancelled_salon'  => 'Tühistatud (salong)',
 	);
 
+	/** Juuksuriõpilase värvid päevaplaanis: nimi => [tugev, hele taust, tume tekst]. Sama loend on planner.js-is. */
+	public const COLORS = array(
+		'#d6336c' => 'Roosa',
+		'#7048e8' => 'Lilla',
+		'#1c7ed6' => 'Sinine',
+		'#0c8599' => 'Sinakasroheline',
+		'#ae3ec9' => 'Fuksia',
+		'#e67700' => 'Oranž',
+		'#0b84c6' => 'Taevasinine',
+		'#4263eb' => 'Indigo',
+		'#e8590c' => 'Korall',
+		'#5c940d' => 'Laim',
+		'#8d6e4b' => 'Pruun',
+		'#495057' => 'Grafiit',
+	);
+
+	/** Salvestab juuksuriõpilase värvi; tühi = automaatne värv. Tundmatu värv jäetakse vahele. */
+	public static function set_staff_color( int $staff_id, string $color ): bool {
+		global $wpdb;
+		$color = strtolower( $color );
+		if ( '' !== $color && ! isset( self::COLORS[ $color ] ) ) {
+			return false;
+		}
+		return false !== $wpdb->update( self::t( 'staff' ), array( 'color' => '' === $color ? null : $color ), array( 'id' => $staff_id ) );
+	}
+
 	private static function t( string $n ): string {
 		return Install::table( $n );
 	}
@@ -98,6 +124,7 @@ final class Repo {
 			'discount_override' => isset( $r['discount_pct'] ) ? (int) $r['discount_pct'] : null,
 			'extra_override'    => isset( $r['extra_min'] ) ? (int) $r['extra_min'] : null,
 			'pay'               => Payroll::normalize( $r['pay'] ?? null ),
+			'color'             => isset( self::COLORS[ (string) ( $r['color'] ?? '' ) ] ) ? (string) $r['color'] : '',
 		);
 		// Kehtivad tingimused: tase + juuksuriõpilase enda erisused.
 		return $out + Pricing::terms( $out, (array) Settings::get()['levels'] );

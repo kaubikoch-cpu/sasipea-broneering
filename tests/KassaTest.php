@@ -101,4 +101,28 @@ final class KassaTest extends TestCase {
 		$this->assertSame( 'kaart', Kassa::method_label( array( 'method' => 'card', 'total_cents' => 2000 ) ) );
 		$this->assertSame( 'sularaha 10 €, ülekanne 30 €', Kassa::method_label( array( 'method' => 'mixed', 'total_cents' => 4000, 'cash_cents' => 1000, 'transfer_cents' => 3000 ) ) );
 	}
+
+	public function test_arve_varem_luhendab_broneeringut(): void {
+		$start = strtotime( '2026-11-25 12:00:00 UTC' );
+		$end   = strtotime( '2026-11-25 14:00:00 UTC' );
+		$this->assertSame( strtotime( '2026-11-25 13:15:00 UTC' ), Kassa::end_after_payment( $start, $end, strtotime( '2026-11-25 13:12:40 UTC' ) ) );
+	}
+
+	public function test_arve_hiljem_pikendab_broneeringut(): void {
+		$start = strtotime( '2026-11-25 12:00:00 UTC' );
+		$end   = strtotime( '2026-11-25 14:00:00 UTC' );
+		$this->assertSame( strtotime( '2026-11-25 14:40:00 UTC' ), Kassa::end_after_payment( $start, $end, strtotime( '2026-11-25 14:40:00 UTC' ) ) );
+	}
+
+	public function test_arve_enne_algust_voi_palju_hiljem_ei_muuda_aega(): void {
+		$start = strtotime( '2026-11-25 12:00:00 UTC' );
+		$end   = strtotime( '2026-11-25 14:00:00 UTC' );
+		$this->assertSame( $end, Kassa::end_after_payment( $start, $end, strtotime( '2026-11-25 11:30:00 UTC' ) ) );
+		$this->assertSame( $end, Kassa::end_after_payment( $start, $end, strtotime( '2026-11-26 10:00:00 UTC' ) ) );
+		// Rohkem kui 1 tund pärast lõppu: arvet ei jõutud varem teha, aeg jääb samaks. Täpselt 1 tund veel pikendab.
+		$this->assertSame( $end, Kassa::end_after_payment( $start, $end, strtotime( '2026-11-25 15:05:00 UTC' ) ) );
+		$this->assertSame( strtotime( '2026-11-25 15:00:00 UTC' ), Kassa::end_after_payment( $start, $end, strtotime( '2026-11-25 15:00:00 UTC' ) ) );
+		// Kohe alguses tehtud arve jätab vähemalt 15 minutit.
+		$this->assertSame( $start + 900, Kassa::end_after_payment( $start, $end, $start + 60 ) );
+	}
 }

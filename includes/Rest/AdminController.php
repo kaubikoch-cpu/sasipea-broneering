@@ -43,6 +43,16 @@ final class AdminController {
 				),
 			)
 		);
+		// Juuksuriõpilane valib ise oma värvi; juhendaja võib muuta kõigi omi.
+		register_rest_route(
+			$ns,
+			'/admin/staff/(?P<id>\d+)/color',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( self::class, 'staff_color' ),
+				'permission_callback' => array( self::class, 'can_view' ),
+			)
+		);
 		register_rest_route( $ns, '/admin/bookings', array( 'methods' => 'POST', 'callback' => array( self::class, 'create' ), 'permission_callback' => array( self::class, 'can_manage' ) ) );
 		register_rest_route(
 			$ns,
@@ -149,6 +159,18 @@ final class AdminController {
 		return $out;
 	}
 
+	public static function staff_color( \WP_REST_Request $req ) {
+		$id = (int) $req['id'];
+		if ( ! self::can_manage() && Roles::current_staff_id() !== $id ) {
+			return new \WP_Error( 'sb_forbidden', __( 'Muuta saad ainult enda värvi.', 'sasipea-broneering' ), array( 'status' => 403 ) );
+		}
+		$p = (array) $req->get_json_params();
+		if ( ! Repo::set_staff_color( $id, sanitize_text_field( (string) ( $p['color'] ?? '' ) ) ) ) {
+			return new \WP_Error( 'sb_color', __( 'Seda värvi ei saa valida.', 'sasipea-broneering' ), array( 'status' => 400 ) );
+		}
+		return array( 'ok' => true );
+	}
+
 	public static function day( \WP_REST_Request $req ) {
 		$date  = (string) $req['date'];
 		$days  = (int) $req['days'];
@@ -162,6 +184,7 @@ final class AdminController {
 			'statuses' => Repo::STATUSES,
 			'days'     => array(),
 			'can_manage' => self::can_manage(),
+			'my_staff'   => Roles::current_staff_id(),
 		);
 		for ( $i = 0; $i < $days; $i++ ) {
 			$d             = $first->modify( "+$i day" )->format( 'Y-m-d' );
@@ -171,10 +194,12 @@ final class AdminController {
 				$work[ $sid ] = Repo::staff_view_ranges( $sid, $d );
 			}
 			$bookings = array();
-			foreach ( Repo::bookings_between( $from, $to, 0, false ) as $b ) {
-				if ( in_array( (int) $b['staff_id'], $ids, true ) ) {
-					$bookings[] = self::can_manage() ? self::booking_out( $b ) : self::booking_for_trainee( $b );
-				}
+			$rows     = array_values( array_filter( Repo::bookings_between( $from, $to, 0, false ), fn( $b ) => in_array( (int) $b['staff_id'], $ids, true ) ) );
+			$paid     = \SB\Kassa::paid_booking_ids( array_column( $rows, 'id' ) );
+			foreach ( $rows as $b ) {
+				$item         = self::can_manage() ? self::booking_out( $b ) : self::booking_for_trainee( $b );
+				$item['paid'] = in_array( (int) $b['id'], $paid, true ); // arve tehtud ja makstud
+				$bookings[]   = $item;
 			}
 			$blocks = array();
 			foreach ( Repo::blocks_between( $from, $to ) as $bl ) {

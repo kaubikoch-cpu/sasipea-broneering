@@ -367,6 +367,12 @@ final class Admin {
 			printf( '<option value="%d"%s>%s</option>', (int) $u->ID, selected( (int) $u->ID, (int) $s['user_id'], false ), esc_html( $u->display_name ) );
 		}
 		echo '</select><p class="description">' . esc_html__( 'Seotud kasutaja näeb päevaplaanis oma graafikut. Talle antakse roll "Juuksuriõpilane", kui tal pole juhendaja ega admini õigusi.', 'sasipea-broneering' ) . '</p></td></tr>';
+		echo '<tr><th>' . esc_html__( 'Värv päevaplaanis', 'sasipea-broneering' ) . '</th><td><fieldset class="sb-colors"><legend class="screen-reader-text">' . esc_html__( 'Värv päevaplaanis', 'sasipea-broneering' ) . '</legend>';
+		printf( '<label><input type="radio" name="color" value=""%s> %s</label> ', checked( '' === ( $s['color'] ?? '' ), true, false ), esc_html__( 'automaatne', 'sasipea-broneering' ) );
+		foreach ( Repo::COLORS as $hex => $label ) {
+			printf( '<label title="%2$s"><input type="radio" name="color" value="%1$s"%3$s> <span style="display:inline-block;width:22px;height:22px;border-radius:50%%;background:%1$s;vertical-align:middle" aria-hidden="true"></span><span class="screen-reader-text">%2$s</span></label> ', esc_attr( $hex ), esc_html( $label ), checked( $hex === ( $s['color'] ?? '' ), true, false ) );
+		}
+		echo '</fieldset><p class="description">' . esc_html__( 'Juuksuriõpilane saab oma värvi ka ise päevaplaanis muuta, klõpsates oma nimetähtedega ringil.', 'sasipea-broneering' ) . '</p></td></tr>';
 		printf( '<tr><th>%s</th><td><label><input type="checkbox" name="active" value="1"%s> %s</label></td></tr>', esc_html__( 'Olek', 'sasipea-broneering' ), checked( $s['active'], true, false ), esc_html__( 'Aktiivne (saab broneerida)', 'sasipea-broneering' ) );
 		printf( '<tr><th><label for="sb-so">%s</label></th><td><input id="sb-so" name="sort_order" type="number" value="%d"></td></tr>', esc_html__( 'Järjekord', 'sasipea-broneering' ), (int) $s['sort_order'] );
 
@@ -471,6 +477,7 @@ final class Admin {
 			'discount_pct' => '' === self::post( 'discount_pct' ) ? null : max( 0, min( 100, (int) self::post( 'discount_pct' ) ) ),
 			'extra_min'  => '' === self::post( 'extra_min' ) ? null : max( 0, min( 240, (int) self::post( 'extra_min' ) ) ),
 			'pay'        => wp_json_encode( self::pay_from_post() ),
+			'color'      => isset( Repo::COLORS[ strtolower( self::post( 'color' ) ) ] ) ? strtolower( self::post( 'color' ) ) : null,
 		);
 		if ( $id ) {
 			$wpdb->update( Install::table( 'staff' ), $data, array( 'id' => $id ) );

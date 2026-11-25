@@ -55,15 +55,23 @@
 	}
 	function monday(ds) { var d = new Date(ds + 'T12:00:00'); return addDays(ds, -((d.getDay() + 6) % 7)); }
 
-	/* Igal juuksuriõpilasel on oma värv: [tugev, hele taust, tume tekst]. Värv sõltub id-st, nii et see ei muutu.
-	 * Rohelist, punast ja halli siin pole: need tähendavad staatust (kohal, ei tulnud, tühistatud). */
-	var PALETTE = [
-		['#d6336c', '#fde8f0', '#8a1c44'], ['#7048e8', '#eee9fd', '#4527a8'], ['#1c7ed6', '#e3f0fc', '#0f4f8a'], ['#0c8599', '#dff4f7', '#085463'],
-		['#ae3ec9', '#f6e6fb', '#6f2382'], ['#e67700', '#fdf0d9', '#8a4700'], ['#0b84c6', '#dff1fb', '#075985'], ['#4263eb', '#e6ebfd', '#2740a8']
-	];
+	/* Juuksuriõpilase värvid: tugev => [hele taust, tume tekst, nimi]. Sama loend on Repo::COLORS-is.
+	 * Õpilane valib värvi ise (klõps oma nimetähtedega ringil); valimata jääb id järgi automaatne värv. */
+	var PALETTE = {
+		'#d6336c': ['#fde8f0', '#8a1c44', 'Roosa'], '#7048e8': ['#eee9fd', '#4527a8', 'Lilla'], '#1c7ed6': ['#e3f0fc', '#0f4f8a', 'Sinine'],
+		'#0c8599': ['#dff4f7', '#085463', 'Sinakasroheline'], '#ae3ec9': ['#f6e6fb', '#6f2382', 'Fuksia'], '#e67700': ['#fdf0d9', '#8a4700', 'Oranž'],
+		'#0b84c6': ['#dff1fb', '#075985', 'Taevasinine'], '#4263eb': ['#e6ebfd', '#2740a8', 'Indigo'], '#e8590c': ['#fde9de', '#933605', 'Korall'],
+		'#5c940d': ['#eef6dc', '#3d6307', 'Laim'], '#8d6e4b': ['#f3ece4', '#5c452b', 'Pruun'], '#495057': ['#eceef0', '#2f353b', 'Grafiit']
+	};
+	var COLOR_KEYS = Object.keys(PALETTE);
+	function colorOf(staffId) {
+		var list = (state.data && state.data.staff) || [], i;
+		for (i = 0; i < list.length; i++) if (list[i].id === +staffId && PALETTE[list[i].color]) return list[i].color;
+		return COLOR_KEYS[(Math.abs(parseInt(staffId, 10) || 1) - 1) % COLOR_KEYS.length];
+	}
 	function tone(staffId) {
-		var c = PALETTE[(Math.abs(parseInt(staffId, 10) || 1) - 1) % PALETTE.length];
-		return '--sb-c:' + c[0] + ';--sb-c-soft:' + c[1] + ';--sb-c-ink:' + c[2] + ';';
+		var k = colorOf(staffId), c = PALETTE[k];
+		return '--sb-c:' + k + ';--sb-c-soft:' + c[0] + ';--sb-c-ink:' + c[1] + ';';
 	}
 	function initials(name) {
 		var parts = String(name).replace(/^[^:]*:\s*/, '').split(/\s+/).filter(Boolean);
@@ -71,6 +79,36 @@
 		return (a + b).toUpperCase();
 	}
 	function avatar(s) { return h('span', { class: 'sb-p-avatar', 'aria-hidden': 'true', style: tone(s.id) }, initials(s.name)); }
+	function canColor(s) { return C.canManage || (state.data && state.data.my_staff === s.id); }
+	/** Päeva päises on ring nupp: oma värvi (juhendajal kõigi värvi) saab sealt valida. */
+	function avatarButton(s) {
+		if (!canColor(s)) return avatar(s);
+		return h('button', { type: 'button', class: 'sb-p-avatar sb-p-avatar-btn', style: tone(s.id), title: 'Vali värv', 'aria-label': s.name + ': vali värv', onclick: function (ev) { ev.stopPropagation(); colorMenu(s, ev.currentTarget); } }, initials(s.name));
+	}
+	var colorPop = null;
+	function closeColorMenu() { if (colorPop) { colorPop.remove(); colorPop = null; } }
+	function colorMenu(s, anchor) {
+		closeColorMenu();
+		var current = PALETTE[s.color] ? s.color : '';
+		function pick(k) {
+			closeColorMenu();
+			api('admin/staff/' + s.id + '/color', 'POST', { color: k }).then(function () { toast(k ? 'Värv valitud: ' + PALETTE[k][2] : 'Värv on jälle automaatne'); load(); }).catch(function (e) { toast(e.message, true); });
+		}
+		colorPop = h('div', { class: 'sb-p-colorpop', role: 'dialog', 'aria-label': s.name + ': vali värv' },
+			h('strong', null, s.name + ': vali värv'),
+			h('div', { class: 'sb-p-swatches' }, COLOR_KEYS.map(function (k) {
+				return h('button', { type: 'button', class: 'sb-p-swatch' + (k === current ? ' is-on' : ''), style: 'background:' + k, title: PALETTE[k][2], 'aria-label': PALETTE[k][2], 'aria-pressed': k === current ? 'true' : 'false', onclick: function () { pick(k); } });
+			})),
+			h('button', { type: 'button', class: 'sb-link', onclick: function () { pick(''); } }, 'Automaatne värv'));
+		document.body.appendChild(colorPop);
+		var r = anchor.getBoundingClientRect();
+		colorPop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - colorPop.offsetWidth - 8)) + 'px';
+		colorPop.style.top = (r.bottom + 8) + 'px';
+		var first = colorPop.querySelector('.sb-p-swatch');
+		if (first) first.focus();
+	}
+	document.addEventListener('click', function (ev) { if (colorPop && !colorPop.contains(ev.target)) closeColorMenu(); });
+	document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') closeColorMenu(); });
 
 	function toast(msg, isError) {
 		var t = h('div', { class: 'sb-toast' + (isError ? ' is-error' : ''), role: isError ? 'alert' : 'status' }, msg);
@@ -168,15 +206,18 @@
 		grid.appendChild(h('div', { class: 'sb-p-corner' }));
 		d.staff.forEach(function (s) {
 			var sub = [s.level_name, s.discount_pct ? '−' + s.discount_pct + '%' : '', s.extra_min ? '+' + s.extra_min + ' min' : ''].filter(Boolean).join(' · ');
-			grid.appendChild(h('div', { class: 'sb-p-head', style: tone(s.id) }, avatar(s), h('span', { class: 'sb-p-head-text' }, staffLink(s), sub ? h('span', { class: 'sb-p-head-sub' }, sub) : null)));
+			grid.appendChild(h('div', { class: 'sb-p-head', style: tone(s.id) }, avatarButton(s), h('span', { class: 'sb-p-head-text' }, staffLink(s), sub ? h('span', { class: 'sb-p-head-sub' }, sub) : null)));
 		});
 		// kellaajad
 		var times = h('div', { class: 'sb-p-times', style: 'height:' + height + 'px' });
-		for (var m = lo; m < hi; m += 60) times.appendChild(h('div', { class: 'sb-p-hour', style: 'top:' + ((m - lo) / SLOT * ROW) + 'px' }, hm(m)));
+		for (var m = lo; m < hi; m += SLOT) {
+			var full = m % 60 === 0;
+			times.appendChild(h('div', { class: full ? 'sb-p-hour' : 'sb-p-min' + (m % 60 === 30 ? ' is-half' : ''), style: 'top:' + ((m - lo) / SLOT * ROW) + 'px' }, full ? hm(m) : pad(m % 60)));
+		}
 		grid.appendChild(times);
 
 		d.staff.forEach(function (s) {
-			var col = h('div', { class: 'sb-p-col', 'data-staff': s.id, style: tone(s.id) + 'height:' + height + 'px; background-size: 100% ' + (ROW * 4) + 'px' });
+			var col = h('div', { class: 'sb-p-col', 'data-staff': s.id, style: tone(s.id) + 'height:' + height + 'px;--sb-row:' + ROW + 'px;' });
 			// tööaeg
 			(day.work[s.id] || []).forEach(function (r) {
 				var open = day.opening.filter(function (o) { return o[0] < r[1] && o[1] > r[0]; });
@@ -207,11 +248,13 @@
 			// klikk tühjal alal -> uus broneering
 			if (C.canManage) {
 				col.addEventListener('click', function (ev) {
+					if (col._dragged) { col._dragged = false; return; }
 					if (ev.target !== col && !ev.target.classList.contains('sb-p-work')) return;
 					var rect = col.getBoundingClientRect();
 					var min = lo + Math.floor((ev.clientY - rect.top) / ROW) * SLOT;
 					bookingDialog(null, { staff_id: s.id, date: day.date, time: hm(min) });
 				});
+				enableCreateDrag(col, s, day, lo, hi);
 			}
 			grid.appendChild(col);
 		});
@@ -224,11 +267,11 @@
 		var cancelled = b.status.indexOf('cancelled') === 0;
 		var el = h('button', {
 			type: 'button',
-			class: 'sb-p-booking is-' + b.status + (cancelled ? ' is-cancelled' : ''),
+			class: 'sb-p-booking is-' + b.status + (cancelled ? ' is-cancelled' : '') + (b.paid && !cancelled ? ' is-paid' : ''),
 			style: tone(b.staff_id) + 'top:' + ((b.start_min - lo) / SLOT * ROW) + 'px;height:' + Math.max(ROW, (b.end_min - b.start_min) / SLOT * ROW - 2) + 'px',
-			'aria-label': b.time + ', ' + b.client + ', ' + b.service + ', ' + b.status_label
+			'aria-label': b.time + ', ' + b.client + ', ' + b.service + ', ' + statusText(b)
 		},
-		h('span', { class: 'sb-p-b-time' }, b.time, h('span', { class: 'sb-p-b-status' }, b.status_label)),
+		h('span', { class: 'sb-p-b-time' }, b.time, h('span', { class: 'sb-p-b-status' }, statusText(b))),
 		h('strong', null, b.client),
 		h('span', null, b.service),
 		b.phone ? h('span', null, b.phone) : null);
@@ -237,11 +280,14 @@
 		return el;
 	}
 
+	function statusText(b) { return b.paid && b.status.indexOf('cancelled') !== 0 ? 'Arve tehtud' : b.status_label; }
+
 	function legend() {
-		var items = [['booked', 'Broneeritud'], ['arrived', 'Kohal'], ['no_show', 'Ei tulnud'], ['cancelled', 'Tühistatud']];
+		var items = [['booked', 'Broneeritud'], ['arrived', 'Kohal'], ['paid', 'Arve tehtud'], ['no_show', 'Ei tulnud'], ['cancelled', 'Tühistatud']];
 		return h('div', { class: 'sb-p-legend' }, items.map(function (i) {
 			return h('span', null, h('i', { class: 'sb-p-dot is-' + i[0] }), i[1]);
-		}), C.canManage ? h('span', { class: 'sb-p-hint' }, 'Lohista broneeringut, et muuta aega või juuksuriõpilast. Klõps tühjal alal loob uue broneeringu.') : null);
+		}), h('span', null, h('i', { class: 'sb-p-dot is-staff' }), 'vasak triip = juuksuriõpilase värv'),
+		C.canManage ? h('span', { class: 'sb-p-hint' }, 'Lohista broneeringut, et muuta aega või juuksuriõpilast. Uue broneeringu jaoks klõpsa tühjal alal või lohista hiirega soovitud ajavahemik.') : null);
 	}
 
 	/* ---------- lohistamine ---------- */
@@ -288,6 +334,56 @@
 		el.addEventListener('pointercancel', function () { el.style.transform = ''; el.classList.remove('is-dragging'); });
 	}
 
+	/**
+	 * Uue broneeringu aja valimine hiirega lohistades: vajuta tühjal alal alla, vea soovitud lõpuni ja lase lahti.
+	 * Avaneb uue broneeringu aken valitud algusajaga. Puuteekraanil jääb kerimine tööle ja uus broneering käib koputusega.
+	 */
+	function enableCreateDrag(col, s, day, lo, hi) {
+		var startMin = null, ghost = null, startY = 0;
+		function minAt(ev) {
+			var rect = col.getBoundingClientRect();
+			return Math.max(lo, Math.min(hi, lo + Math.round((ev.clientY - rect.top) / ROW) * SLOT));
+		}
+		function range(ev) {
+			var m = minAt(ev), a = Math.min(startMin, m), b = Math.max(startMin, m);
+			if (b - a < SLOT) b = a + SLOT;
+			return [a, Math.min(hi, b)];
+		}
+		col.addEventListener('pointerdown', function (ev) {
+			if (ev.button !== 0 || ev.pointerType === 'touch') return;
+			if (ev.target !== col && !ev.target.classList.contains('sb-p-work')) return;
+			var rect = col.getBoundingClientRect();
+			startMin = Math.max(lo, lo + Math.floor((ev.clientY - rect.top) / ROW) * SLOT);
+			startY = ev.clientY;
+			col.setPointerCapture(ev.pointerId);
+		});
+		col.addEventListener('pointermove', function (ev) {
+			if (startMin === null) return;
+			if (!ghost) {
+				if (Math.abs(ev.clientY - startY) < 6) return;
+				ghost = h('div', { class: 'sb-p-ghost', 'aria-hidden': 'true' });
+				col.appendChild(ghost);
+			}
+			var r = range(ev);
+			ghost.style.top = ((r[0] - lo) / SLOT * ROW) + 'px';
+			ghost.style.height = ((r[1] - r[0]) / SLOT * ROW) + 'px';
+			ghost.textContent = hm(r[0]) + '–' + hm(r[1]);
+		});
+		function finish(ev, cancel) {
+			if (startMin === null) return;
+			var had = !!ghost, r = had ? range(ev) : null;
+			if (ghost) { ghost.remove(); ghost = null; }
+			startMin = null;
+			if (col.hasPointerCapture && col.hasPointerCapture(ev.pointerId)) col.releasePointerCapture(ev.pointerId);
+			if (!had || cancel) return;
+			col._dragged = true; // järgnev click ei ava teist akent
+			setTimeout(function () { col._dragged = false; }, 0);
+			bookingDialog(null, { staff_id: s.id, date: day.date, time: hm(r[0]) });
+		}
+		col.addEventListener('pointerup', function (ev) { finish(ev, false); });
+		col.addEventListener('pointercancel', function (ev) { finish(ev, true); });
+	}
+
 	/* ---------- nädalavaade ---------- */
 
 	function renderWeek(d) {
@@ -304,7 +400,7 @@
 				return h('td', { class: work.length && day.opening.length ? '' : 'is-off' },
 					work.length && day.opening.length ? h('div', { class: 'sb-p-w-hours' }, work.map(function (r) { return hm(r[0]) + '–' + hm(r[1]); }).join(', ')) : h('div', { class: 'sb-p-w-hours' }, 'vaba'),
 					list.map(function (b) {
-						return h('button', { type: 'button', class: 'sb-p-w-item is-' + b.status, onclick: function () { openBooking(b.id); } },
+						return h('button', { type: 'button', class: 'sb-p-w-item is-' + b.status + (b.paid && b.status.indexOf('cancelled') !== 0 ? ' is-paid' : ''), style: tone(b.staff_id), onclick: function () { openBooking(b.id); } },
 							h('strong', null, b.time.split('–')[0]), ' ', b.client, h('br'), h('small', null, b.service));
 					}));
 			})));
@@ -335,7 +431,7 @@
 			return h('td', { class: work.length ? '' : 'is-off' },
 				h('div', { class: 'sb-p-w-hours' }, work.length ? work.map(function (r) { return hm(r[0]) + '–' + hm(r[1]); }).join(', ') : 'vaba'),
 				list.map(function (b) {
-					return h('button', { type: 'button', class: 'sb-p-w-item is-' + b.status, onclick: function () { openBooking(b.id); } },
+					return h('button', { type: 'button', class: 'sb-p-w-item is-' + b.status + (b.paid && b.status.indexOf('cancelled') !== 0 ? ' is-paid' : ''), style: tone(b.staff_id), onclick: function () { openBooking(b.id); } },
 						h('strong', null, b.time), h('br'), b.client, h('br'), h('small', null, b.service));
 				}),
 				work.length && !list.length ? h('div', { class: 'sb-p-w-none' }, 'broneeringuid pole') : null);

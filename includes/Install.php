@@ -102,6 +102,7 @@ final class Install {
   discount_pct tinyint(3) unsigned NULL,
   extra_min smallint(5) unsigned NULL,
   pay text NULL,
+  color varchar(7) NULL,
   PRIMARY KEY  (id),
   KEY user_id (user_id)
 ) ENGINE=InnoDB $c;";
