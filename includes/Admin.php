@@ -558,22 +558,33 @@ final class Admin {
 		echo '<div class="wrap sb-month"><h1>' . esc_html__( 'Töögraafik', 'sasipea-broneering' ) . '</h1>';
 		self::notice();
 		echo '<style>
-			.sb-month .sb-m-nav{display:flex;gap:8px;align-items:center;margin:12px 0}
+			.sb-month .sb-m-nav{display:flex;gap:8px;align-items:center;margin:12px 0;flex-wrap:wrap}
 			.sb-month .sb-m-nav h2{margin:0 8px;min-width:180px;text-align:center}
-			.sb-month .sb-m-scroll{overflow-x:auto;max-width:100%}
-			.sb-month table{border-collapse:collapse;background:#fff}
-			.sb-month th,.sb-month td{border:1px solid #dcdcde;padding:6px 8px;text-align:left;vertical-align:middle;white-space:nowrap}
-			.sb-month thead th{background:#f6f7f7;position:sticky;top:32px;z-index:2}
-			.sb-month a.sb-m-day{font-weight:600;text-decoration:underline;text-underline-offset:2px}
-			.sb-month tr.is-closed td,.sb-month tr.is-closed th{background:#f0f0f1;color:#646970;padding-top:2px;padding-bottom:2px;font-size:12px}
-			.sb-month tr.is-week-start th,.sb-month tr.is-week-start td{border-top:2px solid #8c8f94}
+			.sb-month .sb-m-scroll{overflow:auto;max-width:100%;max-height:80vh;border:1px solid #dcdcde;background:#fff}
+			.sb-month table{border-collapse:separate;border-spacing:0;background:#fff}
+			.sb-month th,.sb-month td{border:0;border-right:1px solid #dcdcde;border-bottom:1px solid #dcdcde;padding:4px;text-align:center;vertical-align:middle;white-space:nowrap}
+			.sb-month thead th{background:#f6f7f7;position:sticky;top:0;z-index:2;font-size:12px;line-height:1.3;min-width:66px}
+			.sb-month .sb-m-name{position:sticky;left:0;z-index:3;background:#fff;text-align:left;padding:6px 10px;min-width:170px;max-width:220px;white-space:normal;line-height:1.25;box-shadow:2px 0 0 #c3c4c7}
+			.sb-month thead .sb-m-name{z-index:4;background:#f6f7f7}
+			.sb-month a.sb-m-day{display:block;font-weight:600;text-decoration:underline;text-underline-offset:2px}
+			.sb-month .is-closed{background:#f0f0f1;color:#8c8f94;min-width:26px}
+			.sb-month thead th.is-closed{min-width:26px}
+			.sb-month .is-week-start{border-left:2px solid #8c8f94}
+			.sb-month thead th.is-today{background:#fff3c4}
 			.sb-month td.is-on{background:#edf7ed}
-			.sb-month .sb-m-hours{width:150px}
-			.sb-month .sb-m-count{margin-left:6px;color:#8a2424;font-size:12px}
-			.sb-month .sb-m-sub{display:block;font-weight:400;font-size:12px;color:#50575e}
+			.sb-month td.sb-m-cell{position:relative;height:50px;vertical-align:top;padding-top:8px}
+			.sb-month td.sb-m-cell input[type=checkbox]{display:block;margin:0 auto 3px}
+			.sb-month .sb-m-hours{display:block;box-sizing:border-box;width:70px;max-width:none;min-height:0;height:22px;margin:0 auto;padding:0 1px;font-size:10.5px;line-height:20px;text-align:center}
+			.sb-month .sb-m-hours:disabled{visibility:hidden}
+			.sb-month .sb-m-hours:focus{position:absolute;left:2px;bottom:4px;width:180px;z-index:1;font-size:13px;text-align:left;padding:0 6px}
+			.sb-month .sb-m-count{position:absolute;top:2px;right:2px;min-width:14px;padding:0 3px;border-radius:8px;background:#8a2424;color:#fff;font-size:10px;line-height:14px;font-weight:600}
+			.sb-month .sb-m-sub{display:block;font-weight:400;font-size:11.5px;color:#50575e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+			.sb-month .sb-m-name input[type=checkbox]{width:14px;height:14px;min-width:0;margin:0 4px 0 0;vertical-align:-2px}
+			.sb-month thead .sb-m-sub{font-size:10.5px}
 			.sb-month .sb-m-badge{display:inline-block;padding:2px 10px;border-radius:10px;font-size:12px;font-weight:600}
 			.sb-month .sb-m-badge.is-ready{background:#e3f4ea;color:#00572c}
 			.sb-month .sb-m-badge.is-draft{background:#fcf0d6;color:#6b4a00}
+			@media (max-width:700px){.sb-month .sb-m-name{min-width:100px;max-width:112px;padding:4px 6px;font-size:13px}.sb-month .sb-m-sub{font-size:10.5px}}
 		</style>';
 		echo '<div class="sb-m-nav"><a class="button" href="' . $url( $first->modify( '-1 month' ) ) . '">‹ ' . esc_html__( 'Eelmine kuu', 'sasipea-broneering' ) . '</a><h2>' . esc_html( $title ) . '</h2><a class="button" href="' . $url( $first->modify( '+1 month' ) ) . '">' . esc_html__( 'Järgmine kuu', 'sasipea-broneering' ) . ' ›</a> ';
 		echo $ready
@@ -601,39 +612,55 @@ final class Admin {
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( 'sb_save_month' );
 		echo '<input type="hidden" name="action" value="sb_save_month"><input type="hidden" name="month" value="' . esc_attr( $ym ) . '">';
-		echo '<div class="sb-m-scroll"><table><thead><tr><th scope="col">' . esc_html__( 'Päev', 'sasipea-broneering' ) . '</th>';
+		// Kuupäevad on veergudes ja juuksuriõpilased ridades, et palju õpilasi mahuks korraga ekraanile.
+		$today = ( new \DateTimeImmutable( 'now', Settings::tz() ) )->format( 'Y-m-d' );
+		$days  = array();
+		for ( $d = $first; $d->format( 'Y-m' ) === $ym; $d = $d->modify( '+1 day' ) ) {
+			$date   = $d->format( 'Y-m-d' );
+			$wd     = (int) $d->format( 'N' );
+			$days[] = array(
+				'date'    => $date,
+				'd'       => $d,
+				'wd'      => $wd,
+				'opening' => Settings::opening_for( $date ),
+				'class'   => ( 1 === $wd ? ' is-week-start' : '' ) . ( $date === $today ? ' is-today' : '' ),
+			);
+		}
+		echo '<div class="sb-m-scroll"><table><thead><tr><th scope="col" class="sb-m-name">' . esc_html__( 'Juuksuriõpilane', 'sasipea-broneering' ) . '</th>';
+		foreach ( $days as $day ) {
+			$d = $day['d'];
+			/* translators: %s: date */
+			$day_link = '<a class="sb-m-day" href="' . esc_url( self::url( 'sb-planner&day=' . $day['date'] ) ) . '" title="' . esc_attr( sprintf( __( 'Ava %s päevaplaan', 'sasipea-broneering' ), $d->format( 'j.m.Y' ) ) ) . '">' . esc_html( $short[ $day['wd'] ] ) . '<br>' . esc_html( $d->format( 'j.m' ) ) . '</a>';
+			if ( ! $day['opening'] ) {
+				echo '<th scope="col" class="is-closed' . esc_attr( $day['class'] ) . '" title="' . esc_attr__( 'suletud', 'sasipea-broneering' ) . '">' . $day_link . '</th>';
+				continue;
+			}
+			echo '<th scope="col" class="' . esc_attr( trim( $day['class'] ) ) . '">' . $day_link . '<span class="sb-m-sub">' . esc_html( str_replace( '-', '–', self::ranges_str( $day['opening'] ) ) ) . '</span></th>';
+		}
+		echo '</tr></thead><tbody>';
 		foreach ( $staff as $s ) {
 			printf(
-				'<th scope="col">%s<span class="sb-m-sub">%s</span><label class="sb-m-sub"><input type="checkbox" class="sb-m-all" data-staff="%d"> %s</label></th>',
+				'<tr><th scope="row" class="sb-m-name">%s<span class="sb-m-sub">%s</span><label class="sb-m-sub"><input type="checkbox" class="sb-m-all" data-staff="%d"> %s</label></th>',
 				esc_html( $s['name'] ),
 				esc_html( self::terms_label( $s ) ),
 				(int) $s['id'],
 				esc_html__( 'kõik päevad', 'sasipea-broneering' )
 			);
-		}
-		echo '</tr></thead><tbody>';
-		for ( $d = $first; $d->format( 'Y-m' ) === $ym; $d = $d->modify( '+1 day' ) ) {
-			$date    = $d->format( 'Y-m-d' );
-			$wd      = (int) $d->format( 'N' );
-			$opening = Settings::opening_for( $date );
-			$label   = $short[ $wd ] . ' ' . $d->format( 'j.m' );
-			/* translators: %s: date */
-			$day_link = '<a class="sb-m-day" href="' . esc_url( self::url( 'sb-planner&day=' . $date ) ) . '" title="' . esc_attr( sprintf( __( 'Ava %s päevaplaan', 'sasipea-broneering' ), $d->format( 'j.m.Y' ) ) ) . '">' . esc_html( $label ) . '</a>';
-			$week    = 1 === $wd ? ' is-week-start' : '';
-			if ( ! $opening ) {
-				echo '<tr class="is-closed' . esc_attr( $week ) . '"><th scope="row">' . $day_link . '</th><td colspan="' . count( $staff ) . '">' . esc_html__( 'suletud', 'sasipea-broneering' ) . '</td></tr>';
-				continue;
-			}
-			echo '<tr class="' . esc_attr( trim( $week ) ) . '"><th scope="row">' . $day_link . '<span class="sb-m-sub">' . esc_html( str_replace( '-', '–', self::ranges_str( $opening ) ) ) . '</span></th>';
-			foreach ( $staff as $s ) {
+			foreach ( $days as $day ) {
+				$date = $day['date'];
+				$d    = $day['d'];
+				if ( ! $day['opening'] ) {
+					echo '<td class="is-closed' . esc_attr( $day['class'] ) . '" title="' . esc_attr__( 'suletud', 'sasipea-broneering' ) . '">–</td>';
+					continue;
+				}
 				$ranges = Repo::planned_ranges( $s['id'], $date );
 				$n      = (int) ( $counts[ $s['id'] ][ $date ] ?? 0 );
 				printf(
-					'<td class="%1$s"><input type="checkbox" name="on[%2$d][%3$s]" value="1" data-staff="%2$d" data-default="%4$s" aria-label="%5$s"%6$s> <input class="sb-m-hours" name="hours[%2$d][%3$s]" value="%7$s" placeholder="%4$s" aria-label="%8$s"%9$s>%10$s</td>',
-					$ranges ? 'is-on' : '',
+					'<td class="%1$s"><input type="checkbox" name="on[%2$d][%3$s]" value="1" data-staff="%2$d" data-default="%4$s" aria-label="%5$s"%6$s><input class="sb-m-hours" name="hours[%2$d][%3$s]" value="%7$s" placeholder="%4$s" title="%7$s" aria-label="%8$s"%9$s>%10$s</td>',
+					esc_attr( 'sb-m-cell' . ( $ranges ? ' is-on' : '' ) . $day['class'] ),
 					(int) $s['id'],
 					esc_attr( $date ),
-					esc_attr( self::ranges_str( $opening ) ),
+					esc_attr( self::ranges_str( $day['opening'] ) ),
 					/* translators: 1: trainee name, 2: date */
 					esc_attr( sprintf( __( '%1$s töötab %2$s', 'sasipea-broneering' ), $s['name'], $d->format( 'j.m' ) ) ),
 					checked( (bool) $ranges, true, false ),
@@ -642,7 +669,7 @@ final class Admin {
 					esc_attr( sprintf( __( '%1$s kellaajad %2$s', 'sasipea-broneering' ), $s['name'], $d->format( 'j.m' ) ) ),
 					$ranges ? '' : ' disabled',
 					/* translators: %d: number of bookings */
-					$n ? '<span class="sb-m-count">' . esc_html( sprintf( _n( '%d broneering', '%d broneeringut', $n, 'sasipea-broneering' ), $n ) ) . '</span>' : ''
+					$n ? '<span class="sb-m-count" title="' . esc_attr( sprintf( _n( '%d broneering', '%d broneeringut', $n, 'sasipea-broneering' ), $n ) ) . '">' . (int) $n . '</span>' : ''
 				);
 			}
 			echo '</tr>';
@@ -654,10 +681,12 @@ final class Admin {
 		(function(){
 			var f=document.querySelector('.sb-month form');
 			function sync(cb){var t=cb.parentNode.querySelector('.sb-m-hours');t.disabled=!cb.checked;if(cb.checked&&!t.value)t.value=cb.getAttribute('data-default');cb.parentNode.classList.toggle('is-on',cb.checked);}
+			var td=f.querySelector('th.is-today'),sc=f.querySelector('.sb-m-scroll');if(td&&sc){sc.scrollLeft=Math.max(0,td.offsetLeft-f.querySelector('.sb-m-name').offsetWidth-70);}
 			f.addEventListener('change',function(e){
 				var el=e.target;
 				if(el.classList.contains('sb-m-all')){f.querySelectorAll('td input[type=checkbox][data-staff=\"'+el.getAttribute('data-staff')+'\"]').forEach(function(cb){cb.checked=el.checked;sync(cb);});}
 				else if(el.type==='checkbox'){sync(el);}
+				else if(el.classList.contains('sb-m-hours')){el.title=el.value;}
 			});
 		})();
 		</script>";
