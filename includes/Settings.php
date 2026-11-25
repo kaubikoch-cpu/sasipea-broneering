@@ -65,10 +65,10 @@ final class Settings {
 			'salon_address'       => 'Pikk 39, Tartu',
 			'salon_phone'         => '5858 8007',
 			'salon_web'           => 'oppesalong.ee',
-			'consent_version'     => '2026-11',
+			'consent_version'     => '2026-11-2',
 			'consent_texts'       => array(
 				'privacy' => 'Olen tutvunud privaatsuspoliitikaga ja nõustun, et mu andmeid kasutatakse broneeringu haldamiseks.',
-				'models'  => 'Lisa mind modellide andmebaasi.',
+				'models'  => 'Lisa mind ka tulevikus modellide andmebaasi.',
 				'social'  => 'Luban oma soengu pilte kasutada sotsiaalmeedias.',
 			),
 			'confirmation_note'   => 'Tööd teevad juuksuriõpilased juhendaja käe all, seetõttu võib teenus võtta veidi kauem aega. Värvimisel ja triibutamisel lisandub hinnale materjal (blondeerimispulber 0,20 €/g, värv 0,30 €/g).',

@@ -41,6 +41,17 @@ final class Install {
 					update_option( 'sb_settings', $s );
 				}
 			}
+			// 0.11.2: modellide nõusoleku uus sõnastus. Muudetakse ainult siis, kui tekst on veel vaikimisi.
+			if ( false !== $old && (int) $old < 13 ) {
+				$s = get_option( 'sb_settings' );
+				if ( is_array( $s ) && 'Lisa mind modellide andmebaasi.' === trim( (string) ( $s['consent_texts']['models'] ?? '' ) ) ) {
+					$s['consent_texts']['models'] = 'Lisa mind ka tulevikus modellide andmebaasi.';
+					if ( '2026-11' === (string) ( $s['consent_version'] ?? '' ) ) {
+						$s['consent_version'] = '2026-11-2';
+					}
+					update_option( 'sb_settings', $s );
+				}
+			}
 		}
 	}
 

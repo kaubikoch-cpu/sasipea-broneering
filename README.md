@@ -1,6 +1,6 @@
 # Sasipea Broneering
 
-Sasipea Akadeemia online-broneerimine ja päevaplaan WordPressi pluginana. Versioon 0.11.1 (1. etapp + kuu töögraafik, tasemed, tasude arvestus, veebipoe ladu, käibemaksu aruanne, oma töölaud /salong/ sidumine modellide andmebaasiga ja kassa).
+Sasipea Akadeemia online-broneerimine ja päevaplaan WordPressi pluginana. Versioon 0.11.2 (1. etapp + kuu töögraafik, tasemed, tasude arvestus, veebipoe ladu, käibemaksu aruanne, oma töölaud /salong/ sidumine modellide andmebaasiga ja kassa).
 
 **NB! Paigalda esmalt staging-keskkonda, mitte päris lehele.**
 
@@ -50,7 +50,7 @@ Kui samal lehel on aktiivne plugin `sasipea-modellid`, seob broneering end selle
 - Uue broneeringu aknas on plokk "Vali modell andmebaasist". Näidatakse valitud teenusele sobivaid modelle (teenuse nimi võrreldakse modellide teenusekategooriatega, nt "Juukselõikus" ja "Lõikus"), ees need, kellega pole kõige kauem ühendust võetud. Linnuke "näita kõiki" eemaldab teenuse filtri. Arhiveeritud modelle ei näidata.
 - Modellile tehtud broneering uuendab tema viimase kontakti kuupäeva (see lükkab edasi ka automaatse kustutamise tähtaega).
 - Klient, kelle e-post või telefon klapib modelliga, seotakse modelliga ise. Broneeringu kaardil on märge "modell" lingiga modelli kaardile.
-- Avaliku vormi linnuke "Lisa mind modellide andmebaasi" loob uue modelli olekuga "Uus" ja allikaga "broneering", kui teda andmebaasis veel ei ole. Kategooriad ja pildid lisab juhendaja hiljem.
+- Avaliku vormi linnuke "Lisa mind ka tulevikus modellide andmebaasi" loob uue modelli olekuga "Uus" ja allikaga "broneering", kui teda andmebaasis veel ei ole. Kategooriad ja pildid lisab juhendaja hiljem.
 - Modelle näevad ainult juhendaja ja omanik (õigus `sb_manage_bookings`), juuksuriõpilane mitte. Andmed loetakse otse sama lehe andmebaasist ega liigu lehelt välja.
 - Modellide plugina juhendaja roll (`sam_juhendaja`) saab broneeringute juhendaja õigused ja võib kasutada töölauda /salong/.
 
