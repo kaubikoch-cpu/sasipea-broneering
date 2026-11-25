@@ -195,7 +195,9 @@ body.sbd-login { display: grid; place-items: center; min-height: 100vh; padding:
 .sbd-main .sb-month.wrap { max-width: none; }
 .sbd-main .sb-m-scroll { border: 1px solid var(--sbd-line); border-radius: var(--sbd-radius); background: var(--sbd-card); }
 .sbd-main .sb-month .sb-m-hours { width: 70px; max-width: none; min-height: 0; height: 22px; padding: 0 1px; font-size: 10.5px; border-radius: 4px; }
-.sbd-main .sb-month .sb-m-hours:focus { width: 180px; padding: 0 6px; font-size: 13px; }
+.sbd-main .sb-month .sb-m-hours:focus:not([readonly]) { width: 180px; padding: 0 6px; font-size: 13px; }
+.sbd .sb-tr-pop { border-color: var(--sbd-line); border-radius: var(--sbd-radius); }
+.sbd .sb-tr-pop select, .sbd .sb-tr select { min-height: 34px; padding: 4px 8px; }
 .sbd-main .sb-month td.sb-m-cell input[type=checkbox] { margin: 0 auto 3px; }
 .sbd-main .sb-month .sb-m-name input[type=checkbox] { width: 14px; height: 14px; margin: 0 4px 0 0; vertical-align: -2px; }
 
