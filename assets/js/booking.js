@@ -295,7 +295,7 @@
 					type: 'button', class: 'sb-option sb-service', 'aria-pressed': 'false',
 					onclick: function () { toggle(s); }
 				},
-				h('span', { class: 'sb-check', 'aria-hidden': 'true' }),
+				h('span', { class: 'sb-tick', 'aria-hidden': 'true' }),
 				h('span', { class: 'sb-option-text' },
 					h('span', { class: 'sb-option-title' }, s.name),
 					h('span', { class: 'sb-option-meta' }, s.duration_label + (s.material_extra ? ' · lisandub materjal' : '')),

@@ -150,13 +150,13 @@
 .sb-option.sb-service { flex-direction: row; align-items: center; justify-content: space-between; gap: .75rem; }
 .sb-price { flex: none; font-weight: 700; white-space: nowrap; color: var(--sb-accent); }
 .sb-service .sb-option-text { flex: 1; }
-.sb-check {
+.sb-tick {
 	flex: none; width: 24px; height: 24px; border: 2px solid var(--sb-line); border-radius: 6px; background: var(--sb-bg);
 	display: inline-flex; align-items: center; justify-content: center; font-size: 16px; line-height: 1; font-weight: 700; color: var(--sb-accent-ink);
 }
 .sb-service.is-picked { border-color: var(--sb-accent); }
-.sb-service.is-picked .sb-check { background: var(--sb-accent); border-color: var(--sb-accent); }
-.sb-service.is-picked .sb-check::before { content: "\2713"; }
+.sb-service.is-picked .sb-tick { background: var(--sb-accent); border-color: var(--sb-accent); }
+.sb-service.is-picked .sb-tick::before { content: "\2713"; }
 .sb-group.has-picked:not(.is-open) { border-color: var(--sb-accent); }
 /* Valitud teenuste kokkuvõte: kestus ja hind liidetakse */
 .sb-chosen { margin-top: 1rem; padding: 1rem 1.1rem; border: 2px solid var(--sb-accent); border-radius: var(--sb-radius); background: var(--sb-bg); }
