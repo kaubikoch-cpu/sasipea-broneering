@@ -141,6 +141,8 @@ final class Install {
   client_id bigint(20) unsigned NOT NULL,
   staff_id bigint(20) unsigned NOT NULL,
   service_id bigint(20) unsigned NOT NULL,
+  service_ids varchar(100) NULL,
+  service_label varchar(255) NULL,
   start_utc datetime NOT NULL,
   end_utc datetime NOT NULL,
   price_cents int(11) NOT NULL DEFAULT 0,

@@ -14,7 +14,8 @@
 		nonce: null,
 		catalog: [],
 		cat: null,
-		service: null,
+		picked: [], // valitud teenused (võib olla mitu, ka eri teenuse liikidest)
+		service: null, // üks teenus või mitme teenuse kombinatsioon (id = '3,7')
 		staffList: [],
 		staff: null, // {id:0,name:'Ükskõik kes'} või praktikant
 		month: null, // 'YYYY-MM'
@@ -178,43 +179,132 @@
 
 	function serviceCount(n) { return n === 1 ? '1 teenus' : n + ' teenust'; }
 
-	// Samm 1: grupid on üksteise all. Grupile vajutades avanevad selle teenused: laial ekraanil
-	// paremal kõrval, kitsal ekraanil kohe grupi all. Nii ei ole kogu hinnakiri korraga ees.
+	var MAX_PICK = 5; // sama piir mis serveris (Repo::MAX_COMBO)
+
+	function durationLabel(min) {
+		var hh = Math.floor(min / 60), m = min % 60;
+		if (hh && m) return hh + ' h ' + m + ' min';
+		return hh ? hh + ' h' : m + ' min';
+	}
+	function moneyLabel(cents) {
+		var v = cents % 100 ? (cents / 100).toFixed(2).replace('.', ',') : String(cents / 100);
+		return v.replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' €';
+	}
+	// Mitu teenust üheks: kestused ja hinnad liidetakse, server arvutab sama id-de järgi ("3,7").
+	function combine(list) {
+		if (list.length === 1) return list[0];
+		var dur = 0, price = 0, material = false;
+		list.forEach(function (s) { dur += s.duration; price += s.price_cents; material = material || s.material_extra; });
+		return {
+			id: list.map(function (s) { return s.id; }).join(','),
+			name: list.map(function (s) { return s.name; }).join(' + '),
+			duration: dur, price_cents: price, material_extra: material,
+			duration_label: durationLabel(dur), price_label: moneyLabel(price)
+		};
+	}
+
+	// Samm 1: teenuse liigid on üksteise all. Liigile vajutades avanevad selle teenused: laial ekraanil
+	// paremal kõrval, kitsal ekraanil kohe liigi all. Teenuseid saab valida mitu, ka eri liikidest.
 	function stepService() {
 		renderSummary(1);
 		main.textContent = '';
 		var cats = state.catalog.filter(function (c) { return c.services && c.services.length; });
+		var all = [];
+		cats.forEach(function (c) { all = all.concat(c.services); });
+		state.picked = state.picked.filter(function (s) { return all.indexOf(s) !== -1; });
 		if (cats.length === 1) state.cat = cats[0];
 		if (state.cat && cats.indexOf(state.cat) === -1) state.cat = null;
 		main.appendChild(stepHeader(1, 'Vali teenus'));
 		var single = cats.length === 1;
-		if (!single) main.appendChild(h('p', { class: 'sb-muted sb-step-lead' }, 'Vali kõigepealt grupp, siis näed selle grupi teenuseid.'));
+		// Kataloog laetakse uuesti ainult lehe avamisel, seega valitud teenused on samad objektid.
+		main.appendChild(h('p', { class: 'sb-muted sb-step-lead' }, single
+			? 'Vali teenus. Soovi korral võid valida mitu teenust, nende ajad liidetakse kokku.'
+			: 'Vali teenuse liik ja siis saad valida teenuse. Teenuseid võib kombineerida, näiteks juukselõikus ja triibutamine: nende ajad liidetakse kokku.'));
 		var wrap = h('div', { class: 'sb-picker' + (single ? ' is-single' : ''), style: '--sb-n:' + cats.length });
-		var hint = h('p', { class: 'sb-picker-hint sb-muted' }, 'Vali vasakult grupp ja siin näed selle teenuseid.');
+		var hint = h('p', { class: 'sb-picker-hint sb-muted' }, 'Vali vasakult teenuse liik ja siis saad valida teenuse.');
 		var items = [];
+		var svcBtns = [];
+		var chosen = h('div', { class: 'sb-chosen', role: 'region', 'aria-label': 'Valitud teenused' });
+		function picked(s) { return state.picked.indexOf(s) !== -1; }
+		function toggle(s) {
+			var i = state.picked.indexOf(s);
+			if (i !== -1) {
+				state.picked.splice(i, 1);
+			} else if (state.picked.length >= MAX_PICK) {
+				live('Korraga saab valida kuni ' + MAX_PICK + ' teenust.');
+				return;
+			} else {
+				state.picked.push(s);
+			}
+			sync();
+			if (state.picked.length) {
+				var c = combine(state.picked);
+				live((i !== -1 ? 'Eemaldatud: ' : 'Lisatud: ') + s.name + '. Kokku ' + serviceCount(state.picked.length) + ', ' + c.duration_label + ', ' + c.price_label + '.');
+			} else {
+				live('Eemaldatud: ' + s.name + '. Ühtegi teenust ei ole valitud.');
+			}
+		}
+		function renderChosen() {
+			chosen.textContent = '';
+			var n = state.picked.length;
+			if (!n) {
+				chosen.classList.add('is-empty');
+				chosen.appendChild(h('p', { class: 'sb-muted' }, 'Ühtegi teenust ei ole veel valitud.'));
+				return;
+			}
+			chosen.classList.remove('is-empty');
+			var c = combine(state.picked);
+			chosen.appendChild(h('h3', null, n === 1 ? 'Valitud teenus' : 'Valitud teenused'));
+			chosen.appendChild(h('ul', { class: 'sb-chosen-list' }, state.picked.map(function (s) {
+				return h('li', null,
+					h('span', { class: 'sb-chosen-name' }, s.name),
+					h('span', { class: 'sb-chosen-meta' }, s.duration_label + ' · ' + s.price_label),
+					h('button', { type: 'button', class: 'sb-chosen-x', 'aria-label': 'Eemalda ' + s.name, onclick: function () { toggle(s); } }, '×'));
+			})));
+			if (n > 1) {
+				chosen.appendChild(h('p', { class: 'sb-chosen-total' },
+					h('span', null, 'Kokku'),
+					h('strong', null, c.duration_label + ' · ' + c.price_label + (c.material_extra ? ' + materjal' : ''))));
+			}
+			if (n >= MAX_PICK) chosen.appendChild(h('p', { class: 'sb-muted sb-chosen-max' }, 'Korraga saab valida kuni ' + MAX_PICK + ' teenust.'));
+			chosen.appendChild(h('button', { type: 'button', class: 'sb-btn sb-btn-primary', onclick: function () { state.service = combine(state.picked); stepStaff(); } }, 'Edasi'));
+		}
 		function sync() {
 			items.forEach(function (it) {
 				var open = it.cat === state.cat;
 				it.btn.setAttribute('aria-expanded', open ? 'true' : 'false');
 				it.btn.classList.toggle('is-open', open);
 				it.panel.hidden = !open;
+				var n = it.cat.services.filter(picked).length;
+				it.count.textContent = serviceCount(it.cat.services.length) + (n ? ' · valitud ' + n : '');
+				it.btn.classList.toggle('has-picked', !!n);
+			});
+			svcBtns.forEach(function (b) {
+				var on = picked(b.s);
+				b.el.setAttribute('aria-pressed', on ? 'true' : 'false');
+				b.el.classList.toggle('is-picked', on);
 			});
 			hint.hidden = !!state.cat;
+			renderChosen();
 		}
 		cats.forEach(function (cat, i) {
 			var id = 'sb-cat-' + i;
 			var list = h('ul', { class: 'sb-options' });
 			cat.services.forEach(function (s) {
-				list.appendChild(h('li', null, h('button', {
-					type: 'button', class: 'sb-option sb-service',
-					onclick: function () { state.service = s; stepStaff(); }
+				var b = h('button', {
+					type: 'button', class: 'sb-option sb-service', 'aria-pressed': 'false',
+					onclick: function () { toggle(s); }
 				},
+				h('span', { class: 'sb-check', 'aria-hidden': 'true' }),
 				h('span', { class: 'sb-option-text' },
 					h('span', { class: 'sb-option-title' }, s.name),
 					h('span', { class: 'sb-option-meta' }, s.duration_label + (s.material_extra ? ' · lisandub materjal' : '')),
 					s.note ? h('span', { class: 'sb-option-note' }, s.note) : null),
-				h('span', { class: 'sb-price' }, s.price_label))));
+				h('span', { class: 'sb-price' }, s.price_label));
+				svcBtns.push({ s: s, el: b });
+				list.appendChild(h('li', null, b));
 			});
+			var count = h('span', { class: 'sb-option-meta' });
 			var panel = h('div', { class: 'sb-picker-panel', id: id, role: 'region', 'aria-label': cat.name + ': teenused' }, h('h3', null, cat.name), list);
 			var btn = h('button', {
 				type: 'button', class: 'sb-group', 'aria-controls': id,
@@ -226,14 +316,15 @@
 			},
 			h('span', { class: 'sb-option-text' },
 				h('span', { class: 'sb-option-title' }, cat.name),
-				h('span', { class: 'sb-option-meta' }, serviceCount(cat.services.length))),
+				count),
 			h('span', { class: 'sb-chevron', 'aria-hidden': 'true' }, '›'));
-			items.push({ cat: cat, btn: btn, panel: panel });
+			items.push({ cat: cat, btn: btn, panel: panel, count: count });
 			if (!single) wrap.appendChild(btn);
 			wrap.appendChild(panel);
 		});
 		if (!single) wrap.appendChild(hint);
 		main.appendChild(wrap);
+		main.appendChild(chosen);
 		sync();
 		focusHeading(main);
 	}
@@ -255,6 +346,16 @@
 		api('staff?service=' + state.service.id).then(function (res) {
 			var staff = res.staff || [];
 			state.staffList = staff;
+			if (!staff.length) {
+				// Mitme teenuse korral peab üks praktikant tegema neid kõiki.
+				list.textContent = '';
+				main.appendChild(h('div', { class: 'sb-note' },
+					h('p', null, String(state.service.id).indexOf(',') !== -1
+						? 'Kahjuks ei ole hetkel praktikanti, kes teeks kõiki valitud teenuseid korraga. Palun broneeri need teenused eraldi või muuda valikut.'
+						: 'Kahjuks ei ole selle teenuse jaoks hetkel praktikanti.'),
+					h('button', { type: 'button', class: 'sb-btn', onclick: function () { goto(1); } }, 'Muuda teenuseid')));
+				return;
+			}
 			if (res.any) {
 				anyStaff.duration_label = res.any.duration_label;
 				anyStaff.price_label = res.any.price_label;
