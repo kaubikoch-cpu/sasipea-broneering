@@ -55,6 +55,23 @@
 	}
 	function monday(ds) { var d = new Date(ds + 'T12:00:00'); return addDays(ds, -((d.getDay() + 6) % 7)); }
 
+	/* Igal juuksuriõpilasel on oma värv: [tugev, hele taust, tume tekst]. Värv sõltub id-st, nii et see ei muutu.
+	 * Rohelist, punast ja halli siin pole: need tähendavad staatust (kohal, ei tulnud, tühistatud). */
+	var PALETTE = [
+		['#d6336c', '#fde8f0', '#8a1c44'], ['#7048e8', '#eee9fd', '#4527a8'], ['#1c7ed6', '#e3f0fc', '#0f4f8a'], ['#0c8599', '#dff4f7', '#085463'],
+		['#ae3ec9', '#f6e6fb', '#6f2382'], ['#e67700', '#fdf0d9', '#8a4700'], ['#0b84c6', '#dff1fb', '#075985'], ['#4263eb', '#e6ebfd', '#2740a8']
+	];
+	function tone(staffId) {
+		var c = PALETTE[(Math.abs(parseInt(staffId, 10) || 1) - 1) % PALETTE.length];
+		return '--sb-c:' + c[0] + ';--sb-c-soft:' + c[1] + ';--sb-c-ink:' + c[2] + ';';
+	}
+	function initials(name) {
+		var parts = String(name).replace(/^[^:]*:\s*/, '').split(/\s+/).filter(Boolean);
+		var a = parts[0] ? parts[0].charAt(0) : '?', b = parts.length > 1 ? parts[parts.length - 1].charAt(0) : '';
+		return (a + b).toUpperCase();
+	}
+	function avatar(s) { return h('span', { class: 'sb-p-avatar', 'aria-hidden': 'true', style: tone(s.id) }, initials(s.name)); }
+
 	function toast(msg, isError) {
 		var t = h('div', { class: 'sb-toast' + (isError ? ' is-error' : ''), role: isError ? 'alert' : 'status' }, msg);
 		document.body.appendChild(t);
@@ -132,10 +149,17 @@
 		return [lo, hi];
 	}
 
+	function countLabel(list) {
+		var n = list.filter(function (b) { return b.status.indexOf('cancelled') !== 0; }).length;
+		return n === 0 ? 'broneeringuid pole' : n === 1 ? '1 broneering' : n + ' broneeringut';
+	}
+
 	function renderDay(d, day) {
 		var range = dayRange(day, d.staff), lo = range[0], hi = range[1];
 		var rows = (hi - lo) / SLOT, height = rows * ROW;
-		body.appendChild(h('h2', { class: 'sb-p-title' }, day.label.charAt(0).toUpperCase() + day.label.slice(1)));
+		body.appendChild(h('h2', { class: 'sb-p-title' }, day.label.charAt(0).toUpperCase() + day.label.slice(1),
+			day.date === C.today ? h('span', { class: 'sb-p-today' }, 'täna') : null,
+			h('span', { class: 'sb-p-count' }, countLabel(day.bookings))));
 		if (!day.opening.length) body.appendChild(h('p', { class: 'sb-p-closed' }, 'Salong on sel päeval suletud.'));
 		if (day.draft) body.appendChild(h('p', { class: 'sb-p-draft' }, 'Selle kuu töögraafik on salvestatud, aga klientidele veel avalikuks tegemata.'));
 
@@ -144,7 +168,7 @@
 		grid.appendChild(h('div', { class: 'sb-p-corner' }));
 		d.staff.forEach(function (s) {
 			var sub = [s.level_name, s.discount_pct ? '−' + s.discount_pct + '%' : '', s.extra_min ? '+' + s.extra_min + ' min' : ''].filter(Boolean).join(' · ');
-			grid.appendChild(h('div', { class: 'sb-p-head' }, staffLink(s), sub ? h('span', { class: 'sb-p-head-sub' }, sub) : null));
+			grid.appendChild(h('div', { class: 'sb-p-head', style: tone(s.id) }, avatar(s), h('span', { class: 'sb-p-head-text' }, staffLink(s), sub ? h('span', { class: 'sb-p-head-sub' }, sub) : null)));
 		});
 		// kellaajad
 		var times = h('div', { class: 'sb-p-times', style: 'height:' + height + 'px' });
@@ -152,7 +176,7 @@
 		grid.appendChild(times);
 
 		d.staff.forEach(function (s) {
-			var col = h('div', { class: 'sb-p-col', 'data-staff': s.id, style: 'height:' + height + 'px; background-size: 100% ' + (ROW * 4) + 'px' });
+			var col = h('div', { class: 'sb-p-col', 'data-staff': s.id, style: tone(s.id) + 'height:' + height + 'px; background-size: 100% ' + (ROW * 4) + 'px' });
 			// tööaeg
 			(day.work[s.id] || []).forEach(function (r) {
 				var open = day.opening.filter(function (o) { return o[0] < r[1] && o[1] > r[0]; });
@@ -175,6 +199,11 @@
 			day.bookings.filter(function (b) { return b.staff_id === s.id; }).forEach(function (b) {
 				col.appendChild(bookingEl(b, lo));
 			});
+			// praegune kellaaeg tänasel päeval
+			if (day.date === C.today) {
+				var now = new Date(), nowMin = now.getHours() * 60 + now.getMinutes();
+				if (nowMin > lo && nowMin < hi) col.appendChild(h('div', { class: 'sb-p-now', 'aria-hidden': 'true', style: 'top:' + ((nowMin - lo) / SLOT * ROW) + 'px' }));
+			}
 			// klikk tühjal alal -> uus broneering
 			if (C.canManage) {
 				col.addEventListener('click', function (ev) {
@@ -196,10 +225,10 @@
 		var el = h('button', {
 			type: 'button',
 			class: 'sb-p-booking is-' + b.status + (cancelled ? ' is-cancelled' : ''),
-			style: 'top:' + ((b.start_min - lo) / SLOT * ROW) + 'px;height:' + Math.max(ROW, (b.end_min - b.start_min) / SLOT * ROW - 2) + 'px',
+			style: tone(b.staff_id) + 'top:' + ((b.start_min - lo) / SLOT * ROW) + 'px;height:' + Math.max(ROW, (b.end_min - b.start_min) / SLOT * ROW - 2) + 'px',
 			'aria-label': b.time + ', ' + b.client + ', ' + b.service + ', ' + b.status_label
 		},
-		h('span', { class: 'sb-p-b-time' }, b.time, ' · ', b.status_label),
+		h('span', { class: 'sb-p-b-time' }, b.time, h('span', { class: 'sb-p-b-status' }, b.status_label)),
 		h('strong', null, b.client),
 		h('span', null, b.service),
 		b.phone ? h('span', null, b.phone) : null);
@@ -269,7 +298,7 @@
 		}))));
 		var tb = h('tbody');
 		d.staff.forEach(function (s) {
-			tb.appendChild(h('tr', null, h('th', { scope: 'row' }, staffLink(s)), d.days.map(function (day) {
+			tb.appendChild(h('tr', { style: tone(s.id) }, h('th', { scope: 'row' }, h('span', { class: 'sb-p-who' }, avatar(s), staffLink(s))), d.days.map(function (day) {
 				var work = day.work[s.id] || [];
 				var list = day.bookings.filter(function (b) { return b.staff_id === s.id; });
 				return h('td', { class: work.length && day.opening.length ? '' : 'is-off' },
@@ -291,10 +320,10 @@
 		var names = ['E', 'T', 'K', 'N', 'R', 'L', 'P'];
 		function dm(ds) { var dt = new Date(ds + 'T12:00:00'); return dt.getDate() + '.' + pad(dt.getMonth() + 1); }
 		var sub = [s.level_name, s.discount_pct ? '−' + s.discount_pct + '%' : '', s.extra_min ? '+' + s.extra_min + ' min' : ''].filter(Boolean).join(' · ');
-		body.appendChild(h('h2', { class: 'sb-p-title' }, s.name + ': nädal ' + dm(d.days[0].date) + '–' + dm(d.days[6].date) + '.' + d.days[6].date.slice(0, 4),
+		body.appendChild(h('h2', { class: 'sb-p-title' }, avatar(s), s.name + ': nädal ' + dm(d.days[0].date) + '–' + dm(d.days[6].date) + '.' + d.days[6].date.slice(0, 4),
 			sub ? h('span', { class: 'sb-p-head-sub' }, sub) : null));
 		if (d.days.some(function (day) { return day.draft; })) body.appendChild(h('p', { class: 'sb-p-draft' }, 'Märkega "pole avalik" päevade töögraafik on salvestatud, aga klientidele veel avalikuks tegemata.'));
-		var table = h('table', { class: 'widefat sb-p-week sb-p-staffweek' });
+		var table = h('table', { class: 'widefat sb-p-week sb-p-staffweek', style: tone(s.id) });
 		table.appendChild(h('thead', null, h('tr', null, d.days.map(function (day, i) {
 			return h('th', { scope: 'col', class: day.date === C.today ? 'is-today' : '' },
 				h('button', { type: 'button', class: 'sb-link', title: 'Ava päevaplaan', onclick: function () { state.date = day.date; state.view = 'day'; load(); } }, names[i] + ' ' + dm(day.date)),

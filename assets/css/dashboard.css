@@ -70,8 +70,8 @@ body.sbd {
 	font: inherit; font-weight: 600; font-size: 14px; line-height: 1.2; text-decoration: none; cursor: pointer; white-space: nowrap;
 }
 .sbd .button:hover, .sbd-main #sb-planner button:not(.sb-p-booking):not(.sb-p-block):not(.sb-p-w-item):not(.sb-link):hover { border-color: var(--sbd-accent); color: var(--sbd-accent-dark); }
-.sbd .button.button-primary, .sbd-main #sb-planner button.button-primary { background: var(--sbd-accent); border-color: var(--sbd-accent); color: #fff; }
-.sbd .button.button-primary:hover, .sbd-main #sb-planner button.button-primary:hover { background: var(--sbd-accent-dark); border-color: var(--sbd-accent-dark); color: #fff; }
+.sbd .button.button-primary, .sbd-main #sb-planner button.button-primary:not(.sb-p-booking):not(.sb-p-block):not(.sb-p-w-item):not(.sb-link) { background: var(--sbd-accent); border-color: var(--sbd-accent); color: #fff; }
+.sbd .button.button-primary:hover, .sbd-main #sb-planner button.button-primary:not(.sb-p-booking):not(.sb-p-block):not(.sb-p-w-item):not(.sb-link):hover { background: var(--sbd-accent-dark); border-color: var(--sbd-accent-dark); color: #fff; }
 .sbd .button.button-small { min-height: 30px; padding: 4px 10px; font-size: 13px; }
 .sbd .button-link-delete, .sbd .button.button-link-delete { color: #a4282a; border-color: #e5c4c5; }
 .sbd .button[disabled], .sbd button[disabled] { opacity: .55; cursor: not-allowed; }
@@ -137,15 +137,6 @@ a.sbd-card:hover { border-color: var(--sbd-accent); color: var(--sbd-ink); }
 /* ---------- Päevaplaan töölaual ---------- */
 .sbd-main #sb-planner { --sbp-line: var(--sbd-line); }
 .sbd-main .sb-p-scroll { border-radius: var(--sbd-radius); }
-.sbd-main .sb-p-booking { border-color: var(--sbd-accent); background: var(--sbd-accent-soft); }
-.sbd-main .sb-p-booking.is-arrived { border-color: #00733a; background: #e3f4ea; }
-.sbd-main .sb-p-booking.is-no_show { border-color: #b32d2e; background: #fbeaea; }
-.sbd-main .sb-p-booking.is-cancelled { border-color: #8c8f94; background: #f6f7f7; }
-.sbd-main .sb-p-dot { border-color: var(--sbd-accent); background: var(--sbd-accent-soft); }
-.sbd-main .sb-p-dot.is-arrived { border-color: #00733a; background: #e3f4ea; }
-.sbd-main .sb-p-dot.is-no_show { border-color: #b32d2e; background: #fbeaea; }
-.sbd-main .sb-p-dot.is-cancelled { border-color: #8c8f94; background: #f6f7f7; }
-.sbd-main .sb-p-w-item { border-color: var(--sbd-accent); background: var(--sbd-accent-soft); }
 .sbd .sb-link { color: var(--sbd-accent); }
 .sbd .sb-p-dialog { border-radius: 12px; }
 .sbd .sb-p-dialog .button { min-height: 36px; }
