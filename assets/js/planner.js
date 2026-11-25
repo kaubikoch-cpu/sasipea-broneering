@@ -8,7 +8,7 @@
 
 	var SLOT = 15;     // ruudustiku samm minutites
 	var ROW = 20;      // ühe 15 min rea kõrgus px
-	var state = { date: C.today, view: 'day', data: null };
+	var state = { date: C.today, view: 'day', staff: null, data: null }; // view: day | week | staff (ühe juuksuriõpilase nädal)
 	// Töögraafikust tulles avatakse valitud päev (?day=2026-11-25).
 	var wanted = (/[?&]day=(\d{4}-\d{2}-\d{2})(?:&|$)/.exec(window.location.search) || [])[1];
 	if (wanted) state.date = wanted;
@@ -55,6 +55,61 @@
 	}
 	function monday(ds) { var d = new Date(ds + 'T12:00:00'); return addDays(ds, -((d.getDay() + 6) % 7)); }
 
+	/* Juuksuriõpilase värvid: tugev => [hele taust, tume tekst, nimi]. Sama loend on Repo::COLORS-is.
+	 * Õpilane valib värvi ise (klõps oma nimetähtedega ringil); valimata jääb id järgi automaatne värv. */
+	var PALETTE = {
+		'#d6336c': ['#fde8f0', '#8a1c44', 'Roosa'], '#7048e8': ['#eee9fd', '#4527a8', 'Lilla'], '#1c7ed6': ['#e3f0fc', '#0f4f8a', 'Sinine'],
+		'#0c8599': ['#dff4f7', '#085463', 'Sinakasroheline'], '#ae3ec9': ['#f6e6fb', '#6f2382', 'Fuksia'], '#e67700': ['#fdf0d9', '#8a4700', 'Oranž'],
+		'#0b84c6': ['#dff1fb', '#075985', 'Taevasinine'], '#4263eb': ['#e6ebfd', '#2740a8', 'Indigo'], '#e8590c': ['#fde9de', '#933605', 'Korall'],
+		'#5c940d': ['#eef6dc', '#3d6307', 'Laim'], '#8d6e4b': ['#f3ece4', '#5c452b', 'Pruun'], '#495057': ['#eceef0', '#2f353b', 'Grafiit']
+	};
+	var COLOR_KEYS = Object.keys(PALETTE);
+	function colorOf(staffId) {
+		var list = (state.data && state.data.staff) || [], i;
+		for (i = 0; i < list.length; i++) if (list[i].id === +staffId && PALETTE[list[i].color]) return list[i].color;
+		return COLOR_KEYS[(Math.abs(parseInt(staffId, 10) || 1) - 1) % COLOR_KEYS.length];
+	}
+	function tone(staffId) {
+		var k = colorOf(staffId), c = PALETTE[k];
+		return '--sb-c:' + k + ';--sb-c-soft:' + c[0] + ';--sb-c-ink:' + c[1] + ';';
+	}
+	function initials(name) {
+		var parts = String(name).replace(/^[^:]*:\s*/, '').split(/\s+/).filter(Boolean);
+		var a = parts[0] ? parts[0].charAt(0) : '?', b = parts.length > 1 ? parts[parts.length - 1].charAt(0) : '';
+		return (a + b).toUpperCase();
+	}
+	function avatar(s) { return h('span', { class: 'sb-p-avatar', 'aria-hidden': 'true', style: tone(s.id) }, initials(s.name)); }
+	function canColor(s) { return C.canManage || (state.data && state.data.my_staff === s.id); }
+	/** Päeva päises on ring nupp: oma värvi (juhendajal kõigi värvi) saab sealt valida. */
+	function avatarButton(s) {
+		if (!canColor(s)) return avatar(s);
+		return h('button', { type: 'button', class: 'sb-p-avatar sb-p-avatar-btn', style: tone(s.id), title: 'Vali värv', 'aria-label': s.name + ': vali värv', onclick: function (ev) { ev.stopPropagation(); colorMenu(s, ev.currentTarget); } }, initials(s.name));
+	}
+	var colorPop = null;
+	function closeColorMenu() { if (colorPop) { colorPop.remove(); colorPop = null; } }
+	function colorMenu(s, anchor) {
+		closeColorMenu();
+		var current = PALETTE[s.color] ? s.color : '';
+		function pick(k) {
+			closeColorMenu();
+			api('admin/staff/' + s.id + '/color', 'POST', { color: k }).then(function () { toast(k ? 'Värv valitud: ' + PALETTE[k][2] : 'Värv on jälle automaatne'); load(); }).catch(function (e) { toast(e.message, true); });
+		}
+		colorPop = h('div', { class: 'sb-p-colorpop', role: 'dialog', 'aria-label': s.name + ': vali värv' },
+			h('strong', null, s.name + ': vali värv'),
+			h('div', { class: 'sb-p-swatches' }, COLOR_KEYS.map(function (k) {
+				return h('button', { type: 'button', class: 'sb-p-swatch' + (k === current ? ' is-on' : ''), style: 'background:' + k, title: PALETTE[k][2], 'aria-label': PALETTE[k][2], 'aria-pressed': k === current ? 'true' : 'false', onclick: function () { pick(k); } });
+			})),
+			h('button', { type: 'button', class: 'sb-link', onclick: function () { pick(''); } }, 'Automaatne värv'));
+		document.body.appendChild(colorPop);
+		var r = anchor.getBoundingClientRect();
+		colorPop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - colorPop.offsetWidth - 8)) + 'px';
+		colorPop.style.top = (r.bottom + 8) + 'px';
+		var first = colorPop.querySelector('.sb-p-swatch');
+		if (first) first.focus();
+	}
+	document.addEventListener('click', function (ev) { if (colorPop && !colorPop.contains(ev.target)) closeColorMenu(); });
+	document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') closeColorMenu(); });
+
 	function toast(msg, isError) {
 		var t = h('div', { class: 'sb-toast' + (isError ? ' is-error' : ''), role: isError ? 'alert' : 'status' }, msg);
 		document.body.appendChild(t);
@@ -75,7 +130,8 @@
 				dateInput),
 			h('div', { class: 'sb-p-views', role: 'group', 'aria-label': 'Vaade' },
 				h('button', { type: 'button', class: 'button' + (state.view === 'day' ? ' button-primary' : ''), 'aria-pressed': state.view === 'day' ? 'true' : 'false', onclick: function () { state.view = 'day'; load(); } }, 'Päev'),
-				h('button', { type: 'button', class: 'button' + (state.view === 'week' ? ' button-primary' : ''), 'aria-pressed': state.view === 'week' ? 'true' : 'false', onclick: function () { state.view = 'week'; load(); } }, 'Nädal')),
+				h('button', { type: 'button', class: 'button' + (state.view === 'week' ? ' button-primary' : ''), 'aria-pressed': state.view === 'week' ? 'true' : 'false', onclick: function () { state.view = 'week'; load(); } }, 'Nädal'),
+				state.view === 'staff' ? h('button', { type: 'button', class: 'button button-primary', 'aria-pressed': 'true', title: 'Sulge juuksuriõpilase nädalavaade', onclick: function () { state.view = 'week'; load(); } }, staffName() + ' ×') : null),
 			C.canManage ? h('div', { class: 'sb-p-actions' },
 				h('button', { type: 'button', class: 'button', onclick: function () { bookingDialog(null, {}); } }, '+ Broneering'),
 				h('button', { type: 'button', class: 'button', onclick: function () { blockDialog({}); } }, 'Blokeeri aeg')) : null);
@@ -84,17 +140,36 @@
 		root.appendChild(body);
 	}
 
+	function staffName() {
+		var list = (state.data && state.data.staff) || [], i;
+		for (i = 0; i < list.length; i++) if (list[i].id === state.staff) return list[i].name;
+		return 'Juuksuriõpilane';
+	}
+	function openStaff(id) { state.staff = id; state.view = 'staff'; load(); }
+	function staffLink(s) {
+		return h('button', { type: 'button', class: 'sb-link sb-p-stafflink', title: 'Ava ' + s.name + ' nädalavaade', onclick: function () { openStaff(s.id); } }, s.name);
+	}
+
+	/** Nimi on teada alles pärast andmete laadimist: uuenda vaatenupu silti. */
+	function frameChip() {
+		var chip = root.querySelector('.sb-p-views button[title]');
+		if (chip) chip.textContent = staffName() + ' ×';
+	}
+
 	function load() {
 		frame();
-		var start = state.view === 'week' ? monday(state.date) : state.date;
-		api('admin/day?date=' + start + '&days=' + (state.view === 'week' ? 7 : 1)).then(function (d) {
+		var start = state.view === 'day' ? state.date : monday(state.date);
+		api('admin/day?date=' + start + '&days=' + (state.view === 'day' ? 1 : 7)).then(function (d) {
 			state.data = d;
 			body.textContent = '';
 			if (!d.staff.length) {
 				body.appendChild(h('p', null, C.canManage ? 'Aktiivseid juuksuriõpilasi pole. Lisa need menüüs Juuksuriõpilased.' : 'Sinu kasutaja pole seotud ühegi juuksuriõpilasega. Palun pöördu administraatori poole.'));
 				return;
 			}
-			if (state.view === 'week') renderWeek(d); else renderDay(d, d.days[0]);
+			if (state.view === 'staff' && !d.staff.some(function (s) { return s.id === state.staff; })) state.view = 'week';
+			if (state.view === 'staff') { frameChip(); renderStaffWeek(d); }
+			else if (state.view === 'week') renderWeek(d);
+			else renderDay(d, d.days[0]);
 		}).catch(function (e) { body.textContent = ''; body.appendChild(h('div', { class: 'notice notice-error' }, h('p', null, e.message))); });
 	}
 
@@ -112,26 +187,37 @@
 		return [lo, hi];
 	}
 
+	function countLabel(list) {
+		var n = list.filter(function (b) { return b.status.indexOf('cancelled') !== 0; }).length;
+		return n === 0 ? 'broneeringuid pole' : n === 1 ? '1 broneering' : n + ' broneeringut';
+	}
+
 	function renderDay(d, day) {
 		var range = dayRange(day, d.staff), lo = range[0], hi = range[1];
 		var rows = (hi - lo) / SLOT, height = rows * ROW;
-		body.appendChild(h('h2', { class: 'sb-p-title' }, day.label.charAt(0).toUpperCase() + day.label.slice(1)));
+		body.appendChild(h('h2', { class: 'sb-p-title' }, day.label.charAt(0).toUpperCase() + day.label.slice(1),
+			day.date === C.today ? h('span', { class: 'sb-p-today' }, 'täna') : null,
+			h('span', { class: 'sb-p-count' }, countLabel(day.bookings))));
 		if (!day.opening.length) body.appendChild(h('p', { class: 'sb-p-closed' }, 'Salong on sel päeval suletud.'));
+		if (day.draft) body.appendChild(h('p', { class: 'sb-p-draft' }, 'Selle kuu töögraafik on salvestatud, aga klientidele veel avalikuks tegemata.'));
 
 		var grid = h('div', { class: 'sb-p-grid', style: 'grid-template-columns: 56px repeat(' + d.staff.length + ', minmax(150px, 1fr))' });
 		// päis
 		grid.appendChild(h('div', { class: 'sb-p-corner' }));
 		d.staff.forEach(function (s) {
 			var sub = [s.level_name, s.discount_pct ? '−' + s.discount_pct + '%' : '', s.extra_min ? '+' + s.extra_min + ' min' : ''].filter(Boolean).join(' · ');
-			grid.appendChild(h('div', { class: 'sb-p-head' }, s.name, sub ? h('span', { class: 'sb-p-head-sub' }, sub) : null));
+			grid.appendChild(h('div', { class: 'sb-p-head', style: tone(s.id) }, avatarButton(s), h('span', { class: 'sb-p-head-text' }, staffLink(s), sub ? h('span', { class: 'sb-p-head-sub' }, sub) : null)));
 		});
 		// kellaajad
 		var times = h('div', { class: 'sb-p-times', style: 'height:' + height + 'px' });
-		for (var m = lo; m < hi; m += 60) times.appendChild(h('div', { class: 'sb-p-hour', style: 'top:' + ((m - lo) / SLOT * ROW) + 'px' }, hm(m)));
+		for (var m = lo; m < hi; m += SLOT) {
+			var full = m % 60 === 0;
+			times.appendChild(h('div', { class: full ? 'sb-p-hour' : 'sb-p-min' + (m % 60 === 30 ? ' is-half' : ''), style: 'top:' + ((m - lo) / SLOT * ROW) + 'px' }, full ? hm(m) : pad(m % 60)));
+		}
 		grid.appendChild(times);
 
 		d.staff.forEach(function (s) {
-			var col = h('div', { class: 'sb-p-col', 'data-staff': s.id, style: 'height:' + height + 'px; background-size: 100% ' + (ROW * 4) + 'px' });
+			var col = h('div', { class: 'sb-p-col', 'data-staff': s.id, style: tone(s.id) + 'height:' + height + 'px;--sb-row:' + ROW + 'px;' });
 			// tööaeg
 			(day.work[s.id] || []).forEach(function (r) {
 				var open = day.opening.filter(function (o) { return o[0] < r[1] && o[1] > r[0]; });
@@ -154,14 +240,21 @@
 			day.bookings.filter(function (b) { return b.staff_id === s.id; }).forEach(function (b) {
 				col.appendChild(bookingEl(b, lo));
 			});
+			// praegune kellaaeg tänasel päeval
+			if (day.date === C.today) {
+				var now = new Date(), nowMin = now.getHours() * 60 + now.getMinutes();
+				if (nowMin > lo && nowMin < hi) col.appendChild(h('div', { class: 'sb-p-now', 'aria-hidden': 'true', style: 'top:' + ((nowMin - lo) / SLOT * ROW) + 'px' }));
+			}
 			// klikk tühjal alal -> uus broneering
 			if (C.canManage) {
 				col.addEventListener('click', function (ev) {
+					if (col._dragged) { col._dragged = false; return; }
 					if (ev.target !== col && !ev.target.classList.contains('sb-p-work')) return;
 					var rect = col.getBoundingClientRect();
 					var min = lo + Math.floor((ev.clientY - rect.top) / ROW) * SLOT;
 					bookingDialog(null, { staff_id: s.id, date: day.date, time: hm(min) });
 				});
+				enableCreateDrag(col, s, day, lo, hi);
 			}
 			grid.appendChild(col);
 		});
@@ -174,11 +267,11 @@
 		var cancelled = b.status.indexOf('cancelled') === 0;
 		var el = h('button', {
 			type: 'button',
-			class: 'sb-p-booking is-' + b.status + (cancelled ? ' is-cancelled' : ''),
-			style: 'top:' + ((b.start_min - lo) / SLOT * ROW) + 'px;height:' + Math.max(ROW, (b.end_min - b.start_min) / SLOT * ROW - 2) + 'px',
-			'aria-label': b.time + ', ' + b.client + ', ' + b.service + ', ' + b.status_label
+			class: 'sb-p-booking is-' + b.status + (cancelled ? ' is-cancelled' : '') + (b.paid && !cancelled ? ' is-paid' : ''),
+			style: tone(b.staff_id) + 'top:' + ((b.start_min - lo) / SLOT * ROW) + 'px;height:' + Math.max(ROW, (b.end_min - b.start_min) / SLOT * ROW - 2) + 'px',
+			'aria-label': b.time + ', ' + b.client + ', ' + b.service + ', ' + statusText(b)
 		},
-		h('span', { class: 'sb-p-b-time' }, b.time, ' · ', b.status_label),
+		h('span', { class: 'sb-p-b-time' }, b.time, h('span', { class: 'sb-p-b-status' }, statusText(b))),
 		h('strong', null, b.client),
 		h('span', null, b.service),
 		b.phone ? h('span', null, b.phone) : null);
@@ -187,11 +280,14 @@
 		return el;
 	}
 
+	function statusText(b) { return b.paid && b.status.indexOf('cancelled') !== 0 ? 'Arve tehtud' : b.status_label; }
+
 	function legend() {
-		var items = [['booked', 'Broneeritud'], ['arrived', 'Kohal'], ['no_show', 'Ei tulnud'], ['cancelled', 'Tühistatud']];
+		var items = [['booked', 'Broneeritud'], ['arrived', 'Kohal'], ['paid', 'Arve tehtud'], ['no_show', 'Ei tulnud'], ['cancelled', 'Tühistatud']];
 		return h('div', { class: 'sb-p-legend' }, items.map(function (i) {
 			return h('span', null, h('i', { class: 'sb-p-dot is-' + i[0] }), i[1]);
-		}), C.canManage ? h('span', { class: 'sb-p-hint' }, 'Lohista broneeringut, et muuta aega või juuksuriõpilast. Klõps tühjal alal loob uue broneeringu.') : null);
+		}), h('span', null, h('i', { class: 'sb-p-dot is-staff' }), 'vasak triip = juuksuriõpilase värv'),
+		C.canManage ? h('span', { class: 'sb-p-hint' }, 'Lohista broneeringut, et muuta aega või juuksuriõpilast. Uue broneeringu jaoks klõpsa tühjal alal või lohista hiirega soovitud ajavahemik.') : null);
 	}
 
 	/* ---------- lohistamine ---------- */
@@ -238,6 +334,56 @@
 		el.addEventListener('pointercancel', function () { el.style.transform = ''; el.classList.remove('is-dragging'); });
 	}
 
+	/**
+	 * Uue broneeringu aja valimine hiirega lohistades: vajuta tühjal alal alla, vea soovitud lõpuni ja lase lahti.
+	 * Avaneb uue broneeringu aken valitud algusajaga. Puuteekraanil jääb kerimine tööle ja uus broneering käib koputusega.
+	 */
+	function enableCreateDrag(col, s, day, lo, hi) {
+		var startMin = null, ghost = null, startY = 0;
+		function minAt(ev) {
+			var rect = col.getBoundingClientRect();
+			return Math.max(lo, Math.min(hi, lo + Math.round((ev.clientY - rect.top) / ROW) * SLOT));
+		}
+		function range(ev) {
+			var m = minAt(ev), a = Math.min(startMin, m), b = Math.max(startMin, m);
+			if (b - a < SLOT) b = a + SLOT;
+			return [a, Math.min(hi, b)];
+		}
+		col.addEventListener('pointerdown', function (ev) {
+			if (ev.button !== 0 || ev.pointerType === 'touch') return;
+			if (ev.target !== col && !ev.target.classList.contains('sb-p-work')) return;
+			var rect = col.getBoundingClientRect();
+			startMin = Math.max(lo, lo + Math.floor((ev.clientY - rect.top) / ROW) * SLOT);
+			startY = ev.clientY;
+			col.setPointerCapture(ev.pointerId);
+		});
+		col.addEventListener('pointermove', function (ev) {
+			if (startMin === null) return;
+			if (!ghost) {
+				if (Math.abs(ev.clientY - startY) < 6) return;
+				ghost = h('div', { class: 'sb-p-ghost', 'aria-hidden': 'true' });
+				col.appendChild(ghost);
+			}
+			var r = range(ev);
+			ghost.style.top = ((r[0] - lo) / SLOT * ROW) + 'px';
+			ghost.style.height = ((r[1] - r[0]) / SLOT * ROW) + 'px';
+			ghost.textContent = hm(r[0]) + '–' + hm(r[1]);
+		});
+		function finish(ev, cancel) {
+			if (startMin === null) return;
+			var had = !!ghost, r = had ? range(ev) : null;
+			if (ghost) { ghost.remove(); ghost = null; }
+			startMin = null;
+			if (col.hasPointerCapture && col.hasPointerCapture(ev.pointerId)) col.releasePointerCapture(ev.pointerId);
+			if (!had || cancel) return;
+			col._dragged = true; // järgnev click ei ava teist akent
+			setTimeout(function () { col._dragged = false; }, 0);
+			bookingDialog(null, { staff_id: s.id, date: day.date, time: hm(r[0]) });
+		}
+		col.addEventListener('pointerup', function (ev) { finish(ev, false); });
+		col.addEventListener('pointercancel', function (ev) { finish(ev, true); });
+	}
+
 	/* ---------- nädalavaade ---------- */
 
 	function renderWeek(d) {
@@ -248,18 +394,48 @@
 		}))));
 		var tb = h('tbody');
 		d.staff.forEach(function (s) {
-			tb.appendChild(h('tr', null, h('th', { scope: 'row' }, s.name), d.days.map(function (day) {
+			tb.appendChild(h('tr', { style: tone(s.id) }, h('th', { scope: 'row' }, h('span', { class: 'sb-p-who' }, avatar(s), staffLink(s))), d.days.map(function (day) {
 				var work = day.work[s.id] || [];
 				var list = day.bookings.filter(function (b) { return b.staff_id === s.id; });
 				return h('td', { class: work.length && day.opening.length ? '' : 'is-off' },
 					work.length && day.opening.length ? h('div', { class: 'sb-p-w-hours' }, work.map(function (r) { return hm(r[0]) + '–' + hm(r[1]); }).join(', ')) : h('div', { class: 'sb-p-w-hours' }, 'vaba'),
 					list.map(function (b) {
-						return h('button', { type: 'button', class: 'sb-p-w-item is-' + b.status, onclick: function () { openBooking(b.id); } },
+						return h('button', { type: 'button', class: 'sb-p-w-item is-' + b.status + (b.paid && b.status.indexOf('cancelled') !== 0 ? ' is-paid' : ''), style: tone(b.staff_id), onclick: function () { openBooking(b.id); } },
 							h('strong', null, b.time.split('–')[0]), ' ', b.client, h('br'), h('small', null, b.service));
 					}));
 			})));
 		});
 		table.appendChild(tb);
+		body.appendChild(h('div', { class: 'sb-p-scroll' }, table));
+	}
+
+	/* ---------- ühe juuksuriõpilase nädal ---------- */
+
+	function renderStaffWeek(d) {
+		var s = d.staff.filter(function (x) { return x.id === state.staff; })[0];
+		var names = ['E', 'T', 'K', 'N', 'R', 'L', 'P'];
+		function dm(ds) { var dt = new Date(ds + 'T12:00:00'); return dt.getDate() + '.' + pad(dt.getMonth() + 1); }
+		var sub = [s.level_name, s.discount_pct ? '−' + s.discount_pct + '%' : '', s.extra_min ? '+' + s.extra_min + ' min' : ''].filter(Boolean).join(' · ');
+		body.appendChild(h('h2', { class: 'sb-p-title' }, avatar(s), s.name + ': nädal ' + dm(d.days[0].date) + '–' + dm(d.days[6].date) + '.' + d.days[6].date.slice(0, 4),
+			sub ? h('span', { class: 'sb-p-head-sub' }, sub) : null));
+		if (d.days.some(function (day) { return day.draft; })) body.appendChild(h('p', { class: 'sb-p-draft' }, 'Märkega "pole avalik" päevade töögraafik on salvestatud, aga klientidele veel avalikuks tegemata.'));
+		var table = h('table', { class: 'widefat sb-p-week sb-p-staffweek', style: tone(s.id) });
+		table.appendChild(h('thead', null, h('tr', null, d.days.map(function (day, i) {
+			return h('th', { scope: 'col', class: day.date === C.today ? 'is-today' : '' },
+				h('button', { type: 'button', class: 'sb-link', title: 'Ava päevaplaan', onclick: function () { state.date = day.date; state.view = 'day'; load(); } }, names[i] + ' ' + dm(day.date)),
+				day.draft ? h('span', { class: 'sb-p-draft-tag' }, 'pole avalik') : null);
+		}))));
+		table.appendChild(h('tbody', null, h('tr', null, d.days.map(function (day) {
+			var work = day.work[s.id] || [];
+			var list = day.bookings.filter(function (b) { return b.staff_id === s.id; });
+			return h('td', { class: work.length ? '' : 'is-off' },
+				h('div', { class: 'sb-p-w-hours' }, work.length ? work.map(function (r) { return hm(r[0]) + '–' + hm(r[1]); }).join(', ') : 'vaba'),
+				list.map(function (b) {
+					return h('button', { type: 'button', class: 'sb-p-w-item is-' + b.status + (b.paid && b.status.indexOf('cancelled') !== 0 ? ' is-paid' : ''), style: tone(b.staff_id), onclick: function () { openBooking(b.id); } },
+						h('strong', null, b.time), h('br'), b.client, h('br'), h('small', null, b.service));
+				}),
+				work.length && !list.length ? h('div', { class: 'sb-p-w-none' }, 'broneeringuid pole') : null);
+		}))));
 		body.appendChild(h('div', { class: 'sb-p-scroll' }, table));
 	}
 
@@ -376,7 +552,10 @@
 				row('E-post', h('input', { name: 'email', id: 'sb-f-em', type: 'email' }), 'sb-f-em')));
 		}
 		form.appendChild(row('Kommentaar', h('textarea', { name: 'comment', id: 'sb-f-cm', rows: 2 }, b ? b.comment : ''), 'sb-f-cm'));
-		if (isNew) form.appendChild(h('p', { class: 'description' }, 'Kui kliendil on e-post, saadetakse talle kinnitus.'));
+		var notify = h('input', { type: 'checkbox', name: 'notify', id: 'sb-f-nt', checked: true });
+		if (isNew || b.email) {
+			form.appendChild(h('p', { class: 'sb-p-notify' }, h('label', { for: 'sb-f-nt' }, notify, ' ', isNew ? 'Saada kliendile kinnitus e-kirjaga' : 'Teavita klienti e-kirjaga, kui aeg muutub (kiri läheb 10 minuti pärast, vahepeal saad veel parandada)')));
+		}
 		var err = h('div', { class: 'sb-p-err', role: 'alert' });
 		form.appendChild(err);
 		form.appendChild(h('p', null, h('button', { type: 'submit', class: 'button button-primary' }, isNew ? 'Loo broneering' : 'Salvesta muudatused')));
@@ -385,7 +564,7 @@
 			ev.preventDefault();
 			err.textContent = '';
 			var f = form.elements;
-			var data = { service_id: +f.service_id.value, staff_id: +f.staff_id.value, date: f.date.value, time: f.time.value, comment: f.comment.value };
+			var data = { service_id: +f.service_id.value, staff_id: +f.staff_id.value, date: f.date.value, time: f.time.value, comment: f.comment.value, notify: notify.checked };
 			if (isNew) { data.first_name = f.first_name.value; data.last_name = f.last_name.value; data.phone = f.phone.value; data.email = f.email.value; }
 			var btn = form.querySelector('[type=submit]'); btn.disabled = true;
 			api(isNew ? 'admin/bookings' : 'admin/bookings/' + b.id, isNew ? 'POST' : 'PATCH', data)
@@ -408,18 +587,20 @@
 					h('dt', null, 'Allikas'), h('dd', null, b.source === 'online' ? 'online' : 'admin')));
 			var dlg;
 			if (C.canManage) {
+				var cancelNote = h('input', { type: 'checkbox', checked: true });
 				var statusRow = h('div', { class: 'sb-p-status', role: 'group', 'aria-label': 'Muuda staatust' });
 				[['booked', 'Broneeritud'], ['arrived', 'Kohal'], ['no_show', 'Ei tulnud'], ['cancelled_client', 'Tühistas klient'], ['cancelled_salon', 'Tühistas salong']].forEach(function (s) {
 					statusRow.appendChild(h('button', {
 						type: 'button', class: 'button' + (b.status === s[0] ? ' button-primary' : ''), 'aria-pressed': b.status === s[0] ? 'true' : 'false',
 						onclick: function () {
-							api('admin/bookings/' + b.id, 'PATCH', { status: s[0] }).then(function () { dlg.close(); toast('Staatus: ' + s[1]); load(); }).catch(function (e) { toast(e.message, true); });
+							api('admin/bookings/' + b.id, 'PATCH', { status: s[0], notify: cancelNote.checked }).then(function () { dlg.close(); toast('Staatus: ' + s[1]); load(); }).catch(function (e) { toast(e.message, true); });
 						}
 					}, s[1]));
 				});
 				if (C.kassaUrl && ['booked', 'arrived'].indexOf(b.status) !== -1) content.appendChild(h('p', null, h('a', { class: 'button button-primary sb-p-kassa', href: C.kassaUrl + b.id }, 'Kassasse')));
 				content.appendChild(h('h3', null, 'Staatus'));
 				content.appendChild(statusRow);
+				if (b.email && b.status.indexOf('cancelled') !== 0) content.appendChild(h('p', { class: 'sb-p-notify' }, h('label', null, cancelNote, ' Tühistamisel teavita klienti e-kirjaga')));
 				content.appendChild(h('p', null, h('button', { type: 'button', class: 'button', onclick: function () { dlg.close(); bookingDialog(b, {}); } }, 'Muuda aega, juuksuriõpilast või teenust')));
 				content.appendChild(salesBox(b));
 				if (b.history && b.history.length > 1) {

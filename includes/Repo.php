@@ -18,6 +18,32 @@ final class Repo {
 		'cancelled_salon'  => 'Tühistatud (salong)',
 	);
 
+	/** Juuksuriõpilase värvid päevaplaanis: nimi => [tugev, hele taust, tume tekst]. Sama loend on planner.js-is. */
+	public const COLORS = array(
+		'#d6336c' => 'Roosa',
+		'#7048e8' => 'Lilla',
+		'#1c7ed6' => 'Sinine',
+		'#0c8599' => 'Sinakasroheline',
+		'#ae3ec9' => 'Fuksia',
+		'#e67700' => 'Oranž',
+		'#0b84c6' => 'Taevasinine',
+		'#4263eb' => 'Indigo',
+		'#e8590c' => 'Korall',
+		'#5c940d' => 'Laim',
+		'#8d6e4b' => 'Pruun',
+		'#495057' => 'Grafiit',
+	);
+
+	/** Salvestab juuksuriõpilase värvi; tühi = automaatne värv. Tundmatu värv jäetakse vahele. */
+	public static function set_staff_color( int $staff_id, string $color ): bool {
+		global $wpdb;
+		$color = strtolower( $color );
+		if ( '' !== $color && ! isset( self::COLORS[ $color ] ) ) {
+			return false;
+		}
+		return false !== $wpdb->update( self::t( 'staff' ), array( 'color' => '' === $color ? null : $color ), array( 'id' => $staff_id ) );
+	}
+
 	private static function t( string $n ): string {
 		return Install::table( $n );
 	}
@@ -98,6 +124,7 @@ final class Repo {
 			'discount_override' => isset( $r['discount_pct'] ) ? (int) $r['discount_pct'] : null,
 			'extra_override'    => isset( $r['extra_min'] ) ? (int) $r['extra_min'] : null,
 			'pay'               => Payroll::normalize( $r['pay'] ?? null ),
+			'color'             => isset( self::COLORS[ (string) ( $r['color'] ?? '' ) ] ) ? (string) $r['color'] : '',
 		);
 		// Kehtivad tingimused: tase + juuksuriõpilase enda erisused.
 		return $out + Pricing::terms( $out, (array) Settings::get()['levels'] );
@@ -228,12 +255,24 @@ final class Repo {
 		return in_array( $ym, self::months(), true );
 	}
 
+	/** Kuud, mille töögraafik on salvestatud (avalikud ja veel avalikustamata). */
+	public static function saved_months(): array {
+		$saved = array_filter( (array) get_option( 'sb_months_saved', array() ), 'is_string' );
+		return array_values( array_unique( array_merge( $saved, self::months() ) ) );
+	}
+
+	/** Kas kuu töögraafik on salvestatud (ka siis, kui see pole veel klientidele avalik). */
+	public static function month_saved( string $ym ): bool {
+		return in_array( $ym, self::saved_months(), true );
+	}
+
 	/**
 	 * Salvestab kuu töögraafiku: iga juuksuriõpilase iga päeva kohta kas tunnid või vaba päev.
 	 *
-	 * @param array $plan array<int staff_id, array<string Y-m-d, list<[int,int]>>> (tühi list = ei tööta)
+	 * @param array $plan   array<int staff_id, array<string Y-m-d, list<[int,int]>>> (tühi list = ei tööta)
+	 * @param bool  $public kas kuu on klientidele avalik (false = ainult salvestatud, salongi enda jaoks)
 	 */
-	public static function save_month( string $ym, array $plan ): void {
+	public static function save_month( string $ym, array $plan, bool $public = true ): void {
 		global $wpdb;
 		$t = self::t( 'schedule_exceptions' );
 		foreach ( $plan as $staff_id => $days ) {
@@ -248,12 +287,32 @@ final class Repo {
 				}
 			}
 		}
+		$saved = array_values( array_filter( (array) get_option( 'sb_months_saved', array() ), 'is_string' ) );
+		if ( ! in_array( $ym, $saved, true ) ) {
+			$saved[] = $ym;
+			sort( $saved );
+			update_option( 'sb_months_saved', $saved, false );
+		}
 		$months = self::months();
-		if ( ! in_array( $ym, $months, true ) ) {
+		$is     = in_array( $ym, $months, true );
+		if ( $public && ! $is ) {
 			$months[] = $ym;
 			sort( $months );
 			update_option( 'sb_months', $months, false );
+		} elseif ( ! $public && $is ) {
+			update_option( 'sb_months', array_values( array_diff( $months, array( $ym ) ) ), false );
 		}
+	}
+
+	/**
+	 * Tööaeg päevaplaani jaoks: nagu work_ranges, aga salvestatud ja veel avalikustamata kuu
+	 * on salongi töötajatele juba näha (klientidele mitte).
+	 */
+	public static function staff_view_ranges( int $staff_id, string $date ): array {
+		if ( ! empty( Settings::get()['require_month'] ) && ! self::month_saved( substr( $date, 0, 7 ) ) ) {
+			return array();
+		}
+		return self::planned_ranges( $staff_id, $date );
 	}
 
 	/** Aktiivsete broneeringute arv juuksuriõpilase ja kohaliku päeva kaupa: [staff_id][Y-m-d] => n. */
@@ -290,9 +349,55 @@ final class Repo {
 			}
 			return $out;
 		}
+		// Salongi suletud päeval nädalapõhi ei kehti; tööle saab ainult eraldi märgitud tundidega.
+		if ( ! Settings::opening_for( $date ) ) {
+			return array();
+		}
 		$wd   = (int) ( new \DateTimeImmutable( $date, Settings::tz() ) )->format( 'N' );
 		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT start_min, end_min FROM ' . self::t( 'schedules' ) . ' WHERE staff_id = %d AND weekday = %d ORDER BY start_min', $staff_id, $wd ), ARRAY_A );
 		return array_map( fn( $r ) => array( (int) $r['start_min'], (int) $r['end_min'] ), $rows );
+	}
+
+	/** Töögraafikus sellele päevale eraldi märgitud tunnid (ilma nädalapõhjata). Vaba päev või märkimata = tühi. */
+	public static function explicit_ranges( int $staff_id, string $date ): array {
+		global $wpdb;
+		$out = array();
+		foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'schedule_exceptions' ) . ' WHERE staff_id = %d AND day = %s', $staff_id, $date ), ARRAY_A ) as $r ) {
+			if ( (int) $r['is_off'] ) {
+				return array();
+			}
+			$out[] = array( (int) $r['start_min'], (int) $r['end_min'] );
+		}
+		return $out;
+	}
+
+	/**
+	 * Päeva tegelik lahtiolekuaeg: seadete lahtiolekuaeg pluss tunnid, mis mõnele aktiivsele
+	 * juuksuriõpilasele on töögraafikus just sellele päevale märgitud. Nii saab salongi avada
+	 * ka muidu suletud päeval (nt esmaspäeval) või tavapärasest varem ja kauem.
+	 */
+	public static function opening_for( string $date ): array {
+		global $wpdb;
+		$ranges = Settings::opening_for( $date );
+		$rows   = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT e.staff_id, e.start_min, e.end_min, e.is_off FROM ' . self::t( 'schedule_exceptions' ) . ' e INNER JOIN ' . self::t( 'staff' ) . ' s ON s.id = e.staff_id WHERE e.day = %s AND s.active = 1', // phpcs:ignore WordPress.DB.PreparedSQL
+				$date
+			),
+			ARRAY_A
+		);
+		$off = array();
+		foreach ( $rows as $r ) {
+			if ( (int) $r['is_off'] ) {
+				$off[ (int) $r['staff_id'] ] = true;
+			}
+		}
+		foreach ( $rows as $r ) {
+			if ( ! isset( $off[ (int) $r['staff_id'] ] ) ) {
+				$ranges[] = array( (int) $r['start_min'], (int) $r['end_min'] );
+			}
+		}
+		return Availability::merge_ranges( $ranges );
 	}
 
 	public static function schedule( int $staff_id ): array {
@@ -394,7 +499,7 @@ final class Repo {
 			'now'            => time(),
 			'min_notice'     => $admin ? null : (int) $set['min_notice_hours'] * 60,
 			'max_days'       => $admin ? null : (int) $set['max_days_ahead'],
-			'opening'        => Settings::opening_for( $date ),
+			'opening'        => self::opening_for( $date ),
 			'staff'          => $staff,
 			'salon_blocks'   => $salon_blocks,
 			'salon_bookings' => $salon_bookings,

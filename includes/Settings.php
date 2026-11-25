@@ -100,6 +100,25 @@ final class Settings {
 		return sprintf( '%02d:%02d', intdiv( $min, 60 ), $min % 60 );
 	}
 
+	/**
+	 * "12:00-15:00, 15:30-19:00" -> [[720,900],[930,1140]].
+	 * Lubatud on ka punkt kooloni asemel, tühikud kriipsu ümber ja täistunnid: "12.00 - 19.00", "12–19".
+	 */
+	public static function parse_ranges( string $s ): array {
+		$out = array();
+		if ( preg_match_all( '/(?<!\d)(\d{1,2})(?:[:.](\d{2}))?\s*(?:-|–|—|kuni)\s*(\d{1,2})(?:[:.](\d{2}))?(?!\d)/u', $s, $all, PREG_SET_ORDER ) ) {
+			foreach ( $all as $m ) {
+				$a = (int) $m[1] * 60 + (int) ( $m[2] ?? 0 );
+				$b = (int) $m[3] * 60 + (int) ( $m[4] ?? 0 );
+				if ( $b > $a && $b <= 1440 && (int) ( $m[2] ?? 0 ) < 60 && (int) ( $m[4] ?? 0 ) < 60 ) {
+					$out[] = array( $a, $b );
+				}
+			}
+		}
+		usort( $out, fn( $x, $y ) => $x[0] <=> $y[0] );
+		return $out;
+	}
+
 	/** Avatud ajad antud kuupäeval minutites [[start,end]]. */
 	public static function opening_for( string $date ): array {
 		$wd  = (int) ( new \DateTimeImmutable( $date, self::tz() ) )->format( 'N' );

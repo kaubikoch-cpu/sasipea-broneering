@@ -124,18 +124,32 @@ final class Admin {
 
 	/** "12:00-15:00, 15:30-19:00" -> [[720,900],[930,1140]] */
 	public static function parse_ranges( string $s ): array {
-		$out = array();
-		foreach ( preg_split( '/[,;\s]+/', trim( $s ) ) as $part ) {
-			if ( preg_match( '/^(\d{1,2})[:.](\d{2})\s*[-–]\s*(\d{1,2})[:.](\d{2})$/', $part, $m ) ) {
-				$a = (int) $m[1] * 60 + (int) $m[2];
-				$b = (int) $m[3] * 60 + (int) $m[4];
-				if ( $b > $a && $b <= 1440 ) {
-					$out[] = array( $a, $b );
-				}
-			}
+		return Settings::parse_ranges( $s );
+	}
+
+	/** Kellaaja valiku skript ja stiil (algus ja lõpp valitakse, mitte ei kirjutata). Üks kord lehe kohta. */
+	public static function range_picker(): void {
+		static $done = false;
+		if ( $done ) {
+			return;
 		}
-		usort( $out, fn( $x, $y ) => $x[0] <=> $y[0] );
-		return $out;
+		$done = true;
+		echo '<style>
+			.sb-tr{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}
+			.sb-tr select,.sb-tr-pop select{min-width:92px}
+			.sb-tr-dash{color:#646970}
+			.sb-tr-manual{background:none;border:0;padding:0;margin:0 0 0 6px;color:#50575e;font-size:12px;text-decoration:underline;cursor:pointer}
+			.sb-tr-pop{position:fixed;z-index:100000;display:grid;gap:8px;width:230px;padding:12px;background:#fff;border:1px solid #c3c4c7;border-radius:8px;box-shadow:0 6px 24px rgba(0,0,0,.18);text-align:left;font-size:13px}
+			.sb-tr-pop .sb-tr-row{display:flex;align-items:center;gap:6px}
+			.sb-tr-pop .sb-tr-row select{flex:1;min-width:0}
+			.sb-tr-pop .sb-tr-manual{margin:0;text-align:left}
+		</style>';
+		echo '<script src="' . esc_url( SB_URL . 'assets/js/timerange.js?ver=' . SB_VERSION ) . '" defer></script>'; // phpcs:ignore WordPress.WP.EnqueuedResources -- sama leht töötab ka töölaual ilma wp_head'ita.
+	}
+
+	/** Valiku samm minutites: sama mis broneerimise ajasamm, aga mitte üle 30 minuti. */
+	private static function range_step(): int {
+		return (int) ( Settings::get()['slot_step'] ?? 30 ) < 30 ? 15 : 30;
 	}
 
 	public static function ranges_str( array $ranges ): string {
@@ -353,6 +367,12 @@ final class Admin {
 			printf( '<option value="%d"%s>%s</option>', (int) $u->ID, selected( (int) $u->ID, (int) $s['user_id'], false ), esc_html( $u->display_name ) );
 		}
 		echo '</select><p class="description">' . esc_html__( 'Seotud kasutaja näeb päevaplaanis oma graafikut. Talle antakse roll "Juuksuriõpilane", kui tal pole juhendaja ega admini õigusi.', 'sasipea-broneering' ) . '</p></td></tr>';
+		echo '<tr><th>' . esc_html__( 'Värv päevaplaanis', 'sasipea-broneering' ) . '</th><td><fieldset class="sb-colors"><legend class="screen-reader-text">' . esc_html__( 'Värv päevaplaanis', 'sasipea-broneering' ) . '</legend>';
+		printf( '<label><input type="radio" name="color" value=""%s> %s</label> ', checked( '' === ( $s['color'] ?? '' ), true, false ), esc_html__( 'automaatne', 'sasipea-broneering' ) );
+		foreach ( Repo::COLORS as $hex => $label ) {
+			printf( '<label title="%2$s"><input type="radio" name="color" value="%1$s"%3$s> <span style="display:inline-block;width:22px;height:22px;border-radius:50%%;background:%1$s;vertical-align:middle" aria-hidden="true"></span><span class="screen-reader-text">%2$s</span></label> ', esc_attr( $hex ), esc_html( $label ), checked( $hex === ( $s['color'] ?? '' ), true, false ) );
+		}
+		echo '</fieldset><p class="description">' . esc_html__( 'Juuksuriõpilane saab oma värvi ka ise päevaplaanis muuta, klõpsates oma nimetähtedega ringil.', 'sasipea-broneering' ) . '</p></td></tr>';
 		printf( '<tr><th>%s</th><td><label><input type="checkbox" name="active" value="1"%s> %s</label></td></tr>', esc_html__( 'Olek', 'sasipea-broneering' ), checked( $s['active'], true, false ), esc_html__( 'Aktiivne (saab broneerida)', 'sasipea-broneering' ) );
 		printf( '<tr><th><label for="sb-so">%s</label></th><td><input id="sb-so" name="sort_order" type="number" value="%d"></td></tr>', esc_html__( 'Järjekord', 'sasipea-broneering' ), (int) $s['sort_order'] );
 
@@ -395,10 +415,11 @@ final class Admin {
 		}
 		echo '<p class="description">' . esc_html__( 'Teenuse tasu arvestatakse broneeringutelt staatusega "Kohal", kliendi makstud hinnast. 0 = tasu ei arvestata.', 'sasipea-broneering' ) . '</p></td></tr>';
 
-		echo '<tr><th>' . esc_html__( 'Nädalapõhi', 'sasipea-broneering' ) . '</th><td><p class="description">' . esc_html__( 'Tavaline nädal, mille järgi kuu töögraafik eeltäidetakse. Näiteks 12:00-19:00. Pausiga päev: 10:00-13:00, 13:30-16:00. Tühi = ei tööta.', 'sasipea-broneering' ) . '</p>';
+		echo '<tr><th>' . esc_html__( 'Nädalapõhi', 'sasipea-broneering' ) . '</th><td><p class="description">' . esc_html__( 'Tavaline nädal, mille järgi kuu töögraafik eeltäidetakse. Vali iga päeva algus ja lõpp. Pausiga päeva jaoks vajuta "kirjuta käsitsi": 10:00-13:00, 13:30-16:00.', 'sasipea-broneering' ) . '</p>';
+		self::range_picker();
 		$long = Format::days();
 		foreach ( $long as $wd => $name ) {
-			printf( '<p><label style="display:inline-block;width:110px" for="sb-wd%1$d">%2$s</label><input id="sb-wd%1$d" name="schedule[%1$d]" value="%3$s" placeholder="—"></p>', (int) $wd, esc_html( ucfirst( $name ) ), esc_attr( self::ranges_str( $schedule[ $wd ] ?? array() ) ) );
+			printf( '<p><label style="display:inline-block;width:110px" for="sb-wd%1$d">%2$s</label><input id="sb-wd%1$d" name="schedule[%1$d]" value="%3$s" placeholder="—" data-sb-range="inline" data-empty="%4$s" data-default="12:00-19:00" data-step="%5$d" aria-label="%2$s"></p>', (int) $wd, esc_html( ucfirst( $name ) ), esc_attr( self::ranges_str( $schedule[ $wd ] ?? array() ) ), esc_attr__( 'ei tööta', 'sasipea-broneering' ), self::range_step() );
 		}
 		echo '</td></tr>';
 
@@ -433,7 +454,7 @@ final class Admin {
 			wp_nonce_field( 'sb_add_exception' );
 			echo '<input type="hidden" name="action" value="sb_add_exception"><input type="hidden" name="staff_id" value="' . (int) $s['id'] . '">';
 			echo '<label>' . esc_html__( 'Kuupäev', 'sasipea-broneering' ) . ' <input type="date" name="day" required></label> ';
-			echo '<label>' . esc_html__( 'Tunnid', 'sasipea-broneering' ) . ' <input name="ranges" placeholder="10:00-14:00"></label> ';
+			echo '<label>' . esc_html__( 'Tunnid', 'sasipea-broneering' ) . ' <input name="ranges" placeholder="10:00-14:00" data-sb-range="inline" data-empty="—" data-default="10:00-14:00" data-step="' . self::range_step() . '" aria-label="' . esc_attr__( 'Tunnid', 'sasipea-broneering' ) . '"></label> ';
 			echo '<label><input type="checkbox" name="is_off" value="1"> ' . esc_html__( 'Vaba päev', 'sasipea-broneering' ) . '</label> ';
 			submit_button( __( 'Lisa erand', 'sasipea-broneering' ), 'secondary', 'submit', false );
 			echo '</form>';
@@ -456,6 +477,7 @@ final class Admin {
 			'discount_pct' => '' === self::post( 'discount_pct' ) ? null : max( 0, min( 100, (int) self::post( 'discount_pct' ) ) ),
 			'extra_min'  => '' === self::post( 'extra_min' ) ? null : max( 0, min( 240, (int) self::post( 'extra_min' ) ) ),
 			'pay'        => wp_json_encode( self::pay_from_post() ),
+			'color'      => isset( Repo::COLORS[ strtolower( self::post( 'color' ) ) ] ) ? strtolower( self::post( 'color' ) ) : null,
 		);
 		if ( $id ) {
 			$wpdb->update( Install::table( 'staff' ), $data, array( 'id' => $id ) );
@@ -549,6 +571,8 @@ final class Admin {
 		$ym     = self::month_param();
 		$first  = new \DateTimeImmutable( $ym . '-01', Settings::tz() );
 		$ready  = Repo::month_ready( $ym );
+		$saved  = Repo::month_saved( $ym );
+		$gated  = ! empty( Settings::get()['require_month'] ); // kas avalikuks tegemine on eraldi samm
 		$staff  = Repo::staff_list( true );
 		$counts = Repo::booking_counts( $ym );
 		$title  = ucfirst( Format::months()[ (int) $first->format( 'n' ) ] ) . ' ' . $first->format( 'Y' );
@@ -558,82 +582,122 @@ final class Admin {
 		echo '<div class="wrap sb-month"><h1>' . esc_html__( 'Töögraafik', 'sasipea-broneering' ) . '</h1>';
 		self::notice();
 		echo '<style>
-			.sb-month .sb-m-nav{display:flex;gap:8px;align-items:center;margin:12px 0}
+			.sb-month .sb-m-nav{display:flex;gap:8px;align-items:center;margin:12px 0;flex-wrap:wrap}
 			.sb-month .sb-m-nav h2{margin:0 8px;min-width:180px;text-align:center}
-			.sb-month .sb-m-scroll{overflow-x:auto;max-width:100%}
-			.sb-month table{border-collapse:collapse;background:#fff}
-			.sb-month th,.sb-month td{border:1px solid #dcdcde;padding:6px 8px;text-align:left;vertical-align:middle;white-space:nowrap}
-			.sb-month thead th{background:#f6f7f7;position:sticky;top:32px;z-index:2}
-			.sb-month a.sb-m-day{font-weight:600;text-decoration:underline;text-underline-offset:2px}
-			.sb-month tr.is-closed td,.sb-month tr.is-closed th{background:#f0f0f1;color:#646970;padding-top:2px;padding-bottom:2px;font-size:12px}
-			.sb-month tr.is-week-start th,.sb-month tr.is-week-start td{border-top:2px solid #8c8f94}
+			.sb-month .sb-m-scroll{overflow:auto;max-width:100%;max-height:80vh;border:1px solid #dcdcde;background:#fff}
+			.sb-month table{border-collapse:separate;border-spacing:0;background:#fff}
+			.sb-month th,.sb-month td{border:0;border-right:1px solid #dcdcde;border-bottom:1px solid #dcdcde;padding:4px;text-align:center;vertical-align:middle;white-space:nowrap}
+			.sb-month thead th{background:#f6f7f7;position:sticky;top:0;z-index:2;font-size:12px;line-height:1.3;min-width:66px}
+			.sb-month .sb-m-name{position:sticky;left:0;z-index:3;background:#fff;text-align:left;padding:6px 10px;min-width:170px;max-width:220px;white-space:normal;line-height:1.25;box-shadow:2px 0 0 #c3c4c7}
+			.sb-month thead .sb-m-name{z-index:4;background:#f6f7f7}
+			.sb-month a.sb-m-day{display:block;font-weight:600;text-decoration:underline;text-underline-offset:2px}
+			.sb-month .is-closed{background:#f0f0f1;color:#8c8f94;min-width:26px}
+			.sb-month thead th.is-closed{min-width:26px}
+			.sb-month .is-week-start{border-left:2px solid #8c8f94}
+			.sb-month thead th.is-today{background:#fff3c4}
 			.sb-month td.is-on{background:#edf7ed}
-			.sb-month .sb-m-hours{width:150px}
-			.sb-month .sb-m-count{margin-left:6px;color:#8a2424;font-size:12px}
-			.sb-month .sb-m-sub{display:block;font-weight:400;font-size:12px;color:#50575e}
+			.sb-month td.sb-m-cell{position:relative;height:50px;vertical-align:top;padding-top:8px}
+			.sb-month td.sb-m-cell input[type=checkbox]{display:block;margin:0 auto 3px}
+			.sb-month .sb-m-hours{display:block;box-sizing:border-box;width:70px;max-width:none;min-height:0;height:22px;margin:0 auto;padding:0 1px;font-size:10.5px;line-height:20px;text-align:center}
+			.sb-month .sb-m-hours:disabled{visibility:hidden}
+			.sb-month td.is-closed .sb-m-hours:disabled{display:none}
+			.sb-month td.sb-m-cell.is-closed.is-on{background:#e3f1e3}
+			.sb-month .sb-m-hours[readonly]{cursor:pointer}
+			.sb-month .sb-m-hours:focus:not([readonly]){position:absolute;left:2px;bottom:4px;width:180px;z-index:1;font-size:13px;text-align:left;padding:0 6px}
+			.sb-month .sb-m-count{position:absolute;top:2px;right:2px;min-width:14px;padding:0 3px;border-radius:8px;background:#8a2424;color:#fff;font-size:10px;line-height:14px;font-weight:600}
+			.sb-month .sb-m-sub{display:block;font-weight:400;font-size:11.5px;color:#50575e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+			.sb-month .sb-m-name input[type=checkbox]{width:14px;height:14px;min-width:0;margin:0 4px 0 0;vertical-align:-2px}
+			.sb-month thead .sb-m-sub{font-size:10.5px}
 			.sb-month .sb-m-badge{display:inline-block;padding:2px 10px;border-radius:10px;font-size:12px;font-weight:600}
 			.sb-month .sb-m-badge.is-ready{background:#e3f4ea;color:#00572c}
 			.sb-month .sb-m-badge.is-draft{background:#fcf0d6;color:#6b4a00}
+			.sb-month .sb-m-public{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin:12px 0;padding:10px 14px;background:#fff;border:1px solid #dcdcde;border-left:4px solid #00733a;border-radius:6px}
+			.sb-month .sb-m-public-hint{flex:1;min-width:220px;color:#50575e;font-size:13px}
+			@media (max-width:700px){.sb-month .sb-m-name{min-width:100px;max-width:112px;padding:4px 6px;font-size:13px}.sb-month .sb-m-sub{font-size:10.5px}}
 		</style>';
 		echo '<div class="sb-m-nav"><a class="button" href="' . $url( $first->modify( '-1 month' ) ) . '">‹ ' . esc_html__( 'Eelmine kuu', 'sasipea-broneering' ) . '</a><h2>' . esc_html( $title ) . '</h2><a class="button" href="' . $url( $first->modify( '+1 month' ) ) . '">' . esc_html__( 'Järgmine kuu', 'sasipea-broneering' ) . ' ›</a> ';
-		echo $ready
-			? '<span class="sb-m-badge is-ready">' . esc_html__( 'Graafik on koostatud', 'sasipea-broneering' ) . '</span>'
-			: '<span class="sb-m-badge is-draft">' . esc_html__( 'Graafik on koostamata', 'sasipea-broneering' ) . '</span>';
+		if ( $ready ) {
+			echo '<span class="sb-m-badge is-ready">' . esc_html__( 'Avalik klientidele', 'sasipea-broneering' ) . '</span>';
+		} elseif ( $saved ) {
+			echo '<span class="sb-m-badge is-draft">' . esc_html__( 'Salvestatud, pole avalik', 'sasipea-broneering' ) . '</span>';
+		} else {
+			echo '<span class="sb-m-badge is-draft">' . esc_html__( 'Graafik on koostamata', 'sasipea-broneering' ) . '</span>';
+		}
 		echo '</div>';
 
 		if ( ! $staff ) {
 			echo '<p>' . esc_html__( 'Lisa kõigepealt juuksuriõpilased.', 'sasipea-broneering' ) . '</p></div>';
 			return;
 		}
-		if ( ! $ready && ! empty( Settings::get()['require_month'] ) ) {
-			echo '<div class="notice notice-warning sb-m-state"><p><strong>' . esc_html__( 'See kuu on veel salvestamata ja kliendid selle kuu aegu broneerida ei saa.', 'sasipea-broneering' ) . '</strong> ' . esc_html__( 'Allolevad linnukesed on ainult nädalapõhja järgi eeltäidetud ettepanek. Vaata üle ja vajuta lehe lõpus nuppu "Tee kuu klientidele avalikuks".', 'sasipea-broneering' ) . '</p></div>';
-		} elseif ( $ready ) {
+		if ( $ready ) {
 			echo '<div class="notice notice-success sb-m-state"><p><strong>' . esc_html__( 'See kuu on klientidele avalik: kliendid saavad selle kuu aegu broneerida.', 'sasipea-broneering' ) . '</strong></p></div>';
+		} elseif ( $saved && $gated ) {
+			echo '<div class="notice notice-warning sb-m-state"><p><strong>' . esc_html__( 'Selle kuu graafik on salvestatud, aga klientidele veel avalikuks tegemata.', 'sasipea-broneering' ) . '</strong> ' . esc_html__( 'Salongi töötajad näevad seda päevaplaanis, kliendid selle kuu aegu broneerida ei saa. Avalikuks tegemiseks pane linnuke "Avalik klientidele" ja salvesta.', 'sasipea-broneering' ) . '</p></div>';
+		} elseif ( $gated ) {
+			echo '<div class="notice notice-warning sb-m-state"><p><strong>' . esc_html__( 'See kuu on veel salvestamata ja kliendid selle kuu aegu broneerida ei saa.', 'sasipea-broneering' ) . '</strong> ' . esc_html__( 'Allolevad linnukesed on ainult nädalapõhja järgi eeltäidetud ettepanek. Vaata üle ja salvesta. Graafiku võib teha pikalt ette: klientidele läheb avalikuks ainult kuu, millel on linnuke "Avalik klientidele".', 'sasipea-broneering' ) . '</p></div>';
 		}
-		if ( ! $ready ) {
-			echo '<p class="description">' . esc_html( empty( Settings::get()['require_month'] )
-				? __( 'Allpool on eeltäidetud iga juuksuriõpilase nädalapõhi. Märgi, kes mis päeval töötab, muuda vajadusel kellaaegu ja salvesta. Kuni salvestamiseni kehtib selles kuus nädalapõhi.', 'sasipea-broneering' )
-				: __( 'Allpool on eeltäidetud iga juuksuriõpilase nädalapõhi. Märgi, kes mis päeval töötab, muuda vajadusel kellaaegu ja salvesta. Kuni salvestamiseni selles kuus aegu ei pakuta.', 'sasipea-broneering' ) ) . '</p>';
-		} else {
-			echo '<p class="description">' . esc_html__( 'Linnuke = töötab. Kellaaeg näiteks 12:00-19:00, pausiga 10:00-13:00, 13:30-16:00. Olemasolevaid broneeringuid graafiku muutmine ei tühista.', 'sasipea-broneering' ) . '</p>';
+		if ( ! $saved && ! $gated ) {
+			echo '<p class="description">' . esc_html__( 'Allpool on eeltäidetud iga juuksuriõpilase nädalapõhi. Märgi, kes mis päeval töötab, muuda vajadusel kellaaegu ja salvesta. Kuni salvestamiseni kehtib selles kuus nädalapõhi.', 'sasipea-broneering' ) . '</p>';
 		}
+		echo '<p class="description">' . esc_html__( 'Linnuke = töötab. Kellaaja muutmiseks klõpsa kellaajal ja vali algus ja lõpp. Olemasolevaid broneeringuid graafiku muutmine ei tühista.', 'sasipea-broneering' ) . '</p>';
+		echo '<p class="description">' . esc_html__( 'Hall veerg on päev, mil salong on lahtiolekuaegade järgi suletud. Kui paned sinna kellelegi linnukese ja kellaaja, on salong sel päeval nendeks tundideks avatud ja kliendid saavad neid aegu broneerida. Samamoodi võib tavalisel päeval panna tunnid lahtiolekuajast varasemaks või hilisemaks.', 'sasipea-broneering' ) . '</p>';
 
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( 'sb_save_month' );
 		echo '<input type="hidden" name="action" value="sb_save_month"><input type="hidden" name="month" value="' . esc_attr( $ym ) . '">';
-		echo '<div class="sb-m-scroll"><table><thead><tr><th scope="col">' . esc_html__( 'Päev', 'sasipea-broneering' ) . '</th>';
+		if ( $gated ) {
+			echo '<p class="sb-m-public"><label><input type="checkbox" name="public" value="1"' . checked( $ready, true, false ) . '> <strong>' . esc_html__( 'Avalik klientidele', 'sasipea-broneering' ) . '</strong></label> <span class="sb-m-public-hint">' . esc_html__( 'Linnukesega kuu aegu saavad kliendid broneerida. Ilma linnukeseta on graafik ainult salongi enda jaoks.', 'sasipea-broneering' ) . '</span> <input type="submit" class="button button-primary" value="' . esc_attr__( 'Salvesta', 'sasipea-broneering' ) . '"></p>';
+		}
+		// Kuupäevad on veergudes ja juuksuriõpilased ridades, et palju õpilasi mahuks korraga ekraanile.
+		$today    = ( new \DateTimeImmutable( 'now', Settings::tz() ) )->format( 'Y-m-d' );
+		$fallback = self::fallback_hours();
+		$step     = self::range_step();
+		self::range_picker();
+		$days     = array();
+		for ( $d = $first; $d->format( 'Y-m' ) === $ym; $d = $d->modify( '+1 day' ) ) {
+			$date   = $d->format( 'Y-m-d' );
+			$wd     = (int) $d->format( 'N' );
+			$days[] = array(
+				'date'    => $date,
+				'd'       => $d,
+				'wd'      => $wd,
+				'opening' => Settings::opening_for( $date ),
+				'class'   => ( 1 === $wd ? ' is-week-start' : '' ) . ( $date === $today ? ' is-today' : '' ),
+			);
+		}
+		echo '<div class="sb-m-scroll"><table><thead><tr><th scope="col" class="sb-m-name">' . esc_html__( 'Juuksuriõpilane', 'sasipea-broneering' ) . '</th>';
+		foreach ( $days as $day ) {
+			$d = $day['d'];
+			/* translators: %s: date */
+			$day_link = '<a class="sb-m-day" href="' . esc_url( self::url( 'sb-planner&day=' . $day['date'] ) ) . '" title="' . esc_attr( sprintf( __( 'Ava %s päevaplaan', 'sasipea-broneering' ), $d->format( 'j.m.Y' ) ) ) . '">' . esc_html( $short[ $day['wd'] ] ) . '<br>' . esc_html( $d->format( 'j.m' ) ) . '</a>';
+			if ( ! $day['opening'] ) {
+				echo '<th scope="col" class="is-closed' . esc_attr( $day['class'] ) . '" title="' . esc_attr__( 'suletud', 'sasipea-broneering' ) . '">' . $day_link . '</th>';
+				continue;
+			}
+			echo '<th scope="col" class="' . esc_attr( trim( $day['class'] ) ) . '">' . $day_link . '<span class="sb-m-sub">' . esc_html( str_replace( '-', '–', self::ranges_str( $day['opening'] ) ) ) . '</span></th>';
+		}
+		echo '</tr></thead><tbody>';
 		foreach ( $staff as $s ) {
 			printf(
-				'<th scope="col">%s<span class="sb-m-sub">%s</span><label class="sb-m-sub"><input type="checkbox" class="sb-m-all" data-staff="%d"> %s</label></th>',
+				'<tr><th scope="row" class="sb-m-name">%s<span class="sb-m-sub">%s</span><label class="sb-m-sub"><input type="checkbox" class="sb-m-all" data-staff="%d"> %s</label></th>',
 				esc_html( $s['name'] ),
 				esc_html( self::terms_label( $s ) ),
 				(int) $s['id'],
 				esc_html__( 'kõik päevad', 'sasipea-broneering' )
 			);
-		}
-		echo '</tr></thead><tbody>';
-		for ( $d = $first; $d->format( 'Y-m' ) === $ym; $d = $d->modify( '+1 day' ) ) {
-			$date    = $d->format( 'Y-m-d' );
-			$wd      = (int) $d->format( 'N' );
-			$opening = Settings::opening_for( $date );
-			$label   = $short[ $wd ] . ' ' . $d->format( 'j.m' );
-			/* translators: %s: date */
-			$day_link = '<a class="sb-m-day" href="' . esc_url( self::url( 'sb-planner&day=' . $date ) ) . '" title="' . esc_attr( sprintf( __( 'Ava %s päevaplaan', 'sasipea-broneering' ), $d->format( 'j.m.Y' ) ) ) . '">' . esc_html( $label ) . '</a>';
-			$week    = 1 === $wd ? ' is-week-start' : '';
-			if ( ! $opening ) {
-				echo '<tr class="is-closed' . esc_attr( $week ) . '"><th scope="row">' . $day_link . '</th><td colspan="' . count( $staff ) . '">' . esc_html__( 'suletud', 'sasipea-broneering' ) . '</td></tr>';
-				continue;
-			}
-			echo '<tr class="' . esc_attr( trim( $week ) ) . '"><th scope="row">' . $day_link . '<span class="sb-m-sub">' . esc_html( str_replace( '-', '–', self::ranges_str( $opening ) ) ) . '</span></th>';
-			foreach ( $staff as $s ) {
-				$ranges = Repo::planned_ranges( $s['id'], $date );
+			foreach ( $days as $day ) {
+				$date = $day['date'];
+				$d    = $day['d'];
+				// Suletud päeval nädalapõhi ei kehti: tunnid tulevad ainult siis, kui need on sellele päevale eraldi märgitud.
+				$closed = ! $day['opening'];
+				$ranges = $closed ? Repo::explicit_ranges( $s['id'], $date ) : Repo::planned_ranges( $s['id'], $date );
 				$n      = (int) ( $counts[ $s['id'] ][ $date ] ?? 0 );
 				printf(
-					'<td class="%1$s"><input type="checkbox" name="on[%2$d][%3$s]" value="1" data-staff="%2$d" data-default="%4$s" aria-label="%5$s"%6$s> <input class="sb-m-hours" name="hours[%2$d][%3$s]" value="%7$s" placeholder="%4$s" aria-label="%8$s"%9$s>%10$s</td>',
-					$ranges ? 'is-on' : '',
+					'<td class="%1$s"><input type="checkbox" name="on[%2$d][%3$s]" value="1" data-staff="%2$d" data-default="%4$s" aria-label="%5$s"%6$s%11$s><input class="sb-m-hours" name="hours[%2$d][%3$s]" value="%7$s" placeholder="%4$s" title="%7$s" aria-label="%8$s" data-sb-range="pop" data-step="%12$d"%9$s>%10$s</td>',
+					esc_attr( 'sb-m-cell' . ( $closed ? ' is-closed' : '' ) . ( $ranges ? ' is-on' : '' ) . $day['class'] ),
 					(int) $s['id'],
 					esc_attr( $date ),
-					esc_attr( self::ranges_str( $opening ) ),
+					esc_attr( self::ranges_str( $closed ? $fallback : $day['opening'] ) ),
 					/* translators: 1: trainee name, 2: date */
 					esc_attr( sprintf( __( '%1$s töötab %2$s', 'sasipea-broneering' ), $s['name'], $d->format( 'j.m' ) ) ),
 					checked( (bool) $ranges, true, false ),
@@ -642,26 +706,40 @@ final class Admin {
 					esc_attr( sprintf( __( '%1$s kellaajad %2$s', 'sasipea-broneering' ), $s['name'], $d->format( 'j.m' ) ) ),
 					$ranges ? '' : ' disabled',
 					/* translators: %d: number of bookings */
-					$n ? '<span class="sb-m-count">' . esc_html( sprintf( _n( '%d broneering', '%d broneeringut', $n, 'sasipea-broneering' ), $n ) ) . '</span>' : ''
+					$n ? '<span class="sb-m-count" title="' . esc_attr( sprintf( _n( '%d broneering', '%d broneeringut', $n, 'sasipea-broneering' ), $n ) ) . '">' . (int) $n . '</span>' : '',
+					$closed ? ' data-closed="1" title="' . esc_attr__( 'Salong on sel päeval tavaliselt suletud. Linnuke avab selle päeva nendeks tundideks ka klientidele.', 'sasipea-broneering' ) . '"' : '',
+					$step
 				);
 			}
 			echo '</tr>';
 		}
 		echo '</tbody></table></div>';
-		submit_button( $ready ? __( 'Salvesta muudatused', 'sasipea-broneering' ) : __( 'Tee kuu klientidele avalikuks', 'sasipea-broneering' ) );
+		submit_button( __( 'Salvesta', 'sasipea-broneering' ) );
 		echo '</form>';
 		echo "<script>
 		(function(){
 			var f=document.querySelector('.sb-month form');
 			function sync(cb){var t=cb.parentNode.querySelector('.sb-m-hours');t.disabled=!cb.checked;if(cb.checked&&!t.value)t.value=cb.getAttribute('data-default');cb.parentNode.classList.toggle('is-on',cb.checked);}
+			var td=f.querySelector('th.is-today'),sc=f.querySelector('.sb-m-scroll');if(td&&sc){sc.scrollLeft=Math.max(0,td.offsetLeft-f.querySelector('.sb-m-name').offsetWidth-70);}
 			f.addEventListener('change',function(e){
 				var el=e.target;
-				if(el.classList.contains('sb-m-all')){f.querySelectorAll('td input[type=checkbox][data-staff=\"'+el.getAttribute('data-staff')+'\"]').forEach(function(cb){cb.checked=el.checked;sync(cb);});}
+				if(el.classList.contains('sb-m-all')){f.querySelectorAll('td input[type=checkbox][data-staff=\"'+el.getAttribute('data-staff')+'\"]:not([data-closed])').forEach(function(cb){cb.checked=el.checked;sync(cb);});}
 				else if(el.type==='checkbox'){sync(el);}
+				else if(el.classList.contains('sb-m-hours')){el.title=el.value;}
 			});
 		})();
 		</script>";
 		echo '</div>';
+	}
+
+	/** Vaikimisi tunnid suletud päeva jaoks: esimese avatud nädalapäeva lahtiolekuaeg. */
+	private static function fallback_hours(): array {
+		foreach ( Settings::get()['opening_hours'] ?? array() as $day ) {
+			if ( $day ) {
+				return array_map( fn( $r ) => array( Settings::to_min( $r[0] ), Settings::to_min( $r[1] ) ), $day );
+			}
+		}
+		return array( array( 600, 1080 ) );
 	}
 
 	public static function handle_save_month(): void {
@@ -677,19 +755,16 @@ final class Admin {
 			$sid = $s['id'];
 			for ( $d = $first; $d->format( 'Y-m' ) === $ym; $d = $d->modify( '+1 day' ) ) {
 				$date    = $d->format( 'Y-m-d' );
-				$opening = Settings::opening_for( $date );
-				if ( ! $opening ) {
-					continue;
-				}
 				if ( empty( $p['on'][ $sid ][ $date ] ) ) {
 					$plan[ $sid ][ $date ] = array();
 					continue;
 				}
-				// Linnuke ilma loetava kellaajata tähendab tervet lahtiolekuaega.
-				$plan[ $sid ][ $date ] = self::parse_ranges( sanitize_text_field( (string) ( $p['hours'][ $sid ][ $date ] ?? '' ) ) ) ?: $opening;
+				// Linnuke ilma loetava kellaajata tähendab tervet lahtiolekuaega; suletud päeval tavalist tööpäeva.
+				$plan[ $sid ][ $date ] = self::parse_ranges( sanitize_text_field( (string) ( $p['hours'][ $sid ][ $date ] ?? '' ) ) ) ?: ( Settings::opening_for( $date ) ?: self::fallback_hours() );
 			}
 		}
-		Repo::save_month( $ym, $plan );
+		// Kui seade "ainult koostatud kuud" on väljas, kehtib salvestatud graafik kohe ka klientidele.
+		Repo::save_month( $ym, $plan, empty( Settings::get()['require_month'] ) || ! empty( $p['public'] ) );
 		self::back( 'sb-month', array( 'month' => $ym ) );
 	}
 
@@ -1135,10 +1210,11 @@ final class Admin {
 		wp_nonce_field( 'sb_save_settings' );
 		echo '<input type="hidden" name="action" value="sb_save_settings">';
 
-		echo '<h2>' . esc_html__( 'Lahtiolekuajad', 'sasipea-broneering' ) . '</h2><table class="form-table">';
+		self::range_picker();
+		echo '<h2>' . esc_html__( 'Lahtiolekuajad', 'sasipea-broneering' ) . '</h2><p class="description">' . esc_html__( 'Vali iga päeva algus ja lõpp. "suletud" = salong on sel päeval kinni.', 'sasipea-broneering' ) . '</p><table class="form-table">';
 		foreach ( Format::days() as $wd => $name ) {
 			$r = array_map( fn( $x ) => array( Settings::to_min( $x[0] ), Settings::to_min( $x[1] ) ), $s['opening_hours'][ (string) $wd ] ?? array() );
-			printf( '<tr><th><label for="sb-oh%1$d">%2$s</label></th><td><input id="sb-oh%1$d" name="opening[%1$d]" value="%3$s" placeholder="%4$s"></td></tr>', (int) $wd, esc_html( ucfirst( $name ) ), esc_attr( self::ranges_str( $r ) ), esc_attr__( 'suletud', 'sasipea-broneering' ) );
+			printf( '<tr><th><label for="sb-oh%1$d">%2$s</label></th><td><input id="sb-oh%1$d" name="opening[%1$d]" value="%3$s" placeholder="%4$s" data-sb-range="inline" data-empty="%4$s" data-default="12:00-19:00" data-step="%5$d" aria-label="%2$s"></td></tr>', (int) $wd, esc_html( ucfirst( $name ) ), esc_attr( self::ranges_str( $r ) ), esc_attr__( 'suletud', 'sasipea-broneering' ), self::range_step() );
 		}
 		echo '</table>';
 
@@ -1323,10 +1399,19 @@ final class Admin {
 		self::guard( 'sb_manage_settings', 'sb_save_settings' );
 		$p    = wp_unslash( $_POST ); // phpcs:ignore WordPress.Security.NonceVerification
 		$vals = array( 'opening_hours' => array() );
+		$bad  = array();
 		foreach ( range( 1, 7 ) as $wd ) {
+			$text   = trim( sanitize_text_field( (string) ( $p['opening'][ $wd ] ?? '' ) ) );
+			$ranges = self::parse_ranges( $text );
+			// Arusaamatu tekst ei tee päeva vaikselt suletuks: senine aeg jääb alles ja kasutaja saab teate.
+			if ( '' !== $text && ! $ranges && ! preg_match( '/^(suletud|kinni|-|–)$/iu', $text ) ) {
+				$bad[]                                  = Format::days()[ $wd ];
+				$vals['opening_hours'][ (string) $wd ] = Settings::get()['opening_hours'][ (string) $wd ] ?? array();
+				continue;
+			}
 			$vals['opening_hours'][ (string) $wd ] = array_map(
 				fn( $r ) => array( Settings::from_min( $r[0] ), Settings::from_min( $r[1] ) ),
-				self::parse_ranges( sanitize_text_field( (string) ( $p['opening'][ $wd ] ?? '' ) ) )
+				$ranges
 			);
 		}
 		foreach ( array( 'slot_step', 'buffer', 'min_notice_hours', 'max_days_ahead', 'max_concurrent', 'cancel_hours' ) as $k ) {
@@ -1421,6 +1506,10 @@ final class Admin {
 		}
 		$vals['templates'] = $tpl;
 		Settings::update( $vals );
+		if ( $bad ) {
+			/* translators: %s: comma separated weekday names */
+			self::back( 'sb-settings', array( 'sb_saved' => null, 'sb_error' => sprintf( __( 'Lahtiolekuaeg jäi muutmata, sest kellaajast ei saanud aru: %s. Kirjuta näiteks 12:00-19:00.', 'sasipea-broneering' ), implode( ', ', $bad ) ) ) );
+		}
 		self::back( 'sb-settings' );
 	}
 }

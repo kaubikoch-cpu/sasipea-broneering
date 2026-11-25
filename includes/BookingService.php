@@ -153,7 +153,7 @@ final class BookingService {
 		if ( ! empty( $booking['model_id'] ) ) {
 			Integrations\Modellid::touch( (int) $booking['model_id'] );
 		}
-		do_action( 'sb_booking_created', $booking, $result['token'] );
+		do_action( 'sb_booking_created', $booking, $result['token'], array( 'by_client' => ! $admin, 'notify' => ! isset( $in['notify'] ) || $in['notify'] ) );
 		return array(
 			'booking' => $booking,
 			'token'   => $result['token'],
@@ -239,10 +239,11 @@ final class BookingService {
 			return $result;
 		}
 		$new = Repo::booking( $id );
+		$ctx = array( 'by_client' => ! $admin, 'notify' => ! isset( $ch['notify'] ) || $ch['notify'] );
 		if ( str_starts_with( $new['status'], 'cancelled' ) && ! str_starts_with( $result['old']['status'], 'cancelled' ) ) {
-			do_action( 'sb_booking_cancelled', $new );
+			do_action( 'sb_booking_cancelled', $new, $ctx );
 		} elseif ( $result['moved'] && in_array( $new['status'], Repo::ACTIVE, true ) ) {
-			do_action( 'sb_booking_moved', $new, $result['old'] );
+			do_action( 'sb_booking_moved', $new, $result['old'], $ctx );
 		}
 		return $new;
 	}

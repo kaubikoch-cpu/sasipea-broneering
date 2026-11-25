@@ -14,9 +14,11 @@ final class Mailer {
 	public static ?string $known_token = null;
 
 	public static function init(): void {
-		add_action( 'sb_booking_created', array( self::class, 'on_created' ), 10, 2 );
-		add_action( 'sb_booking_moved', array( self::class, 'on_moved' ), 10, 2 );
-		add_action( 'sb_booking_cancelled', array( self::class, 'on_cancelled' ), 10, 1 );
+		add_action( 'sb_booking_created', array( self::class, 'on_created' ), 10, 3 );
+		add_action( 'sb_booking_moved', array( self::class, 'on_moved' ), 10, 3 );
+		add_action( 'sb_mail_flush', array( self::class, 'flush_due' ), 10, 0 );
+		add_action( 'sb_cron_reminders', array( self::class, 'flush_due' ), 10, 0 );
+		add_action( 'sb_booking_cancelled', array( self::class, 'on_cancelled' ), 10, 2 );
 	}
 
 	public static function default_templates(): array {
@@ -121,25 +123,118 @@ final class Mailer {
 		return $token;
 	}
 
-	public static function on_created( array $b, string $token ): void {
-		if ( is_email( $b['email'] ) ) {
+	/**
+	 * Kellele kiri läheb. Kliendi enda tegevus (online): kiri kliendile ja salongile. Salongi tegevus:
+	 * salongile kirja ei saadeta; kliendile ainult siis, kui töötaja jättis teavituse sisse, aeg on
+	 * tulevikus ja muutmisel muutus päriselt algusaeg (teise õpilase või teenuse pärast kirja ei tule).
+	 *
+	 * @param string $event created|moved|cancelled
+	 * @return array{client:bool,admin:bool}
+	 */
+	public static function plan( string $event, bool $by_client, bool $notify, bool $future, bool $time_changed = true ): array {
+		if ( $by_client ) {
+			return array( 'client' => true, 'admin' => true );
+		}
+		$client = $notify && $future && ( 'moved' !== $event || $time_changed );
+		return array( 'client' => $client, 'admin' => false );
+	}
+
+	private static function plan_for( string $event, array $b, array $ctx, bool $time_changed = true ): array {
+		return self::plan(
+			$event,
+			! empty( $ctx['by_client'] ),
+			! isset( $ctx['notify'] ) || $ctx['notify'],
+			Repo::ts( $b['start_utc'] ) > time(),
+			$time_changed
+		);
+	}
+
+	public const PENDING = 'sb_pending_moves';
+	public const DELAY   = 600;
+
+	/**
+	 * Lisab ootele aja muutmise teate. Esimese muudatuse algne aeg jääb meelde, iga uus muudatus
+	 * lükkab saatmist edasi.
+	 *
+	 * @param array<int,array{from:string,due:int}> $pending
+	 */
+	public static function queue( array $pending, int $id, string $from, int $now ): array {
+		$pending[ $id ] = array(
+			'from' => $pending[ $id ]['from'] ?? $from,
+			'due'  => $now + self::DELAY,
+		);
+		return $pending;
+	}
+
+	/** Kas ootel teade tuleb saata: aeg peab erinema algsest, olema tulevikus ja broneering kehtiv. */
+	public static function move_still_matters( string $from, string $start_utc, bool $active, bool $future ): bool {
+		return $active && $future && $from !== $start_utc;
+	}
+
+	private static function forget( int $id ): void {
+		$pending = (array) get_option( self::PENDING, array() );
+		if ( isset( $pending[ $id ] ) ) {
+			unset( $pending[ $id ] );
+			update_option( self::PENDING, $pending, false );
+		}
+	}
+
+	/** Saadab ootel teated, mille aeg on käes. Käivitub ühekordse cron-sündmusega ja varuks iga 15 minuti järel. */
+	public static function flush_due(): int {
+		$pending = (array) get_option( self::PENDING, array() );
+		$now     = time();
+		$sent    = 0;
+		foreach ( $pending as $id => $p ) {
+			if ( (int) $p['due'] > $now ) {
+				continue;
+			}
+			self::forget( (int) $id );
+			$b = Repo::booking( (int) $id );
+			if ( $b && is_email( $b['email'] ) && self::move_still_matters( (string) $p['from'], $b['start_utc'], in_array( $b['status'], Repo::ACTIVE, true ), Repo::ts( $b['start_utc'] ) > $now ) ) {
+				self::send( $b['email'], 'client_moved', $b, self::fresh_token( (int) $b['id'] ), true );
+				++$sent;
+			}
+		}
+		return $sent;
+	}
+
+	public static function on_created( array $b, string $token, array $ctx = array() ): void {
+		$plan = self::plan_for( 'created', $b, $ctx );
+		if ( $plan['client'] && is_email( $b['email'] ) ) {
 			self::send( $b['email'], 'client_confirm', $b, $token, true );
 		}
-		self::notify( 'admin_new', $b );
+		if ( $plan['admin'] ) {
+			self::notify( 'admin_new', $b );
+		}
 	}
 
-	public static function on_moved( array $b, array $old ): void {
-		if ( is_email( $b['email'] ) ) {
+	public static function on_moved( array $b, array $old, array $ctx = array() ): void {
+		$plan = self::plan_for( 'moved', $b, $ctx, $b['start_utc'] !== $old['start_utc'] );
+		if ( empty( $ctx['by_client'] ) ) {
+			// Salongi muudatus ootab 10 minutit: kui töötaja eksib ja parandab, saab klient ühe kirja lõpliku ajaga.
+			if ( $plan['client'] && is_email( $b['email'] ) ) {
+				update_option( self::PENDING, self::queue( (array) get_option( self::PENDING, array() ), (int) $b['id'], $old['start_utc'], time() ), false );
+				wp_clear_scheduled_hook( 'sb_mail_flush', array( (int) $b['id'] ) );
+				wp_schedule_single_event( time() + self::DELAY, 'sb_mail_flush', array( (int) $b['id'] ) );
+			}
+		} elseif ( is_email( $b['email'] ) ) {
+			self::forget( (int) $b['id'] );
 			self::send( $b['email'], 'client_moved', $b, self::fresh_token( (int) $b['id'] ), true );
 		}
-		self::notify( 'admin_moved', $b );
+		if ( $plan['admin'] ) {
+			self::notify( 'admin_moved', $b );
+		}
 	}
 
-	public static function on_cancelled( array $b ): void {
-		if ( is_email( $b['email'] ) ) {
+	public static function on_cancelled( array $b, array $ctx = array() ): void {
+		self::forget( (int) $b['id'] );
+		$plan = self::plan_for( 'cancelled', $b, $ctx );
+		if ( $plan['client'] && is_email( $b['email'] ) ) {
 			self::send( $b['email'], 'client_cancel', $b, null, true );
 		}
-		self::notify( 'admin_cancel', $b );
+		if ( $plan['admin'] ) {
+			self::notify( 'admin_cancel', $b );
+		}
 	}
 
 	public static function reminder( array $b ): bool {

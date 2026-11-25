@@ -1,57 +1,95 @@
 /* Sasipea broneering – päevaplaan */
-#sb-planner { --sbp-line: #dcdcde; --sbp-off: #f0f0f1; --sbp-work: #ffffff; max-width: 100%; }
+#sb-planner {
+	--sbp-line: #e6dfe8; --sbp-off: #f4f0f6; --sbp-work: #ffffff; --sbp-ink: #241a26; --sbp-muted: #5f5463;
+	--sb-c: #8a2b52; --sb-c-soft: #f6e9ef; --sb-c-ink: #6b1f42; max-width: 100%; color: var(--sbp-ink);
+}
 .sb-p-bar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin: 12px 0; }
 .sb-p-nav, .sb-p-views, .sb-p-actions { display: flex; gap: 4px; align-items: center; }
-.sb-p-nav input[type=date] { margin-left: 6px; }
-.sb-p-title { font-size: 1.3em; margin: 8px 0; }
-.sb-p-closed { color: #8a2424; font-weight: 600; }
-.sb-p-scroll { overflow-x: auto; border: 1px solid var(--sbp-line); background: #fff; }
+#sb-planner .sb-p-bar .button { border-radius: 999px; }
+.sb-p-nav input[type=date] { margin-left: 6px; border-radius: 999px; }
+.sb-p-title { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; font-size: 1.4em; margin: 14px 0 10px; }
+.sb-p-today, .sb-p-count { display: inline-block; padding: 2px 12px; border-radius: 999px; font-size: 13px; font-weight: 600; line-height: 1.6; }
+.sb-p-today { background: #ffd43b; color: #5c3b00; }
+.sb-p-count { background: #eee9fd; color: #4527a8; }
+.sb-p-closed { display: inline-block; margin: 0 0 10px; padding: 6px 14px; border-radius: 999px; background: #fde8e8; color: #8a2424; font-weight: 600; }
+.sb-p-scroll { overflow-x: auto; border: 1px solid var(--sbp-line); border-radius: 16px; background: #fff; box-shadow: 0 2px 10px rgba(60, 20, 70, .06); }
 .sb-p-grid { display: grid; min-width: min-content; }
-.sb-p-corner, .sb-p-head { position: sticky; top: 0; z-index: 3; background: #f6f7f7; border-bottom: 1px solid var(--sbp-line); padding: 8px; font-weight: 600; }
-.sb-p-head { border-left: 1px solid var(--sbp-line); text-align: center; }
-.sb-p-head-sub { display: block; font-weight: 400; font-size: 12px; color: #50575e; }
+.sb-p-corner, .sb-p-head { position: sticky; top: 0; z-index: 3; background: #fff; border-bottom: 1px solid var(--sbp-line); padding: 10px 8px; font-weight: 600; }
+.sb-p-head { display: flex; align-items: center; justify-content: center; gap: 8px; border-left: 1px solid var(--sbp-line); border-bottom: 3px solid var(--sb-c); background: linear-gradient(to bottom, #fff, var(--sb-c-soft)); text-align: left; }
+.sb-p-head-text { min-width: 0; }
+.sb-p-head-sub { display: block; font-weight: 400; font-size: 12px; color: var(--sbp-muted); }
+.sb-p-avatar { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%; background: var(--sb-c); color: #fff; font-size: 13px; font-weight: 700; letter-spacing: .02em; box-shadow: 0 0 0 3px var(--sb-c-soft); }
 .sb-p-times { position: relative; }
-.sb-p-hour { position: absolute; right: 6px; font-size: 12px; color: #50575e; transform: translateY(-1px); }
+.sb-p-hour { position: absolute; right: 6px; font-size: 14px; font-weight: 700; color: var(--sbp-ink); transform: translateY(-2px); }
+.sb-p-min { position: absolute; right: 6px; font-size: 10.5px; color: #8a7f8e; transform: translateY(-2px); }
+.sb-p-min.is-half { font-size: 11.5px; font-weight: 600; color: var(--sbp-muted); }
 .sb-p-col {
+	/* Täistund: tugev joon. 30 min: keskmine joon. 15 ja 45 min: hele joon. */
 	position: relative; border-left: 1px solid var(--sbp-line); background-color: var(--sbp-off);
-	background-image: linear-gradient(to bottom, #c3c4c7 1px, transparent 1px);
+	background-image:
+		linear-gradient(to bottom, #9c8fa3 2px, transparent 2px),
+		linear-gradient(to bottom, #c9bfce 1px, transparent 1px),
+		linear-gradient(to bottom, #e4dde7 1px, transparent 1px),
+		linear-gradient(to bottom, #e4dde7 1px, transparent 1px);
+	background-size: 100% calc(var(--sb-row, 20px) * 4);
+	background-position: 0 0, 0 calc(var(--sb-row, 20px) * 2), 0 var(--sb-row, 20px), 0 calc(var(--sb-row, 20px) * 3);
 }
-.sb-p-col.is-target { outline: 2px dashed #2271b1; outline-offset: -2px; }
-.sb-p-work { position: absolute; left: 0; right: 0; background: rgba(255, 255, 255, .85); cursor: copy; }
+.sb-p-col.is-target { outline: 3px dashed var(--sb-c); outline-offset: -3px; }
+.sb-p-work { position: absolute; left: 0; right: 0; background: rgba(255, 255, 255, .78); box-shadow: inset 3px 0 0 var(--sb-c-soft); cursor: crosshair; }
+.sb-p-ghost { position: absolute; left: 4px; right: 4px; z-index: 5; padding: 2px 8px; border: 2px dashed var(--sb-c); border-radius: 10px; background: color-mix(in srgb, var(--sb-c-soft) 80%, transparent); color: var(--sb-c-ink); font-size: 12px; font-weight: 700; pointer-events: none; }
+.sb-p-work:hover { background: rgba(255, 255, 255, .6); }
+.sb-p-now { position: absolute; left: 0; right: 0; z-index: 4; height: 0; border-top: 2px solid #f03e3e; pointer-events: none; }
+.sb-p-col:first-of-type .sb-p-now::before, .sb-p-times + .sb-p-col .sb-p-now::before { content: ""; position: absolute; left: -5px; top: -6px; width: 10px; height: 10px; border-radius: 50%; background: #f03e3e; }
 .sb-p-block {
-	position: absolute; left: 0; right: 0; border: none; padding: 2px 6px; text-align: left; font-size: 12px; color: #3c434a; cursor: pointer; z-index: 1;
-	background: repeating-linear-gradient(45deg, #e2e4e7, #e2e4e7 6px, #d0d3d7 6px, #d0d3d7 12px);
+	position: absolute; left: 0; right: 0; border: none; padding: 2px 8px; text-align: left; font-size: 12px; color: #4a3f4d; cursor: pointer; z-index: 1;
+	background: repeating-linear-gradient(45deg, #ebe5ee, #ebe5ee 6px, #ddd4e1 6px, #ddd4e1 12px);
 }
 .sb-p-booking {
-	position: absolute; left: 3px; right: 3px; z-index: 2; overflow: hidden; text-align: left; cursor: grab;
-	display: flex; flex-direction: column; gap: 1px; padding: 3px 6px; font-size: 12px; line-height: 1.3;
-	border-radius: 4px; border: 1px solid #2271b1; border-left-width: 4px; background: #e7f0f9; color: #1d2327; touch-action: none;
+	/* Kaardi täide näitab staatust, vasak triip juuksuriõpilase värvi. */
+	--st-bg: #e4efff; --st-line: #9ec5fe; --st-ink: #0b4a8f;
+	position: absolute; left: 4px; right: 4px; z-index: 2; overflow: hidden; text-align: left; cursor: grab;
+	display: flex; flex-direction: column; gap: 1px; padding: 4px 8px; font-size: 12px; line-height: 1.3;
+	border-radius: 10px; border: 1px solid var(--st-line); border-left: 6px solid var(--sb-c); background: var(--st-bg); color: var(--sbp-ink, #241a26); touch-action: none;
+	box-shadow: 0 1px 3px rgba(60, 20, 70, .12); transition: box-shadow .12s;
 }
-.sb-p-booking:focus-visible { outline: 3px solid #1d2327; outline-offset: 1px; }
+.sb-p-booking:hover { box-shadow: 0 4px 12px rgba(60, 20, 70, .2); }
+.sb-p-booking:focus-visible { outline: 3px solid #241a26; outline-offset: 1px; }
 .sb-p-booking strong { font-size: 13px; }
-.sb-p-b-time { color: #3c434a; }
-.sb-p-booking.is-arrived { border-color: #00733a; background: #e3f4ea; }
-.sb-p-booking.is-no_show { border-color: #b32d2e; background: #fbeaea; }
-.sb-p-booking.is-cancelled { border-color: #8c8f94; background: #f6f7f7; color: #50575e; opacity: .75; text-decoration: line-through; cursor: pointer; left: 55%; z-index: 1; }
-.sb-p-booking.is-dragging { z-index: 10; box-shadow: 0 6px 18px rgba(0, 0, 0, .25); cursor: grabbing; opacity: .9; }
+.sb-p-b-time { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; color: var(--st-ink); font-weight: 600; }
+.sb-p-b-status { padding: 0 7px; border-radius: 999px; background: rgba(255, 255, 255, .8); font-size: 11px; font-weight: 600; }
+.sb-p-booking.is-arrived { --st-bg: #dcf5e1; --st-line: #8fd19e; --st-ink: #1c5e2a; }
+.sb-p-booking.is-arrived .sb-p-b-status::before { content: "✓ "; }
+.sb-p-booking.is-no_show { --st-bg: #fde3e3; --st-line: #f1a5a5; --st-ink: #8a1c1c; }
+.sb-p-booking.is-no_show .sb-p-b-status::before { content: "✕ "; }
+/* Arve tehtud: töö on lõpetatud, kaart on matim ja vähem erk. */
+.sb-p-booking.is-paid { --st-bg: #efedf0; --st-line: #d8d2db; --st-ink: #6a6170; color: #5f5463; border-left-color: color-mix(in srgb, var(--sb-c) 45%, #cfc9d2); box-shadow: none; }
+.sb-p-booking.is-paid .sb-p-b-status::before { content: "€ "; }
+.sb-p-booking.is-cancelled { --st-bg: #f6f4f7; --st-line: #c9c4cc; --st-ink: #6a6170; border-left-color: #a8a2ac; color: #6a6170; opacity: .8; text-decoration: line-through; cursor: pointer; left: 55%; z-index: 1; box-shadow: none; }
+.sb-p-booking.is-dragging { z-index: 10; box-shadow: 0 10px 24px rgba(60, 20, 70, .3); cursor: grabbing; opacity: .92; }
+.sb-p-booking.is-cancelled .sb-p-b-time { color: #50575e; }
 .sb-p-booking.is-saving { opacity: .5; }
-.sb-p-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 8px 0; font-size: 13px; align-items: center; }
-.sb-p-legend span { display: inline-flex; align-items: center; gap: 4px; }
-.sb-p-dot { display: inline-block; width: 12px; height: 12px; border-radius: 3px; border: 1px solid #2271b1; background: #e7f0f9; }
-.sb-p-dot.is-arrived { border-color: #00733a; background: #e3f4ea; }
-.sb-p-dot.is-no_show { border-color: #b32d2e; background: #fbeaea; }
-.sb-p-dot.is-cancelled { border-color: #8c8f94; background: #f6f7f7; }
-.sb-p-hint { color: #50575e; }
+.sb-p-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 10px 0; font-size: 13px; align-items: center; }
+.sb-p-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.sb-p-dot { display: inline-block; width: 16px; height: 16px; border-radius: 5px; border: 1px solid #9ec5fe; background: #e4efff; }
+.sb-p-dot.is-arrived { border-color: #8fd19e; background: #dcf5e1; }
+.sb-p-dot.is-paid { border-color: #d8d2db; background: #efedf0; }
+.sb-p-dot.is-no_show { border-color: #f1a5a5; background: #fde3e3; }
+.sb-p-dot.is-cancelled { border-color: #c9c4cc; background: #f6f4f7; }
+.sb-p-dot.is-staff { width: 6px; border: 0; border-radius: 3px; background: linear-gradient(to bottom, #d6336c, #7048e8, #1c7ed6, #e67700); }
+.sb-p-hint { color: var(--sbp-muted); }
 
 /* Nädal */
 .sb-p-week th, .sb-p-week td { vertical-align: top; min-width: 120px; }
-.sb-p-week td.is-off { background: #f6f7f7; }
-.sb-p-w-hours { font-size: 12px; color: #50575e; margin-bottom: 4px; }
-.sb-p-w-item { display: block; width: 100%; text-align: left; margin-bottom: 4px; padding: 4px 6px; border: 1px solid #2271b1; border-left-width: 4px; border-radius: 4px; background: #e7f0f9; cursor: pointer; font-size: 12px; }
-.sb-p-w-item.is-arrived { border-color: #00733a; background: #e3f4ea; }
-.sb-p-w-item.is-no_show { border-color: #b32d2e; background: #fbeaea; }
-.sb-p-w-item.is-cancelled_client, .sb-p-w-item.is-cancelled_salon { border-color: #8c8f94; background: #f6f7f7; text-decoration: line-through; }
+.sb-p-week td.is-off { background: var(--sbp-off, #f4f0f6); }
+.sb-p-who { display: inline-flex; align-items: center; gap: 8px; }
+.sb-p-w-hours { font-size: 12px; font-weight: 600; color: var(--sbp-muted, #5f5463); margin-bottom: 4px; }
+.sb-p-w-item { display: block; width: 100%; text-align: left; margin-bottom: 4px; padding: 5px 8px; border: 1px solid #9ec5fe; border-left: 6px solid var(--sb-c); border-radius: 10px; background: #e4efff; color: inherit; cursor: pointer; font-size: 12px; }
+.sb-p-w-item.is-arrived { border-color: #8fd19e; border-left-color: var(--sb-c); background: #dcf5e1; }
+.sb-p-w-item.is-no_show { border-color: #f1a5a5; border-left-color: var(--sb-c); background: #fde3e3; }
+.sb-p-w-item.is-paid { border-color: #d8d2db; border-left-color: color-mix(in srgb, var(--sb-c) 45%, #cfc9d2); background: #efedf0; color: #5f5463; }
+.sb-p-w-item.is-cancelled_client, .sb-p-w-item.is-cancelled_salon { border-color: #c9c4cc; border-left-color: #a8a2ac; background: #f6f4f7; text-decoration: line-through; }
 .sb-link { background: none; border: none; padding: 0; color: #2271b1; text-decoration: underline; cursor: pointer; font: inherit; }
+@media (prefers-reduced-motion: reduce) { .sb-p-booking { transition: none; } }
 
 /* Dialoog */
 .sb-p-dialog { width: min(560px, calc(100vw - 32px)); border: none; border-radius: 8px; padding: 0; box-shadow: 0 10px 40px rgba(0, 0, 0, .3); }
@@ -104,3 +142,26 @@
 .sb-p-models button.is-picked { border-color: #8a2b52; background: #f6e9ef; }
 .sb-p-models small { display: block; color: #50575e; font-size: 12px; font-weight: 400; }
 .sb-p-models-empty { color: #50575e; font-size: 13px; }
+
+/* Juuksuriõpilase nädalavaade ja avalikustamata kuu märge */
+#sb-planner .sb-p-stafflink { font-weight: 600; color: inherit; text-decoration: none; }
+#sb-planner .sb-p-stafflink:hover, #sb-planner .sb-p-stafflink:focus-visible { color: var(--sb-c-ink, #2271b1); text-decoration: underline; }
+.sb-p-draft { margin: 0 0 10px; padding: 8px 12px; background: #fcf0d6; border-left: 4px solid #dba617; border-radius: 4px; color: #6b4a00; }
+.sb-p-draft-tag { display: block; width: max-content; margin-top: 2px; padding: 0 8px; border-radius: 10px; background: #fcf0d6; color: #6b4a00; font-size: 11px; font-weight: 600; }
+.sb-p-staffweek td { height: 160px; }
+.sb-p-staffweek th.is-today { background: #fff3c4; }
+.sb-p-staffweek thead th { border-bottom: 3px solid var(--sb-c); }
+.sb-p-title .sb-p-head-sub { margin-top: 2px; }
+.sb-p-w-none { font-size: 12px; color: #8c8f94; }
+
+/* Värvi valik */
+#sb-planner .sb-p-avatar-btn { border: 0; padding: 0; cursor: pointer; min-height: 0; background: var(--sb-c); color: #fff; }
+#sb-planner .sb-p-avatar-btn:hover, #sb-planner .sb-p-avatar-btn:focus-visible { box-shadow: 0 0 0 3px var(--sb-c-soft), 0 0 0 5px var(--sb-c); color: #fff; }
+.sb-p-colorpop { position: fixed; z-index: 100000; display: grid; gap: 10px; width: 232px; padding: 12px; background: #fff; border: 1px solid #e6dfe8; border-radius: 14px; box-shadow: 0 8px 28px rgba(60, 20, 70, .22); font-size: 13px; }
+.sb-p-swatches { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+.sb-p-swatch { width: 28px; height: 28px; min-height: 0; padding: 0; border: 2px solid #fff; border-radius: 50%; cursor: pointer; box-shadow: 0 0 0 1px #cfc9d2; }
+.sb-p-swatch:hover, .sb-p-swatch:focus-visible { transform: scale(1.12); outline: none; box-shadow: 0 0 0 2px #241a26; }
+.sb-p-swatch.is-on { box-shadow: 0 0 0 3px #241a26; }
+
+.sb-p-notify label { display: inline-flex; align-items: center; gap: 8px; font-weight: 500; cursor: pointer; }
+.sb-p-notify input { width: 18px; height: 18px; margin: 0; }
