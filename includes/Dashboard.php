@@ -140,6 +140,10 @@ final class Dashboard {
 				unset( $v['avaldus'] );
 			}
 		}
+		// Vana modellide plugin on veel sees: menüüpunkt on olemas ja selgitab, mida teha.
+		if ( $manager && ModellidModule::$legacy ) {
+			$add( 'modellid', __( 'Modellid', 'sasipea-broneering' ), 'camera', '', array( ModellidModule::class, 'view_legacy' ) );
+		}
 		if ( $owner ) {
 			$add( 'tasud', __( 'Tasud', 'sasipea-broneering' ), 'coins', 'raha', array( Admin::class, 'page_pay' ) );
 			$add( 'kaibemaks', __( 'Käibemaks', 'sasipea-broneering' ), 'percent', 'raha', array( Admin::class, 'page_vat' ) );
@@ -185,6 +189,7 @@ final class Dashboard {
 			exit;
 		}
 
+		ModellidModule::maybe_switch();
 		$views = self::views();
 		$view  = isset( $_GET['vaade'] ) ? sanitize_key( wp_unslash( $_GET['vaade'] ) ) : 'avaleht'; // phpcs:ignore WordPress.Security.NonceVerification
 		$known = array_merge( array_values( Admin::VIEWS ), array( 'avaleht', 'konto', 'modellid', 'modell', 'lisa-modell', 'avaldused', 'avaldus' ) );
@@ -477,7 +482,7 @@ final class Dashboard {
 		echo '<h1>' . esc_html( sprintf( __( 'Tere, %s!', 'sasipea-broneering' ), $user->first_name ?: $user->display_name ) ) . '</h1>';
 
 		if ( $manager && ModellidModule::$legacy ) {
-			echo '<div class="notice notice-info"><p>' . esc_html( ModellidModule::legacy_text() ) . '</p></div>';
+			echo '<div class="notice notice-info"><p>' . esc_html__( 'Modellide andmebaas on nüüd broneerimissüsteemi osa, kuid vana plugin "Sasipea Modellid" on veel sisse lülitatud.', 'sasipea-broneering' ) . ' <a href="' . esc_url( self::url( 'modellid' ) ) . '">' . esc_html__( 'Ava Modellid ja lülita üle', 'sasipea-broneering' ) . '</a></p></div>';
 		}
 		if ( ! $manager && ! $own ) {
 			echo '<div class="notice notice-info"><p>' . esc_html__( 'Sinu konto ei ole veel juuksuriõpilasega seotud, seepärast broneeringuid ei näe. Palu omanikul sind juuksuriõpilase kaardil oma kontoga siduda.', 'sasipea-broneering' ) . '</p></div>';

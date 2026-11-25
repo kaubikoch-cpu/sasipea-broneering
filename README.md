@@ -1,6 +1,6 @@
 # Sasipea Broneering
 
-Sasipea Akadeemia online-broneerimine ja päevaplaan WordPressi pluginana. Versioon 0.14.0 (1. etapp + kuu töögraafik, tasemed, tasude arvestus, veebipoe ladu, käibemaksu aruanne, oma töölaud /salong/ sidumine modellide andmebaasiga ja kassa).
+Sasipea Akadeemia online-broneerimine ja päevaplaan WordPressi pluginana. Versioon 0.14.1 (1. etapp + kuu töögraafik, tasemed, tasude arvestus, veebipoe ladu, käibemaksu aruanne, oma töölaud /salong/ sidumine modellide andmebaasiga ja kassa).
 
 **NB! Paigalda esmalt staging-keskkonda, mitte päris lehele.**
 
@@ -172,8 +172,8 @@ Andmeid ei viida kuhugi üle. Uus kood loeb täpselt samu andmeid, mida vana plu
 Üleminek:
 
 1. Tee varukoopia (andmebaas ja kaust `wp-content/uploads/sam-private`).
-2. Uuenda "Sasipea broneering" versioonile 0.14.0 või uuemale. Kuni vana plugin on sees, töötab kõik vanaviisi ja töölaua avalehel on teade.
-3. Pluginad → "Sasipea Modellid" → Lülita välja. Ära vajuta kohe "Kustuta"; lülita ainult välja.
+2. Uuenda "Sasipea broneering" versioonile 0.14.0 või uuemale. Kuni vana plugin on sees, töötab kõik vanaviisi; töölaua menüüs on "Modellid", kus on selgitus ja nupp vana plugina välja lülitamiseks (alates 0.14.1).
+3. Töölaud → Modellid → "Lülita vana plugin välja ja ava modellid" (või Pluginad → "Sasipea Modellid" → Lülita välja). Ära vajuta kohe "Kustuta"; lülita ainult välja.
 4. Ava salongi töölaud: menüüs on "Modellid" (ja "Avaldused", kui Fluent Forms on kasutusel). Kontrolli, et modellide arv ja pildid on samad.
 5. Kui kõik on õige, võib vana plugina hiljem ka kustutada. Sellel ei ole kustutamisel andmeid eemaldavat koodi, kuid varukoopia olgu enne olemas.
 
