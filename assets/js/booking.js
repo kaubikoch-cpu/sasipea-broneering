@@ -187,8 +187,6 @@
 		if (cats.length === 1) state.cat = cats[0];
 		if (state.cat && cats.indexOf(state.cat) === -1) state.cat = null;
 		main.appendChild(stepHeader(1, 'Vali teenus'));
-		var om = openMonths();
-		if (om && !om.length) main.appendChild(noScheduleNote());
 		var single = cats.length === 1;
 		if (!single) main.appendChild(h('p', { class: 'sb-muted sb-step-lead' }, 'Vali kõigepealt grupp, siis näed selle grupi teenuseid.'));
 		var wrap = h('div', { class: 'sb-picker' + (single ? ' is-single' : ''), style: '--sb-n:' + cats.length });
