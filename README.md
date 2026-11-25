@@ -1,6 +1,6 @@
 # Sasipea Broneering
 
-Sasipea Akadeemia online-broneerimine ja päevaplaan WordPressi pluginana. Versioon 0.13.1 (1. etapp + kuu töögraafik, tasemed, tasude arvestus, veebipoe ladu, käibemaksu aruanne, oma töölaud /salong/ sidumine modellide andmebaasiga ja kassa).
+Sasipea Akadeemia online-broneerimine ja päevaplaan WordPressi pluginana. Versioon 0.14.0 (1. etapp + kuu töögraafik, tasemed, tasude arvestus, veebipoe ladu, käibemaksu aruanne, oma töölaud /salong/ sidumine modellide andmebaasiga ja kassa).
 
 **NB! Paigalda esmalt staging-keskkonda, mitte päris lehele.**
 
@@ -161,3 +161,22 @@ Admin:
 - [ ] Facebooki lehe nupp "Book now" viib lehele `/broneeri/`.
 - [ ] Google'i ettevõtteprofiili broneerimislink on vahetatud.
 - [ ] Saloninfra online-broneering on suletud.
+
+
+## Modellide andmebaas (alates 0.14.0)
+
+Modellide andmebaas, modelliks registreerumise vorm ja juuksuriõpilaste avaldused on nüüd selle plugina osa (kaust `modellid/`). Varem olid need eraldi pluginas "Sasipea Modellid".
+
+Andmeid ei viida kuhugi üle. Uus kood loeb täpselt samu andmeid, mida vana plugin kirjutas: modellid (postitüüp `sam_modell`), kategooriad (`sam_sugu`, `sam_juuksed`, `sam_pikkus`, `sam_teenus`), väljad `_sam_*`, seaded `sam_settings` ja pildid kaitstud kaustas `wp-content/uploads/sam-private`. Seetõttu on kõik varem registreeritud modellid ja pildid pärast üleminekut kohe olemas.
+
+Üleminek:
+
+1. Tee varukoopia (andmebaas ja kaust `wp-content/uploads/sam-private`).
+2. Uuenda "Sasipea broneering" versioonile 0.14.0 või uuemale. Kuni vana plugin on sees, töötab kõik vanaviisi ja töölaua avalehel on teade.
+3. Pluginad → "Sasipea Modellid" → Lülita välja. Ära vajuta kohe "Kustuta"; lülita ainult välja.
+4. Ava salongi töölaud: menüüs on "Modellid" (ja "Avaldused", kui Fluent Forms on kasutusel). Kontrolli, et modellide arv ja pildid on samad.
+5. Kui kõik on õige, võib vana plugina hiljem ka kustutada. Sellel ei ole kustutamisel andmeid eemaldavat koodi, kuid varukoopia olgu enne olemas.
+
+Tagasi saab igal ajal: lülita vana plugin uuesti sisse, siis jääb selle plugina modellide osa ootele.
+
+Mis jääb samaks: lühikood `[sam_modell_vorm]` (modelliks registreerumise vorm) töötab edasi samal lehel. Vana juhendaja leht (`[sam_juhendaja]`) näitab linki salongi töölauale. Modelle näevad omanik ja juhendaja; juuksuriõpilane ei näe. Modellide seaded (teavituse e-post, säilitusaeg, avalduste vorm) ja kategooriad on WordPressi halduses menüüs Modellid.

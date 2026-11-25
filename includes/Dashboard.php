@@ -119,6 +119,27 @@ final class Dashboard {
 			$add( 'toograafik', __( 'Töögraafik', 'sasipea-broneering' ), 'grid', '', array( Admin::class, 'page_month' ) );
 			$add( 'kliendid', __( 'Kliendid', 'sasipea-broneering' ), 'users', '', array( Admin::class, 'page_clients' ) );
 		}
+		// Modellide andmebaas ja juuksuriõpilaste avaldused (sama õigus mis vanas modellide pluginas).
+		if ( ModellidModule::embedded() && current_user_can( SAM_CAP ) ) {
+			$sam = static function ( string $view ): callable {
+				return static function () use ( $view ): void {
+					sam_render_view( $view );
+				};
+			};
+			$unread = sam_unread_applications();
+			$add( 'modellid', __( 'Modellid', 'sasipea-broneering' ), 'camera', '', $sam( 'modellid' ) );
+			// Avaldused loetakse kodulehe Fluent Formsi vormist; ilma selleta menüüpunkti ei näidata.
+			if ( sam_ff_available() ) {
+				$add( 'avaldused', __( 'Avaldused', 'sasipea-broneering' ) . ( $unread ? ' (' . $unread . ')' : '' ), 'inbox', '', $sam( 'praktikandid' ) );
+			}
+			foreach ( array( 'modell' => 'modell', 'lisa-modell' => 'lisa', 'avaldus' => 'avaldus' ) as $key => $old ) {
+				$add( $key, 'avaldus' === $key ? __( 'Avaldus', 'sasipea-broneering' ) : ( 'modell' === $key ? __( 'Modell', 'sasipea-broneering' ) : __( 'Lisa modell', 'sasipea-broneering' ) ), '', '', $sam( $old ) );
+				$v[ $key ]['parent'] = 'avaldus' === $key ? 'avaldused' : 'modellid';
+			}
+			if ( ! isset( $v['avaldused'] ) ) {
+				unset( $v['avaldus'] );
+			}
+		}
 		if ( $owner ) {
 			$add( 'tasud', __( 'Tasud', 'sasipea-broneering' ), 'coins', 'raha', array( Admin::class, 'page_pay' ) );
 			$add( 'kaibemaks', __( 'Käibemaks', 'sasipea-broneering' ), 'percent', 'raha', array( Admin::class, 'page_vat' ) );
@@ -166,7 +187,7 @@ final class Dashboard {
 
 		$views = self::views();
 		$view  = isset( $_GET['vaade'] ) ? sanitize_key( wp_unslash( $_GET['vaade'] ) ) : 'avaleht'; // phpcs:ignore WordPress.Security.NonceVerification
-		$known = array_merge( array_values( Admin::VIEWS ), array( 'avaleht', 'konto' ) );
+		$known = array_merge( array_values( Admin::VIEWS ), array( 'avaleht', 'konto', 'modellid', 'modell', 'lisa-modell', 'avaldused', 'avaldus' ) );
 		if ( ! isset( $views[ $view ] ) ) {
 			// Tundmatu vaade viib avalehele; olemasolev, kuid keelatud vaade annab selge teate.
 			if ( ! in_array( $view, $known, true ) ) {
@@ -455,6 +476,9 @@ final class Dashboard {
 		/* translators: %s: user's first name */
 		echo '<h1>' . esc_html( sprintf( __( 'Tere, %s!', 'sasipea-broneering' ), $user->first_name ?: $user->display_name ) ) . '</h1>';
 
+		if ( $manager && ModellidModule::$legacy ) {
+			echo '<div class="notice notice-info"><p>' . esc_html( ModellidModule::legacy_text() ) . '</p></div>';
+		}
 		if ( ! $manager && ! $own ) {
 			echo '<div class="notice notice-info"><p>' . esc_html__( 'Sinu konto ei ole veel juuksuriõpilasega seotud, seepärast broneeringuid ei näe. Palu omanikul sind juuksuriõpilase kaardil oma kontoga siduda.', 'sasipea-broneering' ) . '</p></div>';
 		}
@@ -562,6 +586,8 @@ final class Dashboard {
 			'gear'     => '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',
 			'user'     => '<circle cx="12" cy="8" r="4"/><path d="M4 21c.8-4 4-6 8-6s7.2 2 8 6"/>',
 			'cash'     => '<rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6.5 9.5v5M17.5 9.5v5"/>',
+			'camera'   => '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
+			'inbox'    => '<path d="M3 13l3-8h12l3 8v6H3z"/><path d="M3 13h5l1 3h6l1-3h5"/>',
 			'logout'   => '<path d="M9 4H5v16h4M15 8l4 4-4 4M19 12H9"/>',
 		);
 		return '<svg class="sbd-ico" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' . ( $paths[ $name ] ?? '' ) . '</svg>';
@@ -579,6 +605,9 @@ final class Dashboard {
 			wp_print_styles( array( 'sb-planner' ) );
 		}
 		echo '<link rel="stylesheet" href="' . esc_url( SB_URL . 'assets/css/dashboard.css?ver=' . SB_VERSION ) . '">'; // phpcs:ignore WordPress.WP.EnqueuedResources -- oma leht ilma teemata.
+		if ( ModellidModule::embedded() ) {
+			echo '<link rel="stylesheet" href="' . esc_url( SAM_URL . 'assets/style.css?ver=' . SB_VERSION ) . '">'; // phpcs:ignore WordPress.WP.EnqueuedResources
+		}
 		echo '</head>';
 	}
 
@@ -626,7 +655,11 @@ final class Dashboard {
 		echo '<header class="sbd-top"><button type="button" class="sbd-burger" aria-controls="sbd-nav" aria-expanded="false" aria-label="' . esc_attr__( 'Menüü', 'sasipea-broneering' ) . '"><span></span><span></span><span></span></button><span class="sbd-top-title">' . esc_html( $views[ $current ]['label'] ?? '' ) . '</span></header>';
 		echo '<nav id="sbd-nav" class="sbd-side" aria-label="' . esc_attr__( 'Töölaua menüü', 'sasipea-broneering' ) . '"><a class="sbd-brand" href="' . esc_url( self::url() ) . '">' . esc_html( $set['from_name'] ) . '<small>' . esc_html__( 'Salongi töölaud', 'sasipea-broneering' ) . '</small></a>';
 		$open = null;
+		$active = $views[ $current ]['parent'] ?? $current; // alamvaade (nt üks modell) tõstab menüüs esile oma nimekirja
 		foreach ( $views as $key => $v ) {
+			if ( isset( $v['parent'] ) ) {
+				continue;
+			}
 			if ( $v['group'] !== $open ) {
 				if ( null !== $open ) {
 					echo '</ul>';
@@ -637,7 +670,7 @@ final class Dashboard {
 				}
 				echo '<ul>';
 			}
-			echo '<li><a href="' . esc_url( self::url( $key ) ) . '"' . ( $key === $current ? ' class="is-current" aria-current="page"' : '' ) . '>' . self::icon( $v['icon'] ) . '<span>' . esc_html( $v['label'] ) . '</span></a></li>'; // phpcs:ignore WordPress.Security.EscapeOutput -- ikoon on staatiline SVG.
+			echo '<li><a href="' . esc_url( self::url( $key ) ) . '"' . ( $key === $active ? ' class="is-current" aria-current="page"' : '' ) . '>' . self::icon( $v['icon'] ) . '<span>' . esc_html( $v['label'] ) . '</span></a></li>'; // phpcs:ignore WordPress.Security.EscapeOutput -- ikoon on staatiline SVG.
 		}
 		echo '<li><a href="' . esc_url( wp_logout_url( self::url() ) ) . '">' . self::icon( 'logout' ) . '<span>' . esc_html__( 'Logi välja', 'sasipea-broneering' ) . '</span></a></li></ul>'; // phpcs:ignore WordPress.Security.EscapeOutput
 		echo '<div class="sbd-who"><span class="sbd-avatar" aria-hidden="true">' . esc_html( mb_strtoupper( mb_substr( $user->display_name, 0, 1 ) ) ) . '</span><span><strong>' . esc_html( $user->display_name ) . '</strong><small>' . esc_html( self::role_label() ) . '</small></span></div>';
@@ -646,6 +679,9 @@ final class Dashboard {
 		echo "<script>(function(){var b=document.querySelector('.sbd-burger'),s=document.querySelector('.sbd-shade');function t(o){document.body.classList.toggle('sbd-open',o);b.setAttribute('aria-expanded',o?'true':'false');}b.addEventListener('click',function(){t(!document.body.classList.contains('sbd-open'));});s.addEventListener('click',function(){t(false);});document.addEventListener('keydown',function(e){if(e.key==='Escape')t(false);});document.querySelectorAll('.sbd-main table.widefat').forEach(function(x){if(x.closest('.sb-m-scroll,.sbd-scroll'))return;var w=document.createElement('div');w.className='sbd-scroll';x.parentNode.insertBefore(w,x);w.appendChild(x);});})();</script>";
 		if ( wp_script_is( 'sb-planner', 'enqueued' ) ) {
 			wp_print_scripts( array( 'sb-planner' ) );
+		}
+		if ( ModellidModule::embedded() && false !== strpos( $body, 'sam-dash' ) ) {
+			echo '<script src="' . esc_url( SAM_URL . 'assets/app.js?ver=' . SB_VERSION ) . '"></script>'; // phpcs:ignore WordPress.WP.EnqueuedResources
 		}
 		echo '</body></html>';
 	}
