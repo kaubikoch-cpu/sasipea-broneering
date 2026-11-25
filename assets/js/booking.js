@@ -660,6 +660,12 @@
 
 	/* ---------- kinnitus / haldus ---------- */
 
+	// Kuni cancel_hours tundi enne algust muudab klient aega ise; hiljem ainult telefoni teel.
+	function tooLateNote(b) {
+		return h('p', { class: 'sb-note sb-change-note' }, 'Broneeringu alguseni on jäänud alla ' + b.cancel_hours + ' tunni, seepärast ei saa seda enam internetis muuta ega tühistada. Kui sa ei saa tulla või soovid teist aega, palun helista meile: ',
+			h('a', { href: 'tel:' + String(cfg.phone).replace(/[^\d+]/g, '') }, cfg.phone), '.');
+	}
+
 	function confirmation(b, title) {
 		summaryEl.textContent = '';
 		main.textContent = '';
@@ -675,9 +681,11 @@
 				cancelled ? h('div', null, h('dt', null, 'Staatus'), h('dd', null, b.status_label)) : null),
 			!cancelled && b.note ? h('p', { class: 'sb-muted' }, b.note) : null,
 			!cancelled ? h('p', null, 'Saatsime kinnituse e-postile.') : null,
+			!cancelled && b.can_change ? h('p', { class: 'sb-change-info' }, 'Aega saad ise muuta või tühistada kuni ' + b.cancel_hours + ' tundi enne algust. Link selleks on ka kinnituskirjas.') : null,
+			!cancelled && b.can_change === false ? tooLateNote(b) : null,
 			h('div', { class: 'sb-actions' },
 				!cancelled ? h('a', { class: 'sb-btn', href: b.ics_url }, 'Lisa kalendrisse') : null,
-				!cancelled ? h('a', { class: 'sb-btn', href: b.manage_url }, 'Tühista või muuda aega') : null,
+				!cancelled && b.can_change ? h('a', { class: 'sb-btn', href: b.manage_url }, 'Tühista või muuda aega') : null,
 				cancelled ? h('a', { class: 'sb-btn sb-btn-primary', href: cfg.bookUrl }, 'Broneeri uus aeg') : null)));
 		focusHeading(main);
 	}
@@ -698,10 +706,7 @@
 			return;
 		}
 		box.appendChild(h('a', { class: 'sb-btn', href: b.ics_url }, 'Lisa kalendrisse'));
-		if (!b.can_change) {
-			main.querySelector('.sb-confirm').appendChild(h('p', null, 'Muuta või tühistada saab kuni ' + b.cancel_hours + ' tundi enne algust. Palun helista: ' + cfg.phone + '.'));
-			return;
-		}
+		if (!b.can_change) return; // selgitus koos telefoninumbriga on juba kinnituse kastis
 		box.appendChild(h('button', { type: 'button', class: 'sb-btn', onclick: function () { reschedule(b, token); } }, 'Muuda aega'));
 		var cancelBtn = h('button', { type: 'button', class: 'sb-btn sb-btn-danger', onclick: function () {
 			cancelBtn.replaceWith(h('div', { class: 'sb-confirm-cancel', role: 'group', 'aria-label': 'Kinnita tühistamine' },
