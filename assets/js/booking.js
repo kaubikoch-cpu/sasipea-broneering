@@ -542,6 +542,18 @@
 			h('p', { class: 'sb-field-err', id: id + '-err' }));
 	}
 
+	// Kliendi andmed jäävad soovi korral meelde ainult selles seadmes (brauseri localStorage), serverist neid ei eeltäideta.
+	var SAVE_KEY = 'sb_client';
+	var SAVE_FIELDS = ['first_name', 'last_name', 'phone', 'email'];
+	function savedClient() {
+		try {
+			var d = JSON.parse(window.localStorage.getItem(SAVE_KEY) || 'null');
+			return d && typeof d === 'object' ? d : null;
+		} catch (e) { return null; }
+	}
+	function saveClient(d) { try { window.localStorage.setItem(SAVE_KEY, JSON.stringify(d)); } catch (e) { /* salvestamine pole lubatud */ } }
+	function forgetClient() { try { window.localStorage.removeItem(SAVE_KEY); } catch (e) { /* pole midagi unustada */ } }
+
 	function stepContact() {
 		renderSummary(4);
 		main.textContent = '';
@@ -558,9 +570,25 @@
 			(function () { var c = check('privacy', '', true); c.querySelector('label').appendChild(privacyLabel); return c; })(),
 			check('models', cfg.consents.models, false),
 			check('social', cfg.consents.social, false),
+			check('remember', 'Jäta mu andmed selles seadmes meelde, et järgmisel korral ei peaks neid uuesti sisestama.', false),
 			h('div', { class: 'sb-form-error' }),
 			h('button', { type: 'submit', class: 'sb-btn sb-btn-primary' }, 'Kinnita broneering'));
 		form.addEventListener('submit', submit);
+		var saved = savedClient();
+		if (saved) {
+			SAVE_FIELDS.forEach(function (k) { if (typeof saved[k] === 'string') form.elements[k].value = saved[k].slice(0, 190); });
+			form.elements.remember.checked = true;
+			var note = h('div', { class: 'sb-saved', role: 'status' },
+				h('span', null, 'Täitsime sinu andmed, mille jätsid selles seadmes meelde. '),
+				h('button', { type: 'button', class: 'sb-link', onclick: function () {
+					forgetClient();
+					SAVE_FIELDS.forEach(function (k) { form.elements[k].value = ''; });
+					form.elements.remember.checked = false;
+					note.textContent = 'Sinu andmed on sellest seadmest kustutatud.';
+					form.elements.first_name.focus();
+				} }, 'Unusta mu andmed'));
+			form.insertBefore(note, form.firstChild);
+		}
 		main.appendChild(form);
 		focusHeading(main);
 	}
@@ -596,7 +624,11 @@
 		if (showErrors(form, errs)) return;
 
 		btn.disabled = true; btn.textContent = 'Salvestan…';
+		var remember = form.elements.remember.checked;
 		api('bookings', { method: 'POST', body: data }).then(function (res) {
+			// Meelde jäetakse alles pärast õnnestunud broneeringut; linnukeseta kustutatakse varem salvestatu.
+			if (remember) saveClient({ first_name: data.first_name, last_name: data.last_name, phone: data.phone, email: data.email });
+			else forgetClient();
 			confirmation(res, 'Broneering on kinnitatud!');
 		}).catch(function (e) {
 			btn.disabled = false; btn.textContent = 'Kinnita broneering';

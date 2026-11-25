@@ -117,6 +117,7 @@
 .sb-check input { width: 22px; height: 22px; margin: 2px 0 0; accent-color: var(--sb-accent); }
 .sb-check .sb-field-err { grid-column: 2; }
 .sb-check a { color: var(--sb-accent); }
+.sb-saved { margin: 0 0 1rem; padding: .7rem .9rem; background: var(--sb-soft); border-radius: var(--sb-radius); }
 
 /* Nupud */
 .sb-btn {
