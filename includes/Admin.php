@@ -17,6 +17,7 @@ final class Admin {
 		'sb-staff'    => 'praktikandid',
 		'sb-services' => 'teenused',
 		'sb-products' => 'tooted',
+		'sb-colors'   => 'varviladu',
 		'sb-pay'      => 'tasud',
 		'sb-vat'      => 'kaibemaks',
 		'sb-settings' => 'seaded',
@@ -33,6 +34,7 @@ final class Admin {
 		}
 		add_action( 'admin_menu', array( self::class, 'menu' ) );
 		Kassa::init();
+		Colors::init();
 		foreach ( array( 'save_service', 'save_category', 'delete_service', 'save_staff', 'add_exception', 'delete_exception', 'save_settings', 'save_client', 'save_month', 'save_product', 'add_sale', 'delete_sale', 'pay_csv', 'vat_csv', 'shop_sync' ) as $a ) {
 			add_action( 'admin_post_sb_' . $a, array( self::class, 'handle_' . $a ) );
 		}
@@ -44,6 +46,7 @@ final class Admin {
 		add_submenu_page( 'sb-planner', __( 'Kassa', 'sasipea-broneering' ), __( 'Kassa', 'sasipea-broneering' ), 'sb_manage_bookings', 'sb-kassa', array( Kassa::class, 'page' ) );
 		add_submenu_page( 'sb-planner', __( 'Töögraafik', 'sasipea-broneering' ), __( 'Töögraafik', 'sasipea-broneering' ), 'sb_manage_bookings', 'sb-month', array( self::class, 'page_month' ) );
 		add_submenu_page( 'sb-planner', __( 'Kliendid', 'sasipea-broneering' ), __( 'Kliendid', 'sasipea-broneering' ), 'sb_manage_bookings', 'sb-clients', array( self::class, 'page_clients' ) );
+		add_submenu_page( 'sb-planner', __( 'Värviladu', 'sasipea-broneering' ), __( 'Värviladu', 'sasipea-broneering' ), 'sb_manage_bookings', 'sb-colors', array( Colors::class, 'page' ) );
 		add_submenu_page( 'sb-planner', __( 'Juuksuriõpilased', 'sasipea-broneering' ), __( 'Juuksuriõpilased', 'sasipea-broneering' ), 'sb_manage_settings', 'sb-staff', array( self::class, 'page_staff' ) );
 		add_submenu_page( 'sb-planner', __( 'Teenused', 'sasipea-broneering' ), __( 'Teenused', 'sasipea-broneering' ), 'sb_manage_settings', 'sb-services', array( self::class, 'page_services' ) );
 		add_submenu_page( 'sb-planner', __( 'Tooted', 'sasipea-broneering' ), __( 'Tooted', 'sasipea-broneering' ), 'sb_manage_settings', 'sb-products', array( self::class, 'page_products' ) );
@@ -71,6 +74,7 @@ final class Admin {
 				'today'     => ( new \DateTimeImmutable( 'now', Settings::tz() ) )->format( 'Y-m-d' ),
 				'kassaUrl'  => current_user_can( 'sb_manage_bookings' ) && $in_admin ? self::url( 'sb-kassa&booking=' ) : '',
 				'clientUrl' => $in_admin ? self::url( 'sb-clients&client=' ) : '',
+				'colorsUrl' => current_user_can( 'sb_manage_bookings' ) && $in_admin ? self::url( 'sb-colors' ) : '',
 			)
 		);
 	}
@@ -1181,6 +1185,21 @@ final class Admin {
 					printf( '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>', esc_html( Format::local( $b['start_utc'] )->format( 'd.m.Y H:i' ) ), esc_html( $b['service_name'] ), esc_html( $b['staff_name'] ), esc_html( Repo::STATUSES[ $b['status'] ] ?? $b['status'] ), esc_html( (string) $b['comment'] ) );
 				}
 				echo '</tbody></table>';
+				$formulas = Colors::client_formulas( $id );
+				echo '<h3>' . esc_html__( 'Värvid', 'sasipea-broneering' ) . '</h3>';
+				if ( ! $formulas ) {
+					echo '<p class="description">' . esc_html__( 'Värve pole veel märgitud. Lisa need päevaplaanis broneeringu juures.', 'sasipea-broneering' ) . '</p>';
+				} else {
+					echo '<table class="widefat striped" style="max-width:900px"><thead><tr><th>' . esc_html__( 'Kuupäev', 'sasipea-broneering' ) . '</th><th>' . esc_html__( 'Teenus', 'sasipea-broneering' ) . '</th><th>' . esc_html__( 'Juuksuriõpilane', 'sasipea-broneering' ) . '</th><th>' . esc_html__( 'Värvid ja grammid', 'sasipea-broneering' ) . '</th></tr></thead><tbody>';
+					foreach ( $formulas as $f ) {
+						echo '<tr><td>' . esc_html( $f['date'] ) . '</td><td>' . esc_html( $f['service'] ) . '</td><td>' . esc_html( $f['staff'] ) . '</td><td>';
+						foreach ( $f['items'] as $it ) {
+							echo '<div><strong>' . esc_html( $it['code'] ) . '</strong> ' . esc_html( $it['name'] ) . ' · ' . esc_html( Colors::g( $it['grams'] ) ) . '</div>';
+						}
+						echo '</td></tr>';
+					}
+					echo '</tbody></table>';
+				}
 			}
 		} elseif ( '' !== $q ) {
 			echo '<table class="widefat striped" style="max-width:900px;margin-top:12px"><tbody>';

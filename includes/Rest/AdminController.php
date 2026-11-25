@@ -74,6 +74,9 @@ final class AdminController {
 				'args'                => array( 'q' => array( 'type' => 'string', 'required' => true ) ),
 			)
 		);
+		// Värvikulu broneeringule: värvikood ja grammid, arvatakse värvilaost maha.
+		register_rest_route( $ns, '/admin/color-uses', array( 'methods' => 'POST', 'callback' => array( self::class, 'color_use_create' ), 'permission_callback' => array( self::class, 'can_manage' ) ) );
+		register_rest_route( $ns, '/admin/color-uses/(?P<id>\d+)', array( 'methods' => 'DELETE', 'callback' => array( self::class, 'color_use_delete' ), 'permission_callback' => array( self::class, 'can_manage' ) ) );
 		register_rest_route( $ns, '/admin/blocks', array( 'methods' => 'POST', 'callback' => array( self::class, 'block_create' ), 'permission_callback' => array( self::class, 'can_manage' ) ) );
 		register_rest_route( $ns, '/admin/blocks/(?P<id>\d+)', array( 'methods' => 'DELETE', 'callback' => array( self::class, 'block_delete' ), 'permission_callback' => array( self::class, 'can_manage' ) ) );
 		register_rest_route( $ns, '/admin/models', array( 'methods' => 'GET', 'callback' => array( self::class, 'models' ), 'permission_callback' => array( self::class, 'can_manage' ) ) );
@@ -252,7 +255,7 @@ final class AdminController {
 		$out            = self::can_manage() ? self::booking_out( $b, true ) : self::booking_for_trainee( $b );
 		$out['history'] = array();
 		if ( self::can_manage() ) {
-			$out['sales'] = Repo::sales_for_booking( (int) $b['id'] );
+			$out          = array_merge( $out, self::color_state( $b ) );
 			foreach ( array_slice( Repo::client_history( (int) $b['client_id'] ), 0, 10 ) as $h ) {
 				$out['history'][] = array(
 					'date'    => Format::local( $h['start_utc'] )->format( 'd.m.Y H:i' ),
@@ -390,6 +393,58 @@ final class AdminController {
 	public static function sale_delete( \WP_REST_Request $req ) {
 		$res = Repo::delete_sale( (int) $req['id'] );
 		return is_wp_error( $res ) ? $res : array( 'deleted' => true );
+	}
+
+	/** Broneeringu värviosa: märgitud värvid, kliendi eelmine retsept ja arve read. */
+	private static function color_state( array $b ): array {
+		$prev = '';
+		foreach ( \SB\Colors::client_formulas( (int) $b['client_id'] ) as $f ) {
+			if ( $f['booking_id'] !== (int) $b['id'] ) {
+				$prev = $f['date'] . ': ' . $f['text'];
+				break;
+			}
+		}
+		return array(
+			'color_uses'   => \SB\Colors::uses_for_booking( (int) $b['id'] ),
+			'last_formula' => $prev,
+			'sales'        => Repo::sales_for_booking( (int) $b['id'] ),
+			'colors'       => \SB\Colors::picker(),
+		);
+	}
+
+	public static function color_use_create( \WP_REST_Request $req ) {
+		$b = Repo::booking( (int) $req->get_param( 'booking_id' ) );
+		if ( ! $b ) {
+			return new \WP_Error( 'sb_404', __( 'Broneeringut ei leitud.', 'sasipea-broneering' ), array( 'status' => 404 ) );
+		}
+		$g = \SB\Colors::parse_grams( (string) $req->get_param( 'grams' ) );
+		if ( null === $g ) {
+			return new \WP_Error( 'sb_invalid', __( 'Sisesta grammid numbrina, nt 30 või 25,5.', 'sasipea-broneering' ), array( 'status' => 400 ) );
+		}
+		// Vesinik samas segus: kontrollitakse enne, et värv ei läheks kirja ilma vesinikuta.
+		$ox_id = (int) $req->get_param( 'ox_id' );
+		$ox_g  = null;
+		if ( $ox_id ) {
+			$ox   = \SB\Colors::get( $ox_id );
+			$ox_g = \SB\Colors::parse_grams( (string) $req->get_param( 'ox_grams' ) );
+			if ( ! $ox || ! $ox['is_ox'] || null === $ox_g ) {
+				return new \WP_Error( 'sb_invalid', __( 'Vali vesinik ja sisesta selle grammid või vali "ilma vesinikuta".', 'sasipea-broneering' ), array( 'status' => 400 ) );
+			}
+		}
+		$id = \SB\Colors::add_use( $b, (int) $req->get_param( 'color_id' ), $g );
+		if ( is_wp_error( $id ) ) {
+			return $id;
+		}
+		if ( $ox_id ) {
+			\SB\Colors::add_use( $b, $ox_id, (float) $ox_g );
+		}
+		return self::color_state( $b );
+	}
+
+	public static function color_use_delete( \WP_REST_Request $req ) {
+		$bid = \SB\Colors::delete_use( (int) $req['id'] );
+		$b   = $bid ? Repo::booking( $bid ) : null;
+		return $b ? self::color_state( $b ) : array( 'color_uses' => array(), 'sales' => array(), 'colors' => \SB\Colors::picker(), 'last_formula' => '' );
 	}
 
 	/** Toote otsing veebipoest nime, tootekoodi või triipkoodi järgi. */

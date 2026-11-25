@@ -265,6 +265,44 @@ final class Install {
   KEY status_paid (status,paid_at)
 ) ENGINE=InnoDB $c;";
 
+		// Värviladu: toonid ja nende liikumised grammides. Laoseis = liikumiste summa.
+		$sql[] = "CREATE TABLE {$t('colors')} (
+  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  code varchar(40) NOT NULL DEFAULT '',
+  name varchar(190) NOT NULL,
+  sku varchar(100) NOT NULL DEFAULT '',
+  gtin varchar(50) NOT NULL DEFAULT '',
+  woo_product_id bigint(20) unsigned NOT NULL DEFAULT 0,
+  woo_variation_id bigint(20) unsigned NOT NULL DEFAULT 0,
+  pack_g decimal(8,2) NOT NULL DEFAULT 100,
+  bill varchar(40) NULL,
+  is_ox tinyint(1) NOT NULL DEFAULT 0,
+  ratio decimal(4,2) NOT NULL DEFAULT 1,
+  active tinyint(1) NOT NULL DEFAULT 1,
+  PRIMARY KEY  (id),
+  KEY woo (woo_product_id,woo_variation_id)
+) ENGINE=InnoDB $c;";
+
+		// kind: in (lattu, +), use (kulu broneeringule, −), adjust (inventuuri parandus).
+		$sql[] = "CREATE TABLE {$t('color_moves')} (
+  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  color_id bigint(20) unsigned NOT NULL,
+  kind varchar(10) NOT NULL,
+  grams decimal(10,2) NOT NULL DEFAULT 0,
+  booking_id bigint(20) unsigned NULL,
+  client_id bigint(20) unsigned NULL,
+  staff_id bigint(20) unsigned NULL,
+  sale_id bigint(20) unsigned NULL,
+  woo_order_id bigint(20) unsigned NULL,
+  note varchar(190) NULL,
+  created_at datetime NOT NULL,
+  created_by bigint(20) unsigned NULL,
+  PRIMARY KEY  (id),
+  KEY color (color_id),
+  KEY booking (booking_id),
+  KEY client (client_id)
+) ENGINE=InnoDB $c;";
+
 		foreach ( $sql as $q ) {
 			dbDelta( $q );
 		}

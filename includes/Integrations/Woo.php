@@ -316,11 +316,33 @@ final class Woo {
 	}
 
 	/**
+	 * Üks poe toode või variatsioon värskete andmetega (nimi, koodid, hind, laoseis).
+	 *
+	 * @return array|\WP_Error
+	 */
+	public static function get( int $product_id, int $variation_id ) {
+		$p = self::request( 'GET', $variation_id ? 'products/' . $product_id . '/variations/' . $variation_id : 'products/' . $product_id );
+		if ( is_wp_error( $p ) ) {
+			return $p;
+		}
+		$parent = null;
+		if ( $variation_id ) {
+			$parent = self::request( 'GET', 'products/' . $product_id );
+			if ( is_wp_error( $parent ) ) {
+				return $parent;
+			}
+		}
+		return self::item( $p, $parent );
+	}
+
+	/**
 	 * Loob poodi lõpetatud tellimuse ühe tootega. WooCommerce arvab koguse laost maha.
+	 *
+	 * $internal = true: salongi enda tarbeks võetud kaup, tellimuse summa on 0 € ja märge "Akadeemia sisekasutus".
 	 *
 	 * @return array{order_id:int,name:string,sku:string,total_cents:int}|\WP_Error
 	 */
-	public static function sell( int $product_id, int $variation_id, int $qty, string $note ) {
+	public static function sell( int $product_id, int $variation_id, int $qty, string $note, bool $internal = false ) {
 		$path = $variation_id ? 'products/' . $product_id . '/variations/' . $variation_id : 'products/' . $product_id;
 		$p    = self::request( 'GET', $path );
 		if ( is_wp_error( $p ) ) {
@@ -342,6 +364,11 @@ final class Woo {
 		if ( $variation_id ) {
 			$line['variation_id'] = $variation_id;
 		}
+		if ( $internal ) {
+			// Salongi enda tarbeks võetud kaup (nt värvituub): ladu väheneb, müügitulu ei teki.
+			$line['subtotal'] = '0.00';
+			$line['total']    = '0.00';
+		}
 		$order = self::request(
 			'POST',
 			'orders',
@@ -350,10 +377,10 @@ final class Woo {
 				'status'               => 'completed',
 				'set_paid'             => true,
 				'payment_method'       => 'other',
-				'payment_method_title' => __( 'Makstud salongis', 'sasipea-broneering' ),
+				'payment_method_title' => $internal ? __( 'Akadeemia sisekasutus', 'sasipea-broneering' ) : __( 'Makstud salongis', 'sasipea-broneering' ),
 				'customer_note'        => $note,
 				'line_items'           => array( $line ),
-				'meta_data'            => array( array( 'key' => '_sb_salon_sale', 'value' => '1' ) ),
+				'meta_data'            => array( array( 'key' => $internal ? '_sb_salon_use' : '_sb_salon_sale', 'value' => '1' ) ),
 			)
 		);
 		if ( is_wp_error( $order ) ) {
