@@ -585,6 +585,11 @@ final class Admin {
 			echo '<p>' . esc_html__( 'Lisa kõigepealt praktikandid.', 'sasipea-broneering' ) . '</p></div>';
 			return;
 		}
+		if ( ! $ready && ! empty( Settings::get()['require_month'] ) ) {
+			echo '<div class="notice notice-warning sb-m-state"><p><strong>' . esc_html__( 'See kuu on veel salvestamata ja kliendid selle kuu aegu broneerida ei saa.', 'sasipea-broneering' ) . '</strong> ' . esc_html__( 'Allolevad linnukesed on ainult nädalapõhja järgi eeltäidetud ettepanek. Vaata üle ja vajuta lehe lõpus nuppu "Lisa kuu graafik".', 'sasipea-broneering' ) . '</p></div>';
+		} elseif ( $ready ) {
+			echo '<div class="notice notice-success sb-m-state"><p><strong>' . esc_html__( 'Selle kuu töögraafik on salvestatud ja kliendid saavad aegu broneerida.', 'sasipea-broneering' ) . '</strong></p></div>';
+		}
 		if ( ! $ready ) {
 			echo '<p class="description">' . esc_html( empty( Settings::get()['require_month'] )
 				? __( 'Allpool on eeltäidetud iga praktikandi nädalapõhi. Märgi, kes mis päeval töötab, muuda vajadusel kellaaegu ja salvesta. Kuni salvestamiseni kehtib selles kuus nädalapõhi.', 'sasipea-broneering' )
