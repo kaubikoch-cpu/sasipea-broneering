@@ -126,13 +126,36 @@
 /* Praktikandi nimi koos taseme, kestuse ja hinnaga */
 .sb-option-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 
-/* Samm 1: teenuste grupid ja grupi teenused */
+/* Samm 1: grupid üksteise all; teenused avanevad grupi all (kitsas) või paremal kõrval (lai) */
+.sb-app.sb-wide { max-width: 900px; }
+.sb-step { container-type: inline-size; }
 .sb-step-lead { margin: 0 0 .75rem; }
-.sb-option.sb-group, .sb-option.sb-service { flex-direction: row; align-items: center; justify-content: space-between; gap: .75rem; }
-.sb-option.sb-group { padding: 1rem 1.1rem; border-width: 2px; }
-.sb-group .sb-option-title { font-size: 1.15rem; }
-.sb-group .sb-option-note { font-style: normal; }
-.sb-chevron { flex: none; font-size: 1.8rem; line-height: 1; color: var(--sb-accent); }
+.sb-picker { display: grid; gap: .5rem; }
+.sb-group {
+	width: 100%; display: flex; align-items: center; justify-content: space-between; gap: .75rem; text-align: left;
+	padding: .85rem 1rem; min-height: 56px; background: var(--sb-bg); color: var(--sb-ink);
+	border: 2px solid var(--sb-line); border-radius: var(--sb-radius); cursor: pointer;
+}
+.sb-group:hover { border-color: var(--sb-accent); }
+.sb-group.is-open { border-color: var(--sb-accent); background: var(--sb-accent); color: var(--sb-accent-ink); }
+.sb-group.is-open .sb-option-meta, .sb-group.is-open .sb-chevron { color: var(--sb-accent-ink); }
+.sb-group .sb-option-title { font-size: 1.1rem; }
+.sb-chevron { flex: none; font-size: 1.6rem; line-height: 1; color: var(--sb-accent); transition: transform .15s; }
+.sb-group.is-open .sb-chevron { transform: rotate(90deg); }
+.sb-picker-panel { padding: .25rem 0 .75rem .75rem; border-left: 3px solid var(--sb-accent); margin-left: .5rem; }
+.sb-picker-panel[hidden], .sb-picker-hint[hidden] { display: none; }
+.sb-picker-panel h3 { display: none; }
+.sb-picker-hint { display: none; margin: 0; }
+.sb-picker.is-single .sb-picker-panel { padding: 0; border: 0; margin: 0; }
+.sb-option.sb-service { flex-direction: row; align-items: center; justify-content: space-between; gap: .75rem; }
 .sb-price { flex: none; font-weight: 700; white-space: nowrap; color: var(--sb-accent); }
-.sb-back { padding: .35rem 0; min-height: 44px; }
-@media (min-width: 560px) { .sb-groups { grid-template-columns: 1fr 1fr; } }
+@container (min-width: 680px) {
+	.sb-picker:not(.is-single) { grid-template-columns: minmax(200px, 260px) 1fr; grid-template-rows: repeat(var(--sb-n), auto) 1fr; column-gap: 1.25rem; align-items: start; }
+	.sb-picker:not(.is-single) .sb-group { grid-column: 1; }
+	.sb-picker:not(.is-single) .sb-picker-panel, .sb-picker:not(.is-single) .sb-picker-hint { grid-column: 2; grid-row: 1 / span calc(var(--sb-n) + 1); }
+	.sb-picker:not(.is-single) .sb-picker-panel { margin: 0; padding: 1rem 1.1rem 1.1rem; border: 1px solid var(--sb-line); border-radius: var(--sb-radius); background: var(--sb-soft); }
+	.sb-picker:not(.is-single) .sb-picker-panel h3 { display: block; margin: 0 0 .75rem; }
+	.sb-picker:not(.is-single) .sb-picker-hint:not([hidden]) { display: block; padding: 1.25rem; border: 1px dashed var(--sb-line); border-radius: var(--sb-radius); }
+	.sb-picker:not(.is-single) .sb-group.is-open .sb-chevron { transform: none; }
+}
+@media (prefers-reduced-motion: reduce) { .sb-chevron { transition: none; } }
