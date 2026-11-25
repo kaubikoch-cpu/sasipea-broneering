@@ -91,7 +91,7 @@
 			state.data = d;
 			body.textContent = '';
 			if (!d.staff.length) {
-				body.appendChild(h('p', null, C.canManage ? 'Aktiivseid praktikante pole. Lisa need menüüs Praktikandid.' : 'Sinu kasutaja pole seotud ühegi praktikandiga. Palun pöördu administraatori poole.'));
+				body.appendChild(h('p', null, C.canManage ? 'Aktiivseid juuksuriõpilasi pole. Lisa need menüüs Juuksuriõpilased.' : 'Sinu kasutaja pole seotud ühegi juuksuriõpilasega. Palun pöördu administraatori poole.'));
 				return;
 			}
 			if (state.view === 'week') renderWeek(d); else renderDay(d, d.days[0]);
@@ -191,7 +191,7 @@
 		var items = [['booked', 'Broneeritud'], ['arrived', 'Kohal'], ['no_show', 'Ei tulnud'], ['cancelled', 'Tühistatud']];
 		return h('div', { class: 'sb-p-legend' }, items.map(function (i) {
 			return h('span', null, h('i', { class: 'sb-p-dot is-' + i[0] }), i[1]);
-		}), C.canManage ? h('span', { class: 'sb-p-hint' }, 'Lohista broneeringut, et muuta aega või praktikanti. Klõps tühjal alal loob uue broneeringu.') : null);
+		}), C.canManage ? h('span', { class: 'sb-p-hint' }, 'Lohista broneeringut, et muuta aega või juuksuriõpilast. Klõps tühjal alal loob uue broneeringu.') : null);
 	}
 
 	/* ---------- lohistamine ---------- */
@@ -242,7 +242,7 @@
 
 	function renderWeek(d) {
 		var table = h('table', { class: 'widefat sb-p-week' });
-		table.appendChild(h('thead', null, h('tr', null, h('th', { scope: 'col' }, 'Praktikant'), d.days.map(function (day) {
+		table.appendChild(h('thead', null, h('tr', null, h('th', { scope: 'col' }, 'Juuksuriõpilane'), d.days.map(function (day) {
 			var dt = new Date(day.date + 'T12:00:00');
 			return h('th', { scope: 'col' }, h('button', { type: 'button', class: 'sb-link', onclick: function () { state.date = day.date; state.view = 'day'; load(); } }, ['E', 'T', 'K', 'N', 'R', 'L', 'P'][(dt.getDay() + 6) % 7] + ' ' + dt.getDate() + '.' + (dt.getMonth() + 1)));
 		}))));
@@ -342,7 +342,7 @@
 		var isNew = !b;
 		var form = h('form', { class: 'sb-p-form' });
 		form.appendChild(row('Teenus', serviceSelect(b ? b.service_id : null), 'sb-f-service'));
-		form.appendChild(row('Praktikant', staffSelect(b ? b.staff_id : pre.staff_id), 'sb-f-staff'));
+		form.appendChild(row('Juuksuriõpilane', staffSelect(b ? b.staff_id : pre.staff_id), 'sb-f-staff'));
 		form.appendChild(h('div', { class: 'sb-p-2col' },
 			row('Kuupäev', h('input', { type: 'date', name: 'date', id: 'sb-f-date', required: true, value: b ? b.date : (pre.date || state.date) }), 'sb-f-date'),
 			row('Kellaaeg', h('input', { type: 'time', name: 'time', id: 'sb-f-time', required: true, step: 300, value: b ? b.time.split('–')[0] : (pre.time || '') }), 'sb-f-time')));
@@ -420,7 +420,7 @@
 				if (C.kassaUrl && ['booked', 'arrived'].indexOf(b.status) !== -1) content.appendChild(h('p', null, h('a', { class: 'button button-primary sb-p-kassa', href: C.kassaUrl + b.id }, 'Kassasse')));
 				content.appendChild(h('h3', null, 'Staatus'));
 				content.appendChild(statusRow);
-				content.appendChild(h('p', null, h('button', { type: 'button', class: 'button', onclick: function () { dlg.close(); bookingDialog(b, {}); } }, 'Muuda aega, praktikanti või teenust')));
+				content.appendChild(h('p', null, h('button', { type: 'button', class: 'button', onclick: function () { dlg.close(); bookingDialog(b, {}); } }, 'Muuda aega, juuksuriõpilast või teenust')));
 				content.appendChild(salesBox(b));
 				if (b.history && b.history.length > 1) {
 					content.appendChild(h('h3', null, 'Kliendi varasemad külastused'));
@@ -431,7 +431,7 @@
 		}).catch(function (e) { toast(e.message, true); });
 	}
 
-	/* Materjal ja tooted broneeringu juures (lähevad praktikandi tasu arvestusse). */
+	/* Materjal ja tooted broneeringu juures (lähevad juuksuriõpilase tasu arvestusse). */
 	function salesBox(b) {
 		var items = state.data.sale_items || { material: [], product: [] };
 		var box = h('div', { class: 'sb-p-sales' });

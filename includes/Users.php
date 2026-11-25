@@ -4,7 +4,7 @@ namespace SB;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Töölaua kasutajakontod: omanik loob praktikandi, juhendaja või teise omaniku konto, saadab
+ * Töölaua kasutajakontod: omanik loob juuksuriõpilase, juhendaja või teise omaniku konto, saadab
  * kutse e-postiga, muudab rolli ja peatab konto. Parooli ei näe ega määra siin keegi peale
  * kasutaja enda: konto luuakse juhusliku parooliga ja kasutaja seab oma parooli kutse lingilt.
  *
@@ -26,7 +26,7 @@ final class Users {
 	/** @return array<string,string> roll => nimi */
 	public static function roles(): array {
 		return array(
-			Roles::PRAKTIKANT => __( 'Praktikant', 'sasipea-broneering' ),
+			Roles::PRAKTIKANT => __( 'Juuksuriõpilane', 'sasipea-broneering' ),
 			Roles::JUHENDAJA  => __( 'Juhendaja', 'sasipea-broneering' ),
 			Roles::OMANIK     => __( 'Omanik', 'sasipea-broneering' ),
 		);
@@ -113,9 +113,9 @@ final class Users {
 		if ( isset( $_GET['sb_invited'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
 			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Kutse saadetud. Link kehtib 24 tundi.', 'sasipea-broneering' ) . '</p></div>';
 		}
-		echo '<p>' . esc_html__( 'Siin saad luua kontod praktikantidele, juhendajatele ja teistele omanikele. Uus kasutaja saab e-kirja lingiga, kust ta seab endale ise parooli.', 'sasipea-broneering' ) . '</p>';
+		echo '<p>' . esc_html__( 'Siin saad luua kontod juuksuriõpilastele, juhendajatele ja teistele omanikele. Uus kasutaja saab e-kirja lingiga, kust ta seab endale ise parooli.', 'sasipea-broneering' ) . '</p>';
 
-		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Nimi', 'sasipea-broneering' ) . '</th><th>' . esc_html__( 'E-post', 'sasipea-broneering' ) . '</th><th>' . esc_html__( 'Roll', 'sasipea-broneering' ) . '</th><th>' . esc_html__( 'Seotud praktikant', 'sasipea-broneering' ) . '</th><th>' . esc_html__( 'Seis', 'sasipea-broneering' ) . '</th><th></th></tr></thead><tbody>';
+		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Nimi', 'sasipea-broneering' ) . '</th><th>' . esc_html__( 'E-post', 'sasipea-broneering' ) . '</th><th>' . esc_html__( 'Roll', 'sasipea-broneering' ) . '</th><th>' . esc_html__( 'Seotud juuksuriõpilane', 'sasipea-broneering' ) . '</th><th>' . esc_html__( 'Seis', 'sasipea-broneering' ) . '</th><th></th></tr></thead><tbody>';
 		foreach ( self::accounts() as $u ) {
 			$role     = self::managed_role( (array) $u->roles );
 			$disabled = self::is_disabled( (int) $u->ID );
@@ -173,15 +173,15 @@ final class Users {
 			foreach ( $roles as $k => $label ) {
 				printf( '<option value="%s"%s>%s</option>', esc_attr( $k ), selected( $k, $v['role'], false ), esc_html( $label ) );
 			}
-			echo '</select><p class="description">' . esc_html__( 'Praktikant näeb ainult enda päevaplaani ja broneeringuid. Juhendaja näeb kõiki broneeringuid, kassat, töögraafikut ja kliente. Omanik näeb lisaks tasusid, käibemaksu, seadeid ja kasutajaid.', 'sasipea-broneering' ) . '</p>';
+			echo '</select><p class="description">' . esc_html__( 'Juuksuriõpilane näeb ainult enda päevaplaani ja broneeringuid. Juhendaja näeb kõiki broneeringuid, kassat, töögraafikut ja kliente. Omanik näeb lisaks tasusid, käibemaksu, seadeid ja kasutajaid.', 'sasipea-broneering' ) . '</p>';
 		}
 		echo '</td></tr>';
-		echo '<tr><th><label for="sb-u-staff">' . esc_html__( 'Seotud praktikant', 'sasipea-broneering' ) . '</label></th><td><select id="sb-u-staff" name="staff_id"><option value="0">' . esc_html__( '— ei ole seotud —', 'sasipea-broneering' ) . '</option>';
+		echo '<tr><th><label for="sb-u-staff">' . esc_html__( 'Seotud juuksuriõpilane', 'sasipea-broneering' ) . '</label></th><td><select id="sb-u-staff" name="staff_id"><option value="0">' . esc_html__( '— ei ole seotud —', 'sasipea-broneering' ) . '</option>';
 		foreach ( $staff as $s ) {
 			$taken = $s['user_id'] && (int) $s['user_id'] !== (int) $v['id'];
 			printf( '<option value="%d"%s%s>%s%s</option>', (int) $s['id'], selected( (int) $s['id'], (int) $v['staff'], false ), disabled( $taken, true, false ), esc_html( $s['name'] ), $taken ? ' (' . esc_html__( 'juba seotud', 'sasipea-broneering' ) . ')' : '' );
 		}
-		echo '</select><p class="description">' . esc_html__( 'Praktikandi konto peab olema seotud praktikandiga, kelle broneeringuid ta näeb. Uue praktikandi lisad enne vaates Praktikandid.', 'sasipea-broneering' ) . '</p></td></tr>';
+		echo '</select><p class="description">' . esc_html__( 'Juuksuriõpilase konto peab olema seotud juuksuriõpilasega, kelle broneeringuid ta näeb. Uue juuksuriõpilase lisad enne vaates Juuksuriõpilased.', 'sasipea-broneering' ) . '</p></td></tr>';
 		echo '</tbody></table><p><button class="button button-primary" type="submit">' . esc_html( $edit ? __( 'Salvesta', 'sasipea-broneering' ) : __( 'Loo konto ja saada kutse', 'sasipea-broneering' ) ) . '</button>';
 		if ( $edit ) {
 			echo ' <a class="button" href="' . esc_url( Admin::url( 'sb-users' ) ) . '">' . esc_html__( 'Loobu', 'sasipea-broneering' ) . '</a>';
@@ -222,13 +222,13 @@ final class Users {
 			self::fail( __( 'Selle e-posti aadressiga konto on juba olemas.', 'sasipea-broneering' ), $id );
 		}
 		if ( Roles::PRAKTIKANT === $role && ! $staff ) {
-			self::fail( __( 'Praktikandi konto tuleb siduda praktikandiga.', 'sasipea-broneering' ), $id );
+			self::fail( __( 'Juuksuriõpilase konto tuleb siduda juuksuriõpilasega.', 'sasipea-broneering' ), $id );
 		}
 		$table = Install::table( 'staff' );
 		if ( $staff ) {
 			$linked = $wpdb->get_row( $wpdb->prepare( "SELECT id, user_id FROM $table WHERE id = %d", $staff ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			if ( ! $linked || ( $linked['user_id'] && (int) $linked['user_id'] !== $id ) ) {
-				self::fail( __( 'See praktikant on juba teise kontoga seotud.', 'sasipea-broneering' ), $id );
+				self::fail( __( 'See juuksuriõpilane on juba teise kontoga seotud.', 'sasipea-broneering' ), $id );
 			}
 		}
 

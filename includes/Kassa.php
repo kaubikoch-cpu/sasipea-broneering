@@ -281,7 +281,7 @@ final class Kassa {
 		if ( ! $waiting ) {
 			echo '<p>' . esc_html__( 'Sellel päeval maksmata broneeringuid ei ole.', 'sasipea-broneering' ) . '</p>';
 		} else {
-			echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Aeg', 'sasipea-broneering' ) . '</th><th>' . esc_html__( 'Klient', 'sasipea-broneering' ) . '</th><th>' . esc_html__( 'Teenus', 'sasipea-broneering' ) . '</th><th>' . esc_html__( 'Praktikant', 'sasipea-broneering' ) . '</th><th class="num">' . esc_html__( 'Teenuse hind', 'sasipea-broneering' ) . '</th><th></th></tr></thead><tbody>';
+			echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Aeg', 'sasipea-broneering' ) . '</th><th>' . esc_html__( 'Klient', 'sasipea-broneering' ) . '</th><th>' . esc_html__( 'Teenus', 'sasipea-broneering' ) . '</th><th>' . esc_html__( 'Juuksuriõpilane', 'sasipea-broneering' ) . '</th><th class="num">' . esc_html__( 'Teenuse hind', 'sasipea-broneering' ) . '</th><th></th></tr></thead><tbody>';
 			foreach ( $waiting as $b ) {
 				$s = Format::local( $b['start_utc'] );
 				$e = Format::local( $b['end_utc'] );
@@ -320,7 +320,7 @@ final class Kassa {
 		if ( ! $paid ) {
 			echo '<p>' . esc_html__( 'Sellel päeval makseid veel ei ole.', 'sasipea-broneering' ) . '</p>';
 		} else {
-			echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Kell', 'sasipea-broneering' ) . '</th><th>' . esc_html__( 'Arve', 'sasipea-broneering' ) . '</th><th>' . esc_html__( 'Klient', 'sasipea-broneering' ) . '</th><th>' . esc_html__( 'Praktikant', 'sasipea-broneering' ) . '</th><th>' . esc_html__( 'Makseviis', 'sasipea-broneering' ) . '</th><th class="num">' . esc_html__( 'Summa', 'sasipea-broneering' ) . '</th><th></th></tr></thead><tbody>';
+			echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Kell', 'sasipea-broneering' ) . '</th><th>' . esc_html__( 'Arve', 'sasipea-broneering' ) . '</th><th>' . esc_html__( 'Klient', 'sasipea-broneering' ) . '</th><th>' . esc_html__( 'Juuksuriõpilane', 'sasipea-broneering' ) . '</th><th>' . esc_html__( 'Makseviis', 'sasipea-broneering' ) . '</th><th class="num">' . esc_html__( 'Summa', 'sasipea-broneering' ) . '</th><th></th></tr></thead><tbody>';
 			foreach ( $paid as $p ) {
 				printf(
 					'<tr><td>%s</td><td>#%d</td><td>%s</td><td>%s</td><td>%s</td><td class="num">%s</td><td class="num"><a href="%s">%s</a></td></tr>',
@@ -360,7 +360,7 @@ final class Kassa {
 		if ( '' !== (string) $t['client_name'] ) {
 			$meta[] = __( 'Klient', 'sasipea-broneering' ) . ': ' . $t['client_name'];
 		}
-		$meta[] = ( $b ? ( $open ? __( 'Praktikant', 'sasipea-broneering' ) : __( 'Juuksuriõpilane', 'sasipea-broneering' ) ) : __( 'Müüja', 'sasipea-broneering' ) ) . ': ' . ( $staff['name'] ?? '' );
+		$meta[] = ( $b ? ( $open ? __( 'Juuksuriõpilane', 'sasipea-broneering' ) : __( 'Juuksuriõpilane', 'sasipea-broneering' ) ) : __( 'Müüja', 'sasipea-broneering' ) ) . ': ' . ( $staff['name'] ?? '' );
 		if ( $when ) {
 			$meta[] = __( 'Aeg', 'sasipea-broneering' ) . ': ' . $when->format( 'd.m.Y H:i' );
 		}

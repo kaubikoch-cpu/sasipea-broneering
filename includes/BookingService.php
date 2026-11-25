@@ -49,7 +49,7 @@ final class BookingService {
 	}
 
 	/**
-	 * Valib vaba praktikandi või kontrollib, et soovitud praktikant on vaba.
+	 * Valib vaba juuksuriõpilase või kontrollib, et soovitud juuksuriõpilane on vaba.
 	 *
 	 * @return int|\WP_Error
 	 */
@@ -103,7 +103,7 @@ final class BookingService {
 				if ( is_wp_error( $staff ) ) {
 					return $staff;
 				}
-				// Kestus ja hind sõltuvad praktikandi tasemest (lisaaeg, soodustus).
+				// Kestus ja hind sõltuvad juuksuriõpilase tasemest (lisaaeg, soodustus).
 				$terms     = Repo::service_terms( $service, Repo::staff( (int) $staff ) );
 				$client_id = Repo::upsert_client( $in['client'] );
 				$token     = bin2hex( random_bytes( 32 ) );
@@ -161,7 +161,7 @@ final class BookingService {
 	}
 
 	/**
-	 * Muudab aega, praktikanti, teenust, staatust või kommentaari.
+	 * Muudab aega, juuksuriõpilast, teenust, staatust või kommentaari.
 	 *
 	 * @return array|\WP_Error uuendatud broneering
 	 */
@@ -188,8 +188,8 @@ final class BookingService {
 				}
 
 				$moved = $start !== Repo::ts( $b['start_utc'] ) || $staff !== (int) $b['staff_id'] || $service_id !== (int) $b['service_id'];
-				// Ainult aja muutmisel jääb kestus ja hind samaks, mis kliendile lubati. Teise praktikandi
-				// või teenuse korral arvutatakse need uuesti selle praktikandi taseme järgi.
+				// Ainult aja muutmisel jääb kestus ja hind samaks, mis kliendile lubati. Teise juuksuriõpilase
+				// või teenuse korral arvutatakse need uuesti selle juuksuriõpilase taseme järgi.
 				$reprice  = $staff !== (int) $b['staff_id'] || $service_id !== (int) $b['service_id'];
 				$terms    = Repo::service_terms( $service, Repo::staff( $staff ) );
 				$duration = $reprice ? $terms['duration'] : (int) round( ( Repo::ts( $b['end_utc'] ) - Repo::ts( $b['start_utc'] ) ) / 60 );

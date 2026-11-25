@@ -28,14 +28,12 @@ final class Install {
 					update_option( 'sb_settings', $s );
 				}
 			}
-			// 0.11.0: kliendile nähtavas tekstis on "praktikant" asemel "juuksuriõpilane" (ka salvestatud kirjamallides).
-			if ( false !== $old && (int) $old < 11 ) {
+			// 0.11.0: tekstides on "praktikant" asemel "juuksuriõpilane" (ka salvestatud kirjamallides).
+			if ( false !== $old && (int) $old < 12 ) {
 				$s = get_option( 'sb_settings' );
 				if ( is_array( $s ) ) {
 					foreach ( (array) ( $s['templates'] ?? array() ) as $k => $v ) {
-						if ( 0 === strpos( (string) $k, 'client_' ) ) {
-							$s['templates'][ $k ] = str_replace( 'Praktikant: {praktikant}', 'Juuksuriõpilane: {praktikant}', (string) $v );
-						}
+						$s['templates'][ $k ] = str_replace( 'Praktikant: {praktikant}', 'Juuksuriõpilane: {praktikant}', (string) $v );
 					}
 					if ( isset( $s['confirmation_note'] ) ) {
 						$s['confirmation_note'] = str_replace( 'Tööd teevad praktikandid', 'Tööd teevad juuksuriõpilased', (string) $s['confirmation_note'] );
@@ -322,9 +320,9 @@ final class Install {
 			}
 		}
 
-		// OLETUS: päris praktikantide nimesid ei tea. Loon kaks näidist, et broneerimine kohe töötaks.
+		// OLETUS: päris juuksuriõpilaste nimesid ei tea. Loon kaks näidist, et broneerimine kohe töötaks.
 		$hours = Settings::get()['opening_hours'];
-		foreach ( array( 'Näidis: Praktikant 1', 'Näidis: Praktikant 2' ) as $i => $name ) {
+		foreach ( array( 'Näidis: Juuksuriõpilane 1', 'Näidis: Juuksuriõpilane 2' ) as $i => $name ) {
 			$wpdb->insert(
 				self::table( 'staff' ),
 				array(

@@ -99,7 +99,7 @@ final class PublicController {
 	}
 
 	/**
-	 * Praktikandid, kes teenust teevad, koos nende juures kehtiva kestuse ja hinnaga.
+	 * Juuksuriõpilased, kes teenust teevad, koos nende juures kehtiva kestuse ja hinnaga.
 	 * "any" on vahemik valiku "Ükskõik kes" jaoks.
 	 */
 	public static function staff( \WP_REST_Request $req ): array {

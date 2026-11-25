@@ -5,7 +5,7 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * [sasipea_broneering] – avalik broneerimisvorm (ja ?halda=TOKEN korral broneeringu haldus).
- * [sasipea_praktikant] – sisseloginud praktikandi enda graafik.
+ * [sasipea_praktikant] – sisseloginud juuksuriõpilase enda graafik.
  */
 final class Shortcode {
 

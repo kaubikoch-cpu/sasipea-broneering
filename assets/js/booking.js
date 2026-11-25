@@ -17,7 +17,7 @@
 		picked: [], // valitud teenused (võib olla mitu, ka eri teenuse liikidest)
 		service: null, // üks teenus või mitme teenuse kombinatsioon (id = '3,7')
 		staffList: [],
-		staff: null, // {id:0,name:'Ükskõik kes'} või praktikant
+		staff: null, // {id:0,name:'Ükskõik kes'} või juuksuriõpilane
 		month: null, // 'YYYY-MM'
 		days: {},
 		date: null,
@@ -149,7 +149,7 @@
 		root.classList.toggle('sb-wide', step === 1); // teenuse valik kasutab laia ekraani kahe veeru jaoks
 		summaryEl.textContent = '';
 		var rows = [];
-		// Kestus ja hind sõltuvad valitud praktikandist (tase: soodustus ja lisaaeg).
+		// Kestus ja hind sõltuvad valitud juuksuriõpilasest (tase: soodustus ja lisaaeg).
 		var terms = (state.staff && step > 2 && state.staff.duration_label) ? state.staff : state.service;
 		if (state.service && step > 1) rows.push(['Teenus', state.service.name + ' · ' + terms.duration_label + ' · ' + terms.price_label + (state.service.material_extra ? ' + materjal' : ''), 1]);
 		if (state.staff && step > 2) rows.push(['Juuksuriõpilane', state.staff.name, 2]);
@@ -329,7 +329,7 @@
 		focusHeading(main);
 	}
 
-	/* ---------- 2. praktikant ---------- */
+	/* ---------- 2. juuksuriõpilane ---------- */
 
 	function stepStaff() {
 		renderSummary(2);
@@ -347,7 +347,7 @@
 			var staff = res.staff || [];
 			state.staffList = staff;
 			if (!staff.length) {
-				// Mitme teenuse korral peab üks praktikant tegema neid kõiki.
+				// Mitme teenuse korral peab üks juuksuriõpilane tegema neid kõiki.
 				list.textContent = '';
 				main.appendChild(h('div', { class: 'sb-note' },
 					h('p', null, String(state.service.id).indexOf(',') !== -1

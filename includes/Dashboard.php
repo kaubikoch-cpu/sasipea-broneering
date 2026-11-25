@@ -5,7 +5,7 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Töölaud: oma kujundusega vaade väljaspool WP adminni (vaikimisi /salong/).
- * Omanik, juhendaja ja praktikant logivad siin sisse ning näevad ainult oma lubatud vaateid.
+ * Omanik, juhendaja ja juuksuriõpilane logivad siin sisse ning näevad ainult oma lubatud vaateid.
  */
 final class Dashboard {
 
@@ -97,7 +97,7 @@ final class Dashboard {
 		if ( current_user_can( 'sb_manage_bookings' ) ) {
 			return __( 'Juhendaja', 'sasipea-broneering' );
 		}
-		return __( 'Praktikant', 'sasipea-broneering' );
+		return __( 'Juuksuriõpilane', 'sasipea-broneering' );
 	}
 
 	/**
@@ -123,7 +123,7 @@ final class Dashboard {
 			$add( 'tasud', __( 'Tasud', 'sasipea-broneering' ), 'coins', 'raha', array( Admin::class, 'page_pay' ) );
 			$add( 'kaibemaks', __( 'Käibemaks', 'sasipea-broneering' ), 'percent', 'raha', array( Admin::class, 'page_vat' ) );
 			$add( 'tooted', __( 'Tooted', 'sasipea-broneering' ), 'box', 'raha', array( Admin::class, 'page_products' ) );
-			$add( 'praktikandid', __( 'Praktikandid', 'sasipea-broneering' ), 'scissors', 'seadistus', array( Admin::class, 'page_staff' ) );
+			$add( 'praktikandid', __( 'Juuksuriõpilased', 'sasipea-broneering' ), 'scissors', 'seadistus', array( Admin::class, 'page_staff' ) );
 			$add( 'teenused', __( 'Teenused', 'sasipea-broneering' ), 'list', 'seadistus', array( Admin::class, 'page_services' ) );
 			$add( 'kasutajad', __( 'Kasutajad', 'sasipea-broneering' ), 'users', 'seadistus', array( Users::class, 'page' ) );
 			$add( 'seaded', __( 'Seaded', 'sasipea-broneering' ), 'gear', 'seadistus', array( Admin::class, 'page_settings' ) );
@@ -456,7 +456,7 @@ final class Dashboard {
 		echo '<h1>' . esc_html( sprintf( __( 'Tere, %s!', 'sasipea-broneering' ), $user->first_name ?: $user->display_name ) ) . '</h1>';
 
 		if ( ! $manager && ! $own ) {
-			echo '<div class="notice notice-info"><p>' . esc_html__( 'Sinu konto ei ole veel praktikandiga seotud, seepärast broneeringuid ei näe. Palu omanikul sind praktikandi kaardil oma kontoga siduda.', 'sasipea-broneering' ) . '</p></div>';
+			echo '<div class="notice notice-info"><p>' . esc_html__( 'Sinu konto ei ole veel juuksuriõpilasega seotud, seepärast broneeringuid ei näe. Palu omanikul sind juuksuriõpilase kaardil oma kontoga siduda.', 'sasipea-broneering' ) . '</p></div>';
 		}
 
 		echo '<div class="sbd-cards">';
@@ -488,7 +488,7 @@ final class Dashboard {
 			$phone = $manager || ! empty( $set['trainee_view']['phone'] );
 			echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Aeg', 'sasipea-broneering' ) . '</th><th>' . esc_html__( 'Klient', 'sasipea-broneering' ) . '</th><th>' . esc_html__( 'Teenus', 'sasipea-broneering' ) . '</th>';
 			if ( $manager ) {
-				echo '<th>' . esc_html__( 'Praktikant', 'sasipea-broneering' ) . '</th>';
+				echo '<th>' . esc_html__( 'Juuksuriõpilane', 'sasipea-broneering' ) . '</th>';
 			}
 			echo '<th>' . esc_html__( 'Olek', 'sasipea-broneering' ) . '</th></tr></thead><tbody>';
 			foreach ( $day as $b ) {

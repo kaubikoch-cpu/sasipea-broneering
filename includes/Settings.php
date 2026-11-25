@@ -25,7 +25,7 @@ final class Settings {
 			'max_days_ahead'      => 60,
 			'max_concurrent'      => 3,    // korraga juhendatavaid kliente
 			'cancel_hours'        => 24,   // kuni mitu h ette saab klient tühistada/muuta
-			// Praktikandi tasemed: soodustus teenuse hinnast (%) ja lisaaeg teenuse kestusele (min).
+			// Juuksuriõpilase tasemed: soodustus teenuse hinnast (%) ja lisaaeg teenuse kestusele (min).
 			'levels'              => array(
 				array( 'id' => 'noorem', 'name' => 'Noorempraktikant', 'discount_pct' => 10, 'extra_min' => 30 ),
 				array( 'id' => 'vanem', 'name' => 'Vanempraktikant', 'discount_pct' => 0, 'extra_min' => 0 ),
@@ -47,12 +47,12 @@ final class Settings {
 			'vat_history'         => array(),
 			// Kui sees, saab online broneerida ainult nendesse kuudesse, mille töögraafik on koostatud.
 			'require_month'       => true,
-			// Mida sisseloginud praktikant päevaplaanis näeb. Muuta ei saa ta midagi.
+			// Mida sisseloginud juuksuriõpilane päevaplaanis näeb. Muuta ei saa ta midagi.
 			'trainee_view'        => array(
 				'phone'   => true,  // kliendi telefon
 				'price'   => true,  // teenuse hind
 				'details' => false, // kliendi e-post ja kommentaar
-				'others'  => false, // teiste praktikantide veerud (ilma klientide andmeteta)
+				'others'  => false, // teiste juuksuriõpilaste veerud (ilma klientide andmeteta)
 				'pay'     => false, // enda kuu tasu kokkuvõte
 			),
 			// Töölaua (oma sisselogimisega vaade väljaspool WP adminni) aadressi lõpp: /salong/.

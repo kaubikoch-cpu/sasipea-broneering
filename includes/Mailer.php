@@ -30,11 +30,11 @@ final class Mailer {
 			'client_cancel_subject'   => 'Broneering tühistatud: {teenus}, {kuupaev}',
 			'client_cancel_body'      => "Tere, {eesnimi}!\n\nSinu broneering ({teenus}, {kuupaev} kell {kell}) on tühistatud.\n\nUue aja saad broneerida meie kodulehel.",
 			'admin_new_subject'       => 'Uus broneering: {nimi}, {kuupaev} {kell}',
-			'admin_new_body'          => "{teenus}\n{kuupaev} kell {kell}\nPraktikant: {praktikant}\n\nKlient: {nimi}\nTelefon: {kliendi_telefon}\nE-post: {kliendi_email}\nKommentaar: {kommentaar}",
+			'admin_new_body'          => "{teenus}\n{kuupaev} kell {kell}\nJuuksuriõpilane: {praktikant}\n\nKlient: {nimi}\nTelefon: {kliendi_telefon}\nE-post: {kliendi_email}\nKommentaar: {kommentaar}",
 			'admin_moved_subject'     => 'Broneering muudetud: {nimi}, {kuupaev} {kell}',
-			'admin_moved_body'        => "Uus aeg: {kuupaev} kell {kell}\n{teenus}\nPraktikant: {praktikant}\n\nKlient: {nimi}, {kliendi_telefon}",
+			'admin_moved_body'        => "Uus aeg: {kuupaev} kell {kell}\n{teenus}\nJuuksuriõpilane: {praktikant}\n\nKlient: {nimi}, {kliendi_telefon}",
 			'admin_cancel_subject'    => 'Broneering tühistatud: {nimi}, {kuupaev} {kell}',
-			'admin_cancel_body'       => "{staatus}\n{teenus}\n{kuupaev} kell {kell}\nPraktikant: {praktikant}\n\nKlient: {nimi}, {kliendi_telefon}",
+			'admin_cancel_body'       => "{staatus}\n{teenus}\n{kuupaev} kell {kell}\nJuuksuriõpilane: {praktikant}\n\nKlient: {nimi}, {kliendi_telefon}",
 		);
 	}
 

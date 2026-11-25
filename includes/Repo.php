@@ -78,7 +78,7 @@ final class Repo {
 		return $row ? self::service_out( $row ) : null;
 	}
 
-	/* ---------- Praktikandid ---------- */
+	/* ---------- Juuksuriõpilased ---------- */
 
 	public static function staff_list( bool $active_only = true ): array {
 		global $wpdb;
@@ -99,7 +99,7 @@ final class Repo {
 			'extra_override'    => isset( $r['extra_min'] ) ? (int) $r['extra_min'] : null,
 			'pay'               => Payroll::normalize( $r['pay'] ?? null ),
 		);
-		// Kehtivad tingimused: tase + praktikandi enda erisused.
+		// Kehtivad tingimused: tase + juuksuriõpilase enda erisused.
 		return $out + Pricing::terms( $out, (array) Settings::get()['levels'] );
 	}
 
@@ -130,7 +130,7 @@ final class Repo {
 		}
 		$out        = $services[0];
 		$out['ids'] = array_map( static fn( $s ) => (int) $s['id'], $services );
-		// Osad eraldi: praktikandi lisaaeg ja soodustus arvestatakse iga teenuse kohta.
+		// Osad eraldi: juuksuriõpilase lisaaeg ja soodustus arvestatakse iga teenuse kohta.
 		$out['parts'] = array_map( static fn( $s ) => array( 'duration' => (int) $s['duration'], 'price_cents' => (int) $s['price_cents'] ), $services );
 		if ( count( $services ) > 1 ) {
 			$out['name']           = implode( ' + ', array_column( $services, 'name' ) );
@@ -168,7 +168,7 @@ final class Repo {
 		return isset( $service['ids'] ) ? array_map( 'intval', (array) $service['ids'] ) : array( (int) $service['id'] );
 	}
 
-	/** Praktikandid, kes teevad kõiki antud teenuseid. */
+	/** Juuksuriõpilased, kes teevad kõiki antud teenuseid. */
 	public static function staff_for_services( array $ids ): array {
 		$out = null;
 		foreach ( $ids as $id ) {
@@ -182,7 +182,7 @@ final class Repo {
 	}
 
 	/**
-	 * Teenuse kestus ja hind konkreetse praktikandi juures (mitme teenuse korral osade summa).
+	 * Teenuse kestus ja hind konkreetse juuksuriõpilase juures (mitme teenuse korral osade summa).
 	 *
 	 * @return array{duration:int,price_cents:int}
 	 */
@@ -229,7 +229,7 @@ final class Repo {
 	}
 
 	/**
-	 * Salvestab kuu töögraafiku: iga praktikandi iga päeva kohta kas tunnid või vaba päev.
+	 * Salvestab kuu töögraafiku: iga juuksuriõpilase iga päeva kohta kas tunnid või vaba päev.
 	 *
 	 * @param array $plan array<int staff_id, array<string Y-m-d, list<[int,int]>>> (tühi list = ei tööta)
 	 */
@@ -256,7 +256,7 @@ final class Repo {
 		}
 	}
 
-	/** Aktiivsete broneeringute arv praktikandi ja kohaliku päeva kaupa: [staff_id][Y-m-d] => n. */
+	/** Aktiivsete broneeringute arv juuksuriõpilase ja kohaliku päeva kaupa: [staff_id][Y-m-d] => n. */
 	public static function booking_counts( string $ym ): array {
 		$first = new \DateTimeImmutable( $ym . '-01 00:00:00', Settings::tz() );
 		$out   = array();
@@ -267,7 +267,7 @@ final class Repo {
 		return $out;
 	}
 
-	/** Praktikandi tööaeg kuupäeval minutites. Päeva kirje (kuugraafik või erand) asendab nädala malli. */
+	/** Juuksuriõpilase tööaeg kuupäeval minutites. Päeva kirje (kuugraafik või erand) asendab nädala malli. */
 	public static function work_ranges( int $staff_id, string $date ): array {
 		global $wpdb;
 		if ( ! empty( Settings::get()['require_month'] ) && ! self::month_ready( substr( $date, 0, 7 ) ) ) {
@@ -346,7 +346,7 @@ final class Repo {
 	 *
 	 * @param int[]|null $staff_ids null = kõik, kes teenust teevad.
 	 * @param bool       $admin     admin ei ole seotud etteteatamise ega ette broneerimise piiriga.
-	 * @param int|null   $duration  kindel kestus minutites (olemasoleva broneeringu nihutamisel); null = teenus + praktikandi lisaaeg.
+	 * @param int|null   $duration  kindel kestus minutites (olemasoleva broneeringu nihutamisel); null = teenus + juuksuriõpilase lisaaeg.
 	 */
 	public static function availability_input( array $service, ?array $staff_ids, string $date, int $exclude_booking = 0, bool $admin = false, ?int $duration = null ): array {
 		$set = Settings::get();
@@ -363,7 +363,7 @@ final class Repo {
 				'work'     => self::work_ranges( $row['id'], $date ),
 				'bookings' => array(),
 				'blocks'   => array(),
-				// Kestus sõltub praktikandist (teenus + tema lisaaeg). $duration hoiab olemasoleva broneeringu pikkust.
+				// Kestus sõltub juuksuriõpilasest (teenus + tema lisaaeg). $duration hoiab olemasoleva broneeringu pikkust.
 				'duration' => $duration ?? self::service_terms( $service, $row )['duration'],
 			);
 		}
@@ -572,7 +572,7 @@ final class Repo {
 	}
 
 	/**
-	 * Kuu tasude alusandmed praktikandi kaupa: tehtud teenused (staatus "Kohal") ja müügiread.
+	 * Kuu tasude alusandmed juuksuriõpilase kaupa: tehtud teenused (staatus "Kohal") ja müügiread.
 	 *
 	 * @return array<int, array{services: list<array>, sales: list<array>}>
 	 */
