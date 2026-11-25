@@ -124,18 +124,7 @@ final class Admin {
 
 	/** "12:00-15:00, 15:30-19:00" -> [[720,900],[930,1140]] */
 	public static function parse_ranges( string $s ): array {
-		$out = array();
-		foreach ( preg_split( '/[,;\s]+/', trim( $s ) ) as $part ) {
-			if ( preg_match( '/^(\d{1,2})[:.](\d{2})\s*[-–]\s*(\d{1,2})[:.](\d{2})$/', $part, $m ) ) {
-				$a = (int) $m[1] * 60 + (int) $m[2];
-				$b = (int) $m[3] * 60 + (int) $m[4];
-				if ( $b > $a && $b <= 1440 ) {
-					$out[] = array( $a, $b );
-				}
-			}
-		}
-		usort( $out, fn( $x, $y ) => $x[0] <=> $y[0] );
-		return $out;
+		return Settings::parse_ranges( $s );
 	}
 
 	public static function ranges_str( array $ranges ): string {
@@ -1361,10 +1350,19 @@ final class Admin {
 		self::guard( 'sb_manage_settings', 'sb_save_settings' );
 		$p    = wp_unslash( $_POST ); // phpcs:ignore WordPress.Security.NonceVerification
 		$vals = array( 'opening_hours' => array() );
+		$bad  = array();
 		foreach ( range( 1, 7 ) as $wd ) {
+			$text   = trim( sanitize_text_field( (string) ( $p['opening'][ $wd ] ?? '' ) ) );
+			$ranges = self::parse_ranges( $text );
+			// Arusaamatu tekst ei tee päeva vaikselt suletuks: senine aeg jääb alles ja kasutaja saab teate.
+			if ( '' !== $text && ! $ranges && ! preg_match( '/^(suletud|kinni|-|–)$/iu', $text ) ) {
+				$bad[]                                  = Format::days()[ $wd ];
+				$vals['opening_hours'][ (string) $wd ] = Settings::get()['opening_hours'][ (string) $wd ] ?? array();
+				continue;
+			}
 			$vals['opening_hours'][ (string) $wd ] = array_map(
 				fn( $r ) => array( Settings::from_min( $r[0] ), Settings::from_min( $r[1] ) ),
-				self::parse_ranges( sanitize_text_field( (string) ( $p['opening'][ $wd ] ?? '' ) ) )
+				$ranges
 			);
 		}
 		foreach ( array( 'slot_step', 'buffer', 'min_notice_hours', 'max_days_ahead', 'max_concurrent', 'cancel_hours' ) as $k ) {
@@ -1459,6 +1457,10 @@ final class Admin {
 		}
 		$vals['templates'] = $tpl;
 		Settings::update( $vals );
+		if ( $bad ) {
+			/* translators: %s: comma separated weekday names */
+			self::back( 'sb-settings', array( 'sb_saved' => null, 'sb_error' => sprintf( __( 'Lahtiolekuaeg jäi muutmata, sest kellaajast ei saanud aru: %s. Kirjuta näiteks 12:00-19:00.', 'sasipea-broneering' ), implode( ', ', $bad ) ) ) );
+		}
 		self::back( 'sb-settings' );
 	}
 }
