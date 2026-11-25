@@ -564,6 +564,8 @@ final class Admin {
 		$ym     = self::month_param();
 		$first  = new \DateTimeImmutable( $ym . '-01', Settings::tz() );
 		$ready  = Repo::month_ready( $ym );
+		$saved  = Repo::month_saved( $ym );
+		$gated  = ! empty( Settings::get()['require_month'] ); // kas avalikuks tegemine on eraldi samm
 		$staff  = Repo::staff_list( true );
 		$counts = Repo::booking_counts( $ym );
 		$title  = ucfirst( Format::months()[ (int) $first->format( 'n' ) ] ) . ' ' . $first->format( 'Y' );
@@ -602,35 +604,43 @@ final class Admin {
 			.sb-month .sb-m-badge{display:inline-block;padding:2px 10px;border-radius:10px;font-size:12px;font-weight:600}
 			.sb-month .sb-m-badge.is-ready{background:#e3f4ea;color:#00572c}
 			.sb-month .sb-m-badge.is-draft{background:#fcf0d6;color:#6b4a00}
+			.sb-month .sb-m-public{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin:12px 0;padding:10px 14px;background:#fff;border:1px solid #dcdcde;border-left:4px solid #00733a;border-radius:6px}
+			.sb-month .sb-m-public-hint{flex:1;min-width:220px;color:#50575e;font-size:13px}
 			@media (max-width:700px){.sb-month .sb-m-name{min-width:100px;max-width:112px;padding:4px 6px;font-size:13px}.sb-month .sb-m-sub{font-size:10.5px}}
 		</style>';
 		echo '<div class="sb-m-nav"><a class="button" href="' . $url( $first->modify( '-1 month' ) ) . '">‹ ' . esc_html__( 'Eelmine kuu', 'sasipea-broneering' ) . '</a><h2>' . esc_html( $title ) . '</h2><a class="button" href="' . $url( $first->modify( '+1 month' ) ) . '">' . esc_html__( 'Järgmine kuu', 'sasipea-broneering' ) . ' ›</a> ';
-		echo $ready
-			? '<span class="sb-m-badge is-ready">' . esc_html__( 'Graafik on koostatud', 'sasipea-broneering' ) . '</span>'
-			: '<span class="sb-m-badge is-draft">' . esc_html__( 'Graafik on koostamata', 'sasipea-broneering' ) . '</span>';
+		if ( $ready ) {
+			echo '<span class="sb-m-badge is-ready">' . esc_html__( 'Avalik klientidele', 'sasipea-broneering' ) . '</span>';
+		} elseif ( $saved ) {
+			echo '<span class="sb-m-badge is-draft">' . esc_html__( 'Salvestatud, pole avalik', 'sasipea-broneering' ) . '</span>';
+		} else {
+			echo '<span class="sb-m-badge is-draft">' . esc_html__( 'Graafik on koostamata', 'sasipea-broneering' ) . '</span>';
+		}
 		echo '</div>';
 
 		if ( ! $staff ) {
 			echo '<p>' . esc_html__( 'Lisa kõigepealt juuksuriõpilased.', 'sasipea-broneering' ) . '</p></div>';
 			return;
 		}
-		if ( ! $ready && ! empty( Settings::get()['require_month'] ) ) {
-			echo '<div class="notice notice-warning sb-m-state"><p><strong>' . esc_html__( 'See kuu on veel salvestamata ja kliendid selle kuu aegu broneerida ei saa.', 'sasipea-broneering' ) . '</strong> ' . esc_html__( 'Allolevad linnukesed on ainult nädalapõhja järgi eeltäidetud ettepanek. Vaata üle ja vajuta lehe lõpus nuppu "Tee kuu klientidele avalikuks".', 'sasipea-broneering' ) . '</p></div>';
-		} elseif ( $ready ) {
+		if ( $ready ) {
 			echo '<div class="notice notice-success sb-m-state"><p><strong>' . esc_html__( 'See kuu on klientidele avalik: kliendid saavad selle kuu aegu broneerida.', 'sasipea-broneering' ) . '</strong></p></div>';
+		} elseif ( $saved && $gated ) {
+			echo '<div class="notice notice-warning sb-m-state"><p><strong>' . esc_html__( 'Selle kuu graafik on salvestatud, aga klientidele veel avalikuks tegemata.', 'sasipea-broneering' ) . '</strong> ' . esc_html__( 'Salongi töötajad näevad seda päevaplaanis, kliendid selle kuu aegu broneerida ei saa. Avalikuks tegemiseks pane linnuke "Avalik klientidele" ja salvesta.', 'sasipea-broneering' ) . '</p></div>';
+		} elseif ( $gated ) {
+			echo '<div class="notice notice-warning sb-m-state"><p><strong>' . esc_html__( 'See kuu on veel salvestamata ja kliendid selle kuu aegu broneerida ei saa.', 'sasipea-broneering' ) . '</strong> ' . esc_html__( 'Allolevad linnukesed on ainult nädalapõhja järgi eeltäidetud ettepanek. Vaata üle ja salvesta. Graafiku võib teha pikalt ette: klientidele läheb avalikuks ainult kuu, millel on linnuke "Avalik klientidele".', 'sasipea-broneering' ) . '</p></div>';
 		}
-		if ( ! $ready ) {
-			echo '<p class="description">' . esc_html( empty( Settings::get()['require_month'] )
-				? __( 'Allpool on eeltäidetud iga juuksuriõpilase nädalapõhi. Märgi, kes mis päeval töötab, muuda vajadusel kellaaegu ja salvesta. Kuni salvestamiseni kehtib selles kuus nädalapõhi.', 'sasipea-broneering' )
-				: __( 'Allpool on eeltäidetud iga juuksuriõpilase nädalapõhi. Märgi, kes mis päeval töötab, muuda vajadusel kellaaegu ja salvesta. Kuni salvestamiseni selles kuus aegu ei pakuta.', 'sasipea-broneering' ) ) . '</p>';
-		} else {
-			echo '<p class="description">' . esc_html__( 'Linnuke = töötab. Kellaaja muutmiseks klõpsa kellaajal ja vali algus ja lõpp. Olemasolevaid broneeringuid graafiku muutmine ei tühista.', 'sasipea-broneering' ) . '</p>';
+		if ( ! $saved && ! $gated ) {
+			echo '<p class="description">' . esc_html__( 'Allpool on eeltäidetud iga juuksuriõpilase nädalapõhi. Märgi, kes mis päeval töötab, muuda vajadusel kellaaegu ja salvesta. Kuni salvestamiseni kehtib selles kuus nädalapõhi.', 'sasipea-broneering' ) . '</p>';
 		}
+		echo '<p class="description">' . esc_html__( 'Linnuke = töötab. Kellaaja muutmiseks klõpsa kellaajal ja vali algus ja lõpp. Olemasolevaid broneeringuid graafiku muutmine ei tühista.', 'sasipea-broneering' ) . '</p>';
 		echo '<p class="description">' . esc_html__( 'Hall veerg on päev, mil salong on lahtiolekuaegade järgi suletud. Kui paned sinna kellelegi linnukese ja kellaaja, on salong sel päeval nendeks tundideks avatud ja kliendid saavad neid aegu broneerida. Samamoodi võib tavalisel päeval panna tunnid lahtiolekuajast varasemaks või hilisemaks.', 'sasipea-broneering' ) . '</p>';
 
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( 'sb_save_month' );
 		echo '<input type="hidden" name="action" value="sb_save_month"><input type="hidden" name="month" value="' . esc_attr( $ym ) . '">';
+		if ( $gated ) {
+			echo '<p class="sb-m-public"><label><input type="checkbox" name="public" value="1"' . checked( $ready, true, false ) . '> <strong>' . esc_html__( 'Avalik klientidele', 'sasipea-broneering' ) . '</strong></label> <span class="sb-m-public-hint">' . esc_html__( 'Linnukesega kuu aegu saavad kliendid broneerida. Ilma linnukeseta on graafik ainult salongi enda jaoks.', 'sasipea-broneering' ) . '</span> <input type="submit" class="button button-primary" value="' . esc_attr__( 'Salvesta', 'sasipea-broneering' ) . '"></p>';
+		}
 		// Kuupäevad on veergudes ja juuksuriõpilased ridades, et palju õpilasi mahuks korraga ekraanile.
 		$today    = ( new \DateTimeImmutable( 'now', Settings::tz() ) )->format( 'Y-m-d' );
 		$fallback = self::fallback_hours();
@@ -697,7 +707,7 @@ final class Admin {
 			echo '</tr>';
 		}
 		echo '</tbody></table></div>';
-		submit_button( $ready ? __( 'Salvesta muudatused', 'sasipea-broneering' ) : __( 'Tee kuu klientidele avalikuks', 'sasipea-broneering' ) );
+		submit_button( __( 'Salvesta', 'sasipea-broneering' ) );
 		echo '</form>';
 		echo "<script>
 		(function(){
@@ -746,7 +756,8 @@ final class Admin {
 				$plan[ $sid ][ $date ] = self::parse_ranges( sanitize_text_field( (string) ( $p['hours'][ $sid ][ $date ] ?? '' ) ) ) ?: ( Settings::opening_for( $date ) ?: self::fallback_hours() );
 			}
 		}
-		Repo::save_month( $ym, $plan );
+		// Kui seade "ainult koostatud kuud" on väljas, kehtib salvestatud graafik kohe ka klientidele.
+		Repo::save_month( $ym, $plan, empty( Settings::get()['require_month'] ) || ! empty( $p['public'] ) );
 		self::back( 'sb-month', array( 'month' => $ym ) );
 	}
 

@@ -228,12 +228,24 @@ final class Repo {
 		return in_array( $ym, self::months(), true );
 	}
 
+	/** Kuud, mille töögraafik on salvestatud (avalikud ja veel avalikustamata). */
+	public static function saved_months(): array {
+		$saved = array_filter( (array) get_option( 'sb_months_saved', array() ), 'is_string' );
+		return array_values( array_unique( array_merge( $saved, self::months() ) ) );
+	}
+
+	/** Kas kuu töögraafik on salvestatud (ka siis, kui see pole veel klientidele avalik). */
+	public static function month_saved( string $ym ): bool {
+		return in_array( $ym, self::saved_months(), true );
+	}
+
 	/**
 	 * Salvestab kuu töögraafiku: iga juuksuriõpilase iga päeva kohta kas tunnid või vaba päev.
 	 *
-	 * @param array $plan array<int staff_id, array<string Y-m-d, list<[int,int]>>> (tühi list = ei tööta)
+	 * @param array $plan   array<int staff_id, array<string Y-m-d, list<[int,int]>>> (tühi list = ei tööta)
+	 * @param bool  $public kas kuu on klientidele avalik (false = ainult salvestatud, salongi enda jaoks)
 	 */
-	public static function save_month( string $ym, array $plan ): void {
+	public static function save_month( string $ym, array $plan, bool $public = true ): void {
 		global $wpdb;
 		$t = self::t( 'schedule_exceptions' );
 		foreach ( $plan as $staff_id => $days ) {
@@ -248,12 +260,32 @@ final class Repo {
 				}
 			}
 		}
+		$saved = array_values( array_filter( (array) get_option( 'sb_months_saved', array() ), 'is_string' ) );
+		if ( ! in_array( $ym, $saved, true ) ) {
+			$saved[] = $ym;
+			sort( $saved );
+			update_option( 'sb_months_saved', $saved, false );
+		}
 		$months = self::months();
-		if ( ! in_array( $ym, $months, true ) ) {
+		$is     = in_array( $ym, $months, true );
+		if ( $public && ! $is ) {
 			$months[] = $ym;
 			sort( $months );
 			update_option( 'sb_months', $months, false );
+		} elseif ( ! $public && $is ) {
+			update_option( 'sb_months', array_values( array_diff( $months, array( $ym ) ) ), false );
 		}
+	}
+
+	/**
+	 * Tööaeg päevaplaani jaoks: nagu work_ranges, aga salvestatud ja veel avalikustamata kuu
+	 * on salongi töötajatele juba näha (klientidele mitte).
+	 */
+	public static function staff_view_ranges( int $staff_id, string $date ): array {
+		if ( ! empty( Settings::get()['require_month'] ) && ! self::month_saved( substr( $date, 0, 7 ) ) ) {
+			return array();
+		}
+		return self::planned_ranges( $staff_id, $date );
 	}
 
 	/** Aktiivsete broneeringute arv juuksuriõpilase ja kohaliku päeva kaupa: [staff_id][Y-m-d] => n. */

@@ -104,3 +104,13 @@
 .sb-p-models button.is-picked { border-color: #8a2b52; background: #f6e9ef; }
 .sb-p-models small { display: block; color: #50575e; font-size: 12px; font-weight: 400; }
 .sb-p-models-empty { color: #50575e; font-size: 13px; }
+
+/* Juuksuriõpilase nädalavaade ja avalikustamata kuu märge */
+.sb-p-stafflink { font-weight: 600; color: inherit; }
+.sb-p-stafflink:hover, .sb-p-stafflink:focus-visible { color: #2271b1; }
+.sb-p-draft { margin: 0 0 10px; padding: 8px 12px; background: #fcf0d6; border-left: 4px solid #dba617; border-radius: 4px; color: #6b4a00; }
+.sb-p-draft-tag { display: block; width: max-content; margin-top: 2px; padding: 0 8px; border-radius: 10px; background: #fcf0d6; color: #6b4a00; font-size: 11px; font-weight: 600; }
+.sb-p-staffweek td { height: 160px; }
+.sb-p-staffweek th.is-today { background: #fff3c4; }
+.sb-p-title .sb-p-head-sub { margin-top: 2px; }
+.sb-p-w-none { font-size: 12px; color: #8c8f94; }

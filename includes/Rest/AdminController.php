@@ -168,7 +168,7 @@ final class AdminController {
 			[ $from, $to ] = Repo::day_bounds( $d );
 			$work          = array();
 			foreach ( $ids as $sid ) {
-				$work[ $sid ] = Repo::work_ranges( $sid, $d );
+				$work[ $sid ] = Repo::staff_view_ranges( $sid, $d );
 			}
 			$bookings = array();
 			foreach ( Repo::bookings_between( $from, $to, 0, false ) as $b ) {
@@ -195,6 +195,8 @@ final class AdminController {
 				'date'     => $d,
 				'label'    => Format::date_long( new \DateTimeImmutable( $d, Settings::tz() ) ),
 				'opening'  => Repo::opening_for( $d ),
+				// Kuu on salvestatud, aga klientidele veel avalikuks tegemata.
+				'draft'    => ! empty( Settings::get()['require_month'] ) && Repo::month_saved( substr( $d, 0, 7 ) ) && ! Repo::month_ready( substr( $d, 0, 7 ) ),
 				'work'     => $work,
 				'bookings' => $bookings,
 				'blocks'   => $blocks,

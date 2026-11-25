@@ -8,7 +8,7 @@
 
 	var SLOT = 15;     // ruudustiku samm minutites
 	var ROW = 20;      // ühe 15 min rea kõrgus px
-	var state = { date: C.today, view: 'day', data: null };
+	var state = { date: C.today, view: 'day', staff: null, data: null }; // view: day | week | staff (ühe juuksuriõpilase nädal)
 	// Töögraafikust tulles avatakse valitud päev (?day=2026-11-25).
 	var wanted = (/[?&]day=(\d{4}-\d{2}-\d{2})(?:&|$)/.exec(window.location.search) || [])[1];
 	if (wanted) state.date = wanted;
@@ -75,7 +75,8 @@
 				dateInput),
 			h('div', { class: 'sb-p-views', role: 'group', 'aria-label': 'Vaade' },
 				h('button', { type: 'button', class: 'button' + (state.view === 'day' ? ' button-primary' : ''), 'aria-pressed': state.view === 'day' ? 'true' : 'false', onclick: function () { state.view = 'day'; load(); } }, 'Päev'),
-				h('button', { type: 'button', class: 'button' + (state.view === 'week' ? ' button-primary' : ''), 'aria-pressed': state.view === 'week' ? 'true' : 'false', onclick: function () { state.view = 'week'; load(); } }, 'Nädal')),
+				h('button', { type: 'button', class: 'button' + (state.view === 'week' ? ' button-primary' : ''), 'aria-pressed': state.view === 'week' ? 'true' : 'false', onclick: function () { state.view = 'week'; load(); } }, 'Nädal'),
+				state.view === 'staff' ? h('button', { type: 'button', class: 'button button-primary', 'aria-pressed': 'true', title: 'Sulge juuksuriõpilase nädalavaade', onclick: function () { state.view = 'week'; load(); } }, staffName() + ' ×') : null),
 			C.canManage ? h('div', { class: 'sb-p-actions' },
 				h('button', { type: 'button', class: 'button', onclick: function () { bookingDialog(null, {}); } }, '+ Broneering'),
 				h('button', { type: 'button', class: 'button', onclick: function () { blockDialog({}); } }, 'Blokeeri aeg')) : null);
@@ -84,17 +85,36 @@
 		root.appendChild(body);
 	}
 
+	function staffName() {
+		var list = (state.data && state.data.staff) || [], i;
+		for (i = 0; i < list.length; i++) if (list[i].id === state.staff) return list[i].name;
+		return 'Juuksuriõpilane';
+	}
+	function openStaff(id) { state.staff = id; state.view = 'staff'; load(); }
+	function staffLink(s) {
+		return h('button', { type: 'button', class: 'sb-link sb-p-stafflink', title: 'Ava ' + s.name + ' nädalavaade', onclick: function () { openStaff(s.id); } }, s.name);
+	}
+
+	/** Nimi on teada alles pärast andmete laadimist: uuenda vaatenupu silti. */
+	function frameChip() {
+		var chip = root.querySelector('.sb-p-views button[title]');
+		if (chip) chip.textContent = staffName() + ' ×';
+	}
+
 	function load() {
 		frame();
-		var start = state.view === 'week' ? monday(state.date) : state.date;
-		api('admin/day?date=' + start + '&days=' + (state.view === 'week' ? 7 : 1)).then(function (d) {
+		var start = state.view === 'day' ? state.date : monday(state.date);
+		api('admin/day?date=' + start + '&days=' + (state.view === 'day' ? 1 : 7)).then(function (d) {
 			state.data = d;
 			body.textContent = '';
 			if (!d.staff.length) {
 				body.appendChild(h('p', null, C.canManage ? 'Aktiivseid juuksuriõpilasi pole. Lisa need menüüs Juuksuriõpilased.' : 'Sinu kasutaja pole seotud ühegi juuksuriõpilasega. Palun pöördu administraatori poole.'));
 				return;
 			}
-			if (state.view === 'week') renderWeek(d); else renderDay(d, d.days[0]);
+			if (state.view === 'staff' && !d.staff.some(function (s) { return s.id === state.staff; })) state.view = 'week';
+			if (state.view === 'staff') { frameChip(); renderStaffWeek(d); }
+			else if (state.view === 'week') renderWeek(d);
+			else renderDay(d, d.days[0]);
 		}).catch(function (e) { body.textContent = ''; body.appendChild(h('div', { class: 'notice notice-error' }, h('p', null, e.message))); });
 	}
 
@@ -117,13 +137,14 @@
 		var rows = (hi - lo) / SLOT, height = rows * ROW;
 		body.appendChild(h('h2', { class: 'sb-p-title' }, day.label.charAt(0).toUpperCase() + day.label.slice(1)));
 		if (!day.opening.length) body.appendChild(h('p', { class: 'sb-p-closed' }, 'Salong on sel päeval suletud.'));
+		if (day.draft) body.appendChild(h('p', { class: 'sb-p-draft' }, 'Selle kuu töögraafik on salvestatud, aga klientidele veel avalikuks tegemata.'));
 
 		var grid = h('div', { class: 'sb-p-grid', style: 'grid-template-columns: 56px repeat(' + d.staff.length + ', minmax(150px, 1fr))' });
 		// päis
 		grid.appendChild(h('div', { class: 'sb-p-corner' }));
 		d.staff.forEach(function (s) {
 			var sub = [s.level_name, s.discount_pct ? '−' + s.discount_pct + '%' : '', s.extra_min ? '+' + s.extra_min + ' min' : ''].filter(Boolean).join(' · ');
-			grid.appendChild(h('div', { class: 'sb-p-head' }, s.name, sub ? h('span', { class: 'sb-p-head-sub' }, sub) : null));
+			grid.appendChild(h('div', { class: 'sb-p-head' }, staffLink(s), sub ? h('span', { class: 'sb-p-head-sub' }, sub) : null));
 		});
 		// kellaajad
 		var times = h('div', { class: 'sb-p-times', style: 'height:' + height + 'px' });
@@ -248,7 +269,7 @@
 		}))));
 		var tb = h('tbody');
 		d.staff.forEach(function (s) {
-			tb.appendChild(h('tr', null, h('th', { scope: 'row' }, s.name), d.days.map(function (day) {
+			tb.appendChild(h('tr', null, h('th', { scope: 'row' }, staffLink(s)), d.days.map(function (day) {
 				var work = day.work[s.id] || [];
 				var list = day.bookings.filter(function (b) { return b.staff_id === s.id; });
 				return h('td', { class: work.length && day.opening.length ? '' : 'is-off' },
@@ -260,6 +281,36 @@
 			})));
 		});
 		table.appendChild(tb);
+		body.appendChild(h('div', { class: 'sb-p-scroll' }, table));
+	}
+
+	/* ---------- ühe juuksuriõpilase nädal ---------- */
+
+	function renderStaffWeek(d) {
+		var s = d.staff.filter(function (x) { return x.id === state.staff; })[0];
+		var names = ['E', 'T', 'K', 'N', 'R', 'L', 'P'];
+		function dm(ds) { var dt = new Date(ds + 'T12:00:00'); return dt.getDate() + '.' + pad(dt.getMonth() + 1); }
+		var sub = [s.level_name, s.discount_pct ? '−' + s.discount_pct + '%' : '', s.extra_min ? '+' + s.extra_min + ' min' : ''].filter(Boolean).join(' · ');
+		body.appendChild(h('h2', { class: 'sb-p-title' }, s.name + ': nädal ' + dm(d.days[0].date) + '–' + dm(d.days[6].date) + '.' + d.days[6].date.slice(0, 4),
+			sub ? h('span', { class: 'sb-p-head-sub' }, sub) : null));
+		if (d.days.some(function (day) { return day.draft; })) body.appendChild(h('p', { class: 'sb-p-draft' }, 'Märkega "pole avalik" päevade töögraafik on salvestatud, aga klientidele veel avalikuks tegemata.'));
+		var table = h('table', { class: 'widefat sb-p-week sb-p-staffweek' });
+		table.appendChild(h('thead', null, h('tr', null, d.days.map(function (day, i) {
+			return h('th', { scope: 'col', class: day.date === C.today ? 'is-today' : '' },
+				h('button', { type: 'button', class: 'sb-link', title: 'Ava päevaplaan', onclick: function () { state.date = day.date; state.view = 'day'; load(); } }, names[i] + ' ' + dm(day.date)),
+				day.draft ? h('span', { class: 'sb-p-draft-tag' }, 'pole avalik') : null);
+		}))));
+		table.appendChild(h('tbody', null, h('tr', null, d.days.map(function (day) {
+			var work = day.work[s.id] || [];
+			var list = day.bookings.filter(function (b) { return b.staff_id === s.id; });
+			return h('td', { class: work.length ? '' : 'is-off' },
+				h('div', { class: 'sb-p-w-hours' }, work.length ? work.map(function (r) { return hm(r[0]) + '–' + hm(r[1]); }).join(', ') : 'vaba'),
+				list.map(function (b) {
+					return h('button', { type: 'button', class: 'sb-p-w-item is-' + b.status, onclick: function () { openBooking(b.id); } },
+						h('strong', null, b.time), h('br'), b.client, h('br'), h('small', null, b.service));
+				}),
+				work.length && !list.length ? h('div', { class: 'sb-p-w-none' }, 'broneeringuid pole') : null);
+		}))));
 		body.appendChild(h('div', { class: 'sb-p-scroll' }, table));
 	}
 

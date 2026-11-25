@@ -1,6 +1,6 @@
 # Sasipea Broneering
 
-Sasipea Akadeemia online-broneerimine ja päevaplaan WordPressi pluginana. Versioon 0.14.5 (1. etapp + kuu töögraafik, tasemed, tasude arvestus, veebipoe ladu, käibemaksu aruanne, oma töölaud /salong/ sidumine modellide andmebaasiga ja kassa).
+Sasipea Akadeemia online-broneerimine ja päevaplaan WordPressi pluginana. Versioon 0.15.0 (1. etapp + kuu töögraafik, tasemed, tasude arvestus, veebipoe ladu, käibemaksu aruanne, oma töölaud /salong/ sidumine modellide andmebaasiga ja kassa).
 
 **NB! Paigalda esmalt staging-keskkonda, mitte päris lehele.**
 
@@ -83,6 +83,8 @@ Kassa on juhendajale ja omanikule (õigus `sb_manage_bookings`), töölaual men�
 - Alates 0.14.3 saab töögraafikus panna tunde ka päevale, mil salong on lahtiolekuaegade järgi suletud (hall veerg), ja tavalisel päeval lahtiolekuajast varasemaks või hilisemaks. Töögraafikus eraldi märgitud tunnid liidetakse selle päeva lahtiolekuajale, nii et need ajad on näha päevaplaanis ja kliendid saavad neid broneerida. Suletud päeval nädalapõhi ei kehti ja "kõik päevad" linnuke suletud päevi ei märgi.
 - Alates 0.14.4 loetakse kellaaegu ka kujul "12.00 - 19.00" (punkt, tühikud kriipsu ümber) ja "12-19"; varem salvestus selline lahtiolekuaeg tühjana. Kui kellaajast aru ei saada, jääb senine lahtiolekuaeg alles ja kuvatakse veateade.
 - Alates 0.14.5 kellaaegu ei kirjutata, vaid valitakse: lahtiolekuaegades, juuksuriõpilase nädalapõhjas ja erandites on algus ja lõpp valikuna, töögraafiku lahtris avab kellaajal klõps väikese valikuakna. Pausiga päeva (10:00-13:00, 13:30-16:00) saab endiselt käsitsi kirjutada ("kirjuta käsitsi"). Valiku samm on 30 minutit, lühema broneerimise ajasammu korral 15 minutit.
+- Alates 0.15.0 on töögraafiku salvestamine ja avalikuks tegemine eraldi: graafiku võib salvestada pikalt ette, klientidele läheb avalikuks ainult kuu, millel on linnuke "Avalik klientidele" (linnukese saab ka maha võtta). Salvestatud, aga avalikustamata kuu on salongi töötajatele päevaplaanis näha märkega "pole avalik". Varem salvestatud kuud jäävad avalikuks.
+- Alates 0.15.0 avab päevaplaanis juuksuriõpilase nimel klõps tema nädalavaate (tööaeg ja broneeringud päevade kaupa); nooltega saab liikuda nädalate kaupa, kuupäeval klõps viib päevaplaani.
 
 ## Päris cron jagatud majutusel
 
