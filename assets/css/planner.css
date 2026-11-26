@@ -165,20 +165,3 @@
 
 .sb-p-notify label { display: inline-flex; align-items: center; gap: 8px; font-weight: 500; cursor: pointer; }
 .sb-p-notify input { width: 18px; height: 18px; margin: 0; }
-
-/* Värvid broneeringu juures */
-.sb-p-colors { margin-bottom: 4px; }
-.sb-p-colors #sb-color-q { flex: 1 1 220px; }
-.sb-p-color-results { margin: 6px 0 0; }
-.sb-p-color-results li { margin: 0 0 4px; }
-.sb-p-color-hit { display: flex; justify-content: space-between; gap: 10px; width: 100%; padding: 7px 10px; border: 1px solid #c3c4c7; border-radius: 6px; background: #fff; text-align: left; font: inherit; cursor: pointer; }
-.sb-p-color-hit:hover, .sb-p-color-hit:focus { border-color: #8a2b52; background: #f6e9ef; }
-.sb-p-color-hit small { white-space: nowrap; color: #50575e; }
-.sb-p-formula { margin: 0 0 8px; padding: 6px 10px; border-radius: 6px; background: #f6e9ef; }
-.sb-p-warn { color: #8a1f1b; font-weight: 600; }
-.sb-p-ox { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; padding: 8px 10px; border-radius: 6px; background: #f3f4f6; }
-.sb-p-ox[hidden] { display: none; }
-.sb-p-ox label { font-weight: 600; }
-.sb-p-ox select { flex: 1 1 170px; max-width: 260px; }
-.sb-p-ratio { display: inline-flex; gap: 4px; }
-.sb-p-ratio .button { min-width: 0; padding: 0 9px; }

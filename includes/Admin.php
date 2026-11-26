@@ -61,8 +61,10 @@ final class Admin {
 	}
 
 	public static function enqueue_planner( bool $in_admin = true ): void {
-		wp_enqueue_style( 'sb-planner', SB_URL . 'assets/css/planner.css', array(), SB_VERSION );
-		wp_enqueue_script( 'sb-planner', SB_URL . 'assets/js/planner.js', array(), SB_VERSION, true );
+		wp_enqueue_style( 'sb-colors', SB_URL . 'assets/css/colors.css', array(), SB_VERSION );
+		wp_enqueue_style( 'sb-planner', SB_URL . 'assets/css/planner.css', array( 'sb-colors' ), SB_VERSION );
+		wp_enqueue_script( 'sb-colors', SB_URL . 'assets/js/colors.js', array(), SB_VERSION, true );
+		wp_enqueue_script( 'sb-planner', SB_URL . 'assets/js/planner.js', array( 'sb-colors' ), SB_VERSION, true );
 		wp_localize_script(
 			'sb-planner',
 			'SB_PLANNER',

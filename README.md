@@ -1,6 +1,6 @@
 # Sasipea Broneering
 
-Sasipea Akadeemia online-broneerimine ja päevaplaan WordPressi pluginana. Versioon 0.17.0 (1. etapp + kuu töögraafik, tasemed, tasude arvestus, veebipoe ladu, käibemaksu aruanne, oma töölaud /salong/ sidumine modellide andmebaasiga ja kassa).
+Sasipea Akadeemia online-broneerimine ja päevaplaan WordPressi pluginana. Versioon 0.17.1 (1. etapp + kuu töögraafik, tasemed, tasude arvestus, veebipoe ladu, käibemaksu aruanne, oma töölaud /salong/ sidumine modellide andmebaasiga ja kassa).
 
 **NB! Paigalda esmalt staging-keskkonda, mitte päris lehele.**
 
@@ -90,6 +90,7 @@ Kassa on juhendajale ja omanikule (õigus `sb_manage_bookings`), töölaual men�
 - Alates 0.16.1 saadetakse vähem e-kirju. Salongi teavituskiri läheb ainult siis, kui klient ise broneerib, muudab või tühistab (töötaja enda tehtud muudatuste kohta salongile kirja ei tule). Töötaja tehtud muudatuse korral saab klient kirja ainult uue broneeringu, algusaja muutumise või tühistamise kohta, ainult tulevase aja puhul ja ainult siis, kui broneeringu aknas on linnuke "teavita klienti" sees. Staatus, arve, teine juuksuriõpilane, teenus ja kommentaar kirja ei saada.
 - Alates 0.16.2 läheb töötaja tehtud aja muutmise kiri kliendile 10 minuti pärast: kui vahepeal aega veel parandatakse, saab klient ühe kirja lõpliku ajaga, ja kui aeg pannakse tagasi algsele, ei lähe kirja üldse. Kiri saadetakse WordPressi ajastatud tööga (WP-Cron), nii et vähese külastusega lehel võib see paar minutit hilineda.
 - Alates 0.17.0 on olemas värviladu (Broneeringud → Värviladu, töölaual "Värviladu"). Salongi värvid, pulbrid ja vesinikud on seal grammides: laoseis on liikumiste summa (lattu võtmine, kulu broneeringule, inventuuri parandus). Värvid lisatakse poe tootenimekirjast (üks otsinguga või kõik korraga nime järgi, nt "Fuente"); kood, pakendi suurus ja vaikimisi segusuhe võetakse toote nimest ja neid saab parandada. Pakendi lattu võtmisel saab linnukesega kanda selle ka veebipoe laost maha: poodi tehakse 0 € tellimus märkega "Akadeemia sisekasutus" (vajab kirjutamisõigusega API-võtit); tagasivõtmine tühistab tellimuse. Päevaplaanis on broneeringu aknas osa "Värvid ja vesinik": värv otsitakse nime või koodi järgi (nt "cream 7.1"), lisatakse grammid, vesiniku grammid arvutatakse värvi segusuhte järgi (1:1, 1:1,5, 1:2) ja neid saab selle kliendi juures muuta. Kulu on näha kliendikaardil ja järgmisel korral broneeringu aknas ("Eelmine kord"). Kulunud värv lisatakse kliendi arvele materjali grammihinnaga (valik värvilaos; oksüdant vaikimisi arvele ei lähe, pulber läheb pulbri hinnaga). Andmebaasi versioon 15 lisab tabelid `sb_colors` ja `sb_color_moves`.
+- Alates 0.17.1 saab värve ja vesinikku lisada ka kassas arve lehel (sama otsing ja segusuhe mis broneeringu aknas; ainult broneeringuga arvel, sest kulu läheb kliendikaardile). Värvikast on eraldi failides `assets/js/colors.js` ja `assets/css/colors.css`.
 
 ## Päris cron jagatud majutusel
 

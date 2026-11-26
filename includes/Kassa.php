@@ -250,6 +250,9 @@ final class Kassa {
 			.sb-kassa .sb-k-methods{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 14px}
 			.sb-kassa .sb-k-methods label{flex:1 1 90px;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border:1px solid #c3c4c7;border-radius:8px;background:#fff;font-weight:600;cursor:pointer}
 			.sb-kassa .sb-k-methods label:has(input:checked){border-color:#8a2b52;background:#f6e9ef}
+			.sb-kassa .sb-k-colors{margin:14px 0 4px;padding-top:6px;border-top:1px solid #e3e3e6}
+			.sb-kassa .sb-k-colors h3{margin:10px 0 8px}
+			.sb-kassa .sb-k-colors input[type=search]{min-height:36px}
 			.sb-kassa .sb-k-add{display:flex;flex-wrap:wrap;gap:8px;align-items:end;margin:10px 0}
 			.sb-kassa .sb-k-add label{display:flex;flex-direction:column;gap:3px;font-size:13px}
 			.sb-kassa .sb-k-shop{flex:1 1 260px;position:relative}
@@ -422,6 +425,12 @@ final class Kassa {
 		}
 		echo '</tbody></table>';
 
+		if ( $open && $b ) {
+			// Värvid ja vesinik: sama otsing ja segusuhe mis päevaplaani broneeringu aknas. Kulu läheb värvilaost maha ja arvele.
+			echo '<link rel="stylesheet" href="' . esc_url( SB_URL . 'assets/css/colors.css?ver=' . SB_VERSION ) . '">'; // phpcs:ignore WordPress.WP.EnqueuedResources -- leht töötab ka töölaual ilma wp_head-ita.
+			echo '<div id="sb-k-colors" class="sb-k-colors sb-noprint" data-rest="' . esc_url( rest_url( 'sasipea/v1/' ) ) . '" data-nonce="' . esc_attr( wp_create_nonce( 'wp_rest' ) ) . '" data-booking="' . (int) $b['id'] . '" data-colors-url="' . esc_url( Admin::url( 'sb-colors' ) ) . '"><em>' . esc_html__( 'Laen värve…', 'sasipea-broneering' ) . '</em></div>';
+			echo '<script src="' . esc_url( SB_URL . 'assets/js/colors.js?ver=' . SB_VERSION ) . '"></script>'; // phpcs:ignore WordPress.WP.EnqueuedResources
+		}
 		if ( $open ) {
 			echo '<h3>' . esc_html__( 'Lisa materjal või toode', 'sasipea-broneering' ) . '</h3>';
 			self::form_open( 'add', 'sb-k-add' );
